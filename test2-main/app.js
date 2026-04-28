@@ -1,6 +1,8 @@
 let stores = [];
 let likedStores = [];
-const token = localStorage.getItem("token");
+function getToken() {
+  return localStorage.getItem("token");
+}
 
 const priceMap = {
   1: "NT$100~200",
@@ -497,6 +499,8 @@ async function askGPT() {
 }
 
 async function loadFavorites() {
+  const token = getToken();
+
   if (!token) {
     likedStores = JSON.parse(localStorage.getItem("likedStores")) || [];
     return;
@@ -505,16 +509,19 @@ async function loadFavorites() {
   try {
     const res = await fetch("/api/favorites", {
       headers: {
-        Authorization: `Bearer ${token}`
-      }
+        Authorization: `Bearer ${token}`,
+      },
     });
 
     const payload = await res.json();
 
-    if (payload.ok) {
-      likedStores = payload.data || [];
+    if (!res.ok || !payload.ok) {
+      throw new Error(payload.error || "載入收藏失敗");
     }
+
+    likedStores = payload.data || [];
   } catch (err) {
     console.error("載入收藏失敗：", err);
+    likedStores = [];
   }
 }
