@@ -501,8 +501,10 @@ async function askGPT() {
 async function loadFavorites() {
   const token = getToken();
 
+  // 沒登入：不要顯示任何收藏
   if (!token) {
-    likedStores = JSON.parse(localStorage.getItem("likedStores")) || [];
+    likedStores = [];
+    localStorage.removeItem("likedStores"); // 清掉以前舊資料
     return;
   }
 
