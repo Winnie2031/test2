@@ -1,5 +1,6 @@
 let stores = [];
-let likedStores = JSON.parse(localStorage.getItem("likedStores")) || [];
+let likedStores = [];
+const token = localStorage.getItem("token");
 
 const priceMap = {
   1: "NT$100~200",
@@ -286,17 +287,41 @@ function render() {
         ${distBadge}
       `;
 
-      card.querySelector(".heart").onclick = (e) => {
+      card.querySelector(".heart").onclick = async (e) => {
         e.stopPropagation();
 
-        if (likedStores.includes(store.id)) {
-          likedStores = likedStores.filter((id) => id !== store.id);
-        } else {
-          likedStores.push(store.id);
+        if (!token) {
+          alert("請先登入才能收藏");
+          location.href = "login.html";
+          return;
         }
 
-        localStorage.setItem("likedStores", JSON.stringify(likedStores));
-        render();
+        try {
+         if (likedStores.includes(store.id)) {
+            await fetch(`/api/favorites/${store.id}`, {
+              method: "DELETE",
+              headers: {
+               Authorization: `Bearer ${token}`
+              }
+           });
+
+            likedStores = likedStores.filter((id) => id !== store.id);
+         } else {
+            await fetch(`/api/favorites/${store.id}`, {
+             method: "POST",
+             headers: {
+               Authorization: `Bearer ${token}`
+              }
+            });
+
+           likedStores.push(store.id);
+          }
+
+         render();
+        } catch (err) {
+          console.error("收藏失敗：", err);
+          alert("收藏失敗，請稍後再試");
+       }
       };
 
       container.appendChild(card);
@@ -331,8 +356,13 @@ async function loadStores() {
 
 document.getElementById("search")?.addEventListener("input", render);
 
-loadStores();
-getUserLocation();
+async function init() {
+  await loadFavorites();
+  await loadStores();
+  getUserLocation();
+}
+
+init();
 
 // 每 1 分鐘重新判斷一次營業狀態
 setInterval(render, 60000);
@@ -464,4 +494,27 @@ async function askGPT() {
 
   result.innerText =
     data.reply || data.error || JSON.stringify(data, null, 2);
+}
+
+async function loadFavorites() {
+  if (!token) {
+    likedStores = JSON.parse(localStorage.getItem("likedStores")) || [];
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/favorites", {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    const payload = await res.json();
+
+    if (payload.ok) {
+      likedStores = payload.data || [];
+    }
+  } catch (err) {
+    console.error("載入收藏失敗：", err);
+  }
 }

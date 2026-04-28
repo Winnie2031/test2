@@ -545,5 +545,79 @@ app.post("/api/auth/login", async (req, res) => {
     res.status(500).json({ ok: false, error: "登入失敗" });
   }
 });
+
+function authMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).json({ ok: false, error: "尚未登入" });
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ ok: false, error: "登入已過期，請重新登入" });
+  }
+}
+
+// 取得我的收藏
+app.get("/api/favorites", authMiddleware, async (req, res) => {
+  try {
+    const result = await pg.query(
+      "SELECT restaurant_id FROM user_favorites WHERE user_id = $1",
+      [req.user.userId]
+    );
+
+    res.json({
+      ok: true,
+      data: result.rows.map(row => row.restaurant_id)
+    });
+  } catch (err) {
+    console.error("GET /api/favorites error:", err);
+    res.status(500).json({ ok: false, error: "取得收藏失敗" });
+  }
+});
+
+// 加入收藏
+app.post("/api/favorites/:restaurantId", authMiddleware, async (req, res) => {
+  try {
+    const restaurantId = Number(req.params.restaurantId);
+
+    await pg.query(
+      `
+      INSERT INTO user_favorites (user_id, restaurant_id)
+      VALUES ($1, $2)
+      ON CONFLICT (user_id, restaurant_id) DO NOTHING
+      `,
+      [req.user.userId, restaurantId]
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("POST /api/favorites error:", err);
+    res.status(500).json({ ok: false, error: "加入收藏失敗" });
+  }
+});
+
+// 取消收藏
+app.delete("/api/favorites/:restaurantId", authMiddleware, async (req, res) => {
+  try {
+    const restaurantId = Number(req.params.restaurantId);
+
+    await pg.query(
+      "DELETE FROM user_favorites WHERE user_id = $1 AND restaurant_id = $2",
+      [req.user.userId, restaurantId]
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("DELETE /api/favorites error:", err);
+    res.status(500).json({ ok: false, error: "取消收藏失敗" });
+  }
+});
  
 start();
