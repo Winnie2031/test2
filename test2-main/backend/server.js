@@ -463,31 +463,50 @@ async function start() {
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-const JWT_SECRET = "your_secret_key"; // 之後可以放 .env
+const JWT_SECRET = process.env.JWT_SECRET || "dev_secret_key";
 
-// 註冊
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    const hash = await bcrypt.hash(password, 10);
+    if (!username || !password) {
+      return res.json({ ok: false, error: "請輸入帳號和密碼" });
+    }
 
-    const result = await pg.query(
-      "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id",
-      [username, hash]
+    if (password.length < 4) {
+      return res.json({ ok: false, error: "密碼至少需要 4 個字" });
+    }
+
+    const exists = await pg.query(
+      "SELECT id FROM users WHERE username = $1",
+      [username]
     );
 
-    res.json({ ok: true });
+    if (exists.rows.length > 0) {
+      return res.json({ ok: false, error: "這個帳號已經被註冊" });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    await pg.query(
+      "INSERT INTO users (username, password_hash) VALUES ($1, $2)",
+      [username, passwordHash]
+    );
+
+    res.json({ ok: true, message: "註冊成功" });
   } catch (err) {
-    console.error(err);
-    res.json({ ok: false, error: "帳號已存在或錯誤" });
+    console.error("register error:", err);
+    res.status(500).json({ ok: false, error: "註冊失敗" });
   }
 });
 
-// 登入
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.json({ ok: false, error: "請輸入帳號和密碼" });
+    }
 
     const result = await pg.query(
       "SELECT * FROM users WHERE username = $1",
@@ -495,7 +514,7 @@ app.post("/api/auth/login", async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.json({ ok: false, error: "帳號不存在" });
+      return res.json({ ok: false, error: "帳號不存在，請先註冊" });
     }
 
     const user = result.rows[0];
@@ -506,12 +525,24 @@ app.post("/api/auth/login", async (req, res) => {
       return res.json({ ok: false, error: "密碼錯誤" });
     }
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET);
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        username: user.username,
+      },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
-    res.json({ ok: true, token });
+    res.json({
+      ok: true,
+      message: "登入成功",
+      token,
+      username: user.username,
+    });
   } catch (err) {
-    console.error(err);
-    res.json({ ok: false, error: "登入失敗" });
+    console.error("login error:", err);
+    res.status(500).json({ ok: false, error: "登入失敗" });
   }
 });
  

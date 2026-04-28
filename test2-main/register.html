@@ -2,10 +2,10 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>登入 - 食在中原</title>
+  <title>註冊 - 食在中原</title>
 </head>
 <body>
-  <h2>登入</h2>
+  <h2>註冊帳號</h2>
 
   <input id="username" placeholder="帳號">
   <br><br>
@@ -13,19 +13,19 @@
   <input id="password" type="password" placeholder="密碼">
   <br><br>
 
-  <button onclick="login()">登入</button>
+  <button onclick="register()">註冊</button>
 
   <p>
-    還沒有帳號？
-    <a href="register.html">先註冊</a>
+    已經有帳號？
+    <a href="login.html">去登入</a>
   </p>
 
   <script>
-    async function login() {
+    async function register() {
       const username = document.getElementById("username").value.trim();
       const password = document.getElementById("password").value.trim();
 
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -36,10 +36,8 @@
       const data = await res.json();
 
       if (data.ok) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("username", data.username);
-        alert("登入成功");
-        location.href = "index.html";
+        alert("註冊成功，請登入");
+        location.href = "login.html";
       } else {
         alert(data.error);
       }
