@@ -191,29 +191,36 @@ function render() {
       );
     })
     .sort((a, b) => {
+      // ❤️ 1. 愛心優先
       const aLiked = likedStores.includes(a.id) ? 1 : 0;
       const bLiked = likedStores.includes(b.id) ? 1 : 0;
       if (bLiked !== aLiked) return bLiked - aLiked;
 
+      // 🟢 2. 營業狀態排序（營業中 > 休息 > 未知）
+      function openScore(s) {
+        if (s === true) return 2;   // 營業中
+        if (s === false) return 1;  // 休息中
+        return 0;                   // 未知
+      }
+
+      const aOpen = isOpenNow(a.opening_hours_json);
+      const bOpen = isOpenNow(b.opening_hours_json);
+
+      const aScore = openScore(aOpen);
+      const bScore = openScore(bOpen);
+
+      if (bScore !== aScore) return bScore - aScore;
+
+      // 📏 3. 距離（越近越前）
       if (userPos) {
         const aDist =
           a.lat && a.lng
-            ? distanceMeters(
-                userPos.lat,
-                userPos.lng,
-                Number(a.lat),
-                Number(a.lng)
-              )
+            ? distanceMeters(userPos.lat, userPos.lng, Number(a.lat), Number(a.lng))
             : Infinity;
 
         const bDist =
           b.lat && b.lng
-            ? distanceMeters(
-                userPos.lat,
-                userPos.lng,
-                Number(b.lat),
-                Number(b.lng)
-              )
+            ? distanceMeters(userPos.lat, userPos.lng, Number(b.lat), Number(b.lng))
             : Infinity;
 
         return aDist - bDist;
