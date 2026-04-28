@@ -124,20 +124,20 @@ app.post("/api/gpt/recommend", async (req, res) => {
     const response = await openai.responses.create({
       model: "gpt-4.1-mini", // ✅ 穩定版本
       input: `
-你是餐廳推薦系統。
+      你是餐廳推薦系統。
 
-規則：
-1. 只能從資料選
-2. 不可以亂編
-3. 用繁體中文
+      規則：
+      1. 只能從資料選
+      2. 不可以亂編
+      3. 用繁體中文
 
-使用者需求：
-${message}
+      使用者需求：
+      ${message}
 
-餐廳資料：
-${JSON.stringify(restaurants)}
+      餐廳資料：
+      ${JSON.stringify(restaurants)}
 
-請推薦3間餐廳：
+      請推薦3間餐廳：
 `
     });
 
@@ -459,5 +459,60 @@ async function start() {
     console.log(`✅ AI chat (Gemini): POST /api/chat`);
   });
 }
+
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+
+const JWT_SECRET = "your_secret_key"; // 之後可以放 .env
+
+// 註冊
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    const hash = await bcrypt.hash(password, 10);
+
+    const result = await pg.query(
+      "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id",
+      [username, hash]
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: "帳號已存在或錯誤" });
+  }
+});
+
+// 登入
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    const result = await pg.query(
+      "SELECT * FROM users WHERE username = $1",
+      [username]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({ ok: false, error: "帳號不存在" });
+    }
+
+    const user = result.rows[0];
+
+    const match = await bcrypt.compare(password, user.password_hash);
+
+    if (!match) {
+      return res.json({ ok: false, error: "密碼錯誤" });
+    }
+
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET);
+
+    res.json({ ok: true, token });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: false, error: "登入失敗" });
+  }
+});
  
 start();
