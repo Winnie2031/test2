@@ -370,6 +370,7 @@ app.get("/api/restaurants", async (req, res) => {
         r.user_ratings_total,
         r.price_level,
         r.opening_now,
+        r.opening_hours_json,
         r.business_status,
         r.phone,
         r.website,
