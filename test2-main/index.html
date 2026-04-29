@@ -13,30 +13,6 @@
       background-color: #f9f9f9;
     }
 
-    .login-icon {
-      position: fixed;
-      top: 24px;
-      right: 28px;
-      width: 46px;
-      height: 46px;
-      border-radius: 50%;
-      background: #fff;
-      color: #8b6f6f;
-      border: 2px solid #d6caca;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 26px;
-      cursor: pointer;
-      z-index: 9999;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.12);
-      transition: transform 0.15s ease;
-    }
-
-    .login-icon:hover {
-      transform: scale(1.05);
-    }
-
     h1 {
       font-size: 3rem;
       color: #ff5722;
@@ -70,7 +46,7 @@
     }
 
     .card {
-      position: relative;
+      position: relative; /* ✅ badge 會用到 */
       background: #fff;
       border-radius: 16px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.08);
@@ -91,7 +67,7 @@
 
     .card-info {
       padding: 10px;
-      padding-bottom: 42px;
+      padding-bottom: 42px; /* ✅ 留出左下角 badge 空間 */
       text-align: left;
     }
 
@@ -115,6 +91,7 @@
       z-index: 5;
     }
 
+    /* ✅ 距離 badge：左下角 */
     .distance-badge {
       position: absolute;
       left: 12px;
@@ -127,10 +104,34 @@
       color: #333;
       z-index: 9;
       user-select: none;
-      pointer-events: none;
+      pointer-events: none; /* ✅ 不擋卡片點擊 */
       backdrop-filter: blur(6px);
     }
 
+    .category-container {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin: 15px 0;
+      flex-wrap: wrap; /* 手機版會自動換行 */
+    }
+
+    .category-placeholder {
+      width: 80px;
+      height: 34px;
+      background-color: rgba(255, 87, 34, 0.05); /* 極淡的橘色背景 */
+      border: 1px dashed #ff5722; /* 橘色虛線邊框 */
+      border-radius: 20px;
+      animation: pulse-placeholder 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse-placeholder {
+      0% { opacity: 0.4; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(1.02); }
+      100% { opacity: 0.4; transform: scale(1); }
+    }
+
+    /* AI 按鈕 */
     #aiBtn {
       position: fixed;
       bottom: 20px;
@@ -168,7 +169,7 @@
       border-radius: 8px;
       padding: 8px;
       margin-bottom: 6px;
-      box-sizing: border-box;
+      z-index: 999;
     }
 
     #aiChat button {
@@ -178,20 +179,19 @@
       color: #fff;
       border-radius: 6px;
       cursor: pointer;
+      z-index: 999;
     }
 
     #aiOutput {
       text-align: left;
       margin-top: 8px;
       font-size: 0.9rem;
+      z-index: 999;
     }
   </style>
 </head>
 
 <body>
-
-  <!-- 右上角登入圖示 -->
-  <div class="login-icon" id="loginIcon" title="登入">👤</div>
 
   <h1>食在中原</h1>
   <p class="subtitle">關於中原附近的美食餐廳</p>
@@ -202,50 +202,39 @@
     placeholder="搜尋餐廳名稱或地址..."
   />
 
+  <div class="category-container">
+    <div class="category-placeholder"></div>
+    <div class="category-placeholder"></div>
+    <div class="category-placeholder"></div>
+    <div class="category-placeholder"></div>
+    <div class="category-placeholder"></div>
+  </div>
+
   <div class="divider"></div>
 
+  <!-- 餐廳卡片會由 app.js 動態產生 -->
   <div id="cards" class="card-container"></div>
-
+  
   <div class="ai-box">
     <h3>🤖 GPT 推薦餐廳</h3>
+
     <input id="gptInput" placeholder="例如：便宜、近、現在有開的店">
+
     <button onclick="askGPT()">推薦</button>
+
     <div id="gptResult"></div>
   </div>
 
+  <!-- AI 懸浮按鈕 -->
   <button id="aiBtn">🤖</button>
 
   <div id="aiChat">
-    <textarea id="aiInput" placeholder="問我餐廳建議..."></textarea>
+    <textarea id="aiInput" placeholder="1問我餐廳建議..."></textarea>
     <button id="aiSend">送出</button>
     <div id="aiOutput"></div>
   </div>
 
   <script src="app.js"></script>
-
-  <script>
-    const loginIcon = document.getElementById("loginIcon");
-    const token = localStorage.getItem("token");
-
-    if (token) {
-      loginIcon.textContent = "✅";
-      loginIcon.title = "已登入，點擊可登出";
-
-      loginIcon.onclick = () => {
-        if (confirm("確定要登出嗎？")) {
-          localStorage.removeItem("token");
-          location.reload();
-        }
-      };
-    } else {
-      loginIcon.textContent = "👤";
-      loginIcon.title = "登入";
-
-      loginIcon.onclick = () => {
-        location.href = "login.html";
-      };
-    }
-  </script>
 
 </body>
 </html>
