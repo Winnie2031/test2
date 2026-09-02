@@ -1,0 +1,254 @@
+// backend/server.js
+
+// ✅ 在 Render 上通常不需要 dotenv（Render 用 Environment Variables）
+// ✅ 本機開發才需要讀 .env
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
+}
+
+const path = require("path");
+const express = require("express");
+const cors = require("cors");
+const axios = require("axios");
+const { Client } = require("pg");
+
+const app = express();
+
+// 讓前端可以呼叫 API（如果你之後用同一個 server serve 前端，其實不一定需要 cors）
+app.use(cors());
+app.use(express.json());
+
+// ✅ Health check（Render / 自己測試都很好用）
+app.get("/health", (req, res) => res.status(200).send("ok"));
+
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  console.error("Missing DATABASE_URL (set it in .env locally or Render Environment Variables)");
+  process.exit(1);
+}
+
+// ✅ Google Photo API 需要
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+if (!GOOGLE_MAPS_API_KEY) {
+  console.error("Missing GOOGLE_MAPS_API_KEY (set it in .env locally or Render Environment Variables)");
+  process.exit(1);
+}
+
+// 單一連線 MVP 版
+// const pg = new Client({ connectionString: DATABASE_URL });
+const pg = new Client({
+  connectionString: DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
+
+/**
+ * ✅ 讓後端也能 serve 你專案根目錄的靜態檔
+ * 你的結構是：
+ *   F00D/
+ *     index.html, detail.html, app.js
+ *     backend/server.js
+ * 所以靜態檔路徑是 backend 的上一層（..）
+ */
+const FRONTEND_DIR = path.join(__dirname, "..");
+app.use(express.static(FRONTEND_DIR));
+
+// 直接打 / 會回 index.html
+app.get("/", (req, res) => {
+  res.sendFile(path.join(FRONTEND_DIR, "index.html"));
+});
+
+/**
+ * ✅ 代理 Google Place Photo（不暴露 API KEY）
+ * 用法：
+ *   <img src="/api/photo/<photo_reference>?maxwidth=800">
+ * 或：
+ *   /api/photo/<photo_reference>?maxheight=800
+ *
+ * 備註：Google Photo API 通常會 302 redirect 到真正圖片網址，
+ * axios 會跟隨 redirect（maxRedirects）。
+ */
+app.get("/api/photo/:ref", async (req, res) => {
+  try {
+    const photoRef = req.params.ref;
+
+    // 允許前端指定尺寸；預設 maxwidth=800
+    const maxwidth = req.query.maxwidth ? parseInt(req.query.maxwidth, 10) : 800;
+    const maxheight = req.query.maxheight ? parseInt(req.query.maxheight, 10) : null;
+
+    // 基本防呆：限制尺寸避免有人亂打爆你
+    const safeMaxWidth = Number.isFinite(maxwidth) ? Math.min(Math.max(maxwidth, 100), 1600) : 800;
+    const safeMaxHeight =
+      maxheight && Number.isFinite(maxheight) ? Math.min(Math.max(maxheight, 100), 1600) : null;
+
+    const params = {
+      photo_reference: photoRef,
+      key: GOOGLE_MAPS_API_KEY,
+    };
+
+    // Google Photo API 規則：maxwidth / maxheight 至少要有一個
+    if (safeMaxHeight) params.maxheight = safeMaxHeight;
+    else params.maxwidth = safeMaxWidth;
+
+    const r = await axios.get("https://maps.googleapis.com/maps/api/place/photo", {
+      params,
+      responseType: "stream",
+      timeout: 15000,
+      maxRedirects: 5,
+      validateStatus: (s) => s >= 200 && s < 400, // 允許 302
+    });
+
+    // 轉發 content-type
+    if (r.headers["content-type"]) {
+      res.setHeader("Content-Type", r.headers["content-type"]);
+    }
+
+    // 簡單快取（可加速）
+    res.setHeader("Cache-Control", "public, max-age=86400");
+
+    r.data.pipe(res);
+  } catch (err) {
+    console.error("GET /api/photo/:ref error:", err?.response?.data || err.message);
+    res.status(502).json({ ok: false, error: "PHOTO_FETCH_FAILED" });
+  }
+});
+
+/**
+ * GET /api/restaurants
+ * Query params:
+ *  - q: 關鍵字（店名）
+ *  - open: true/false（只看現在營業）
+ *  - limit: 筆數（預設 30）
+ *  - sort: rating | reviews | price（預設 rating）
+ */
+app.get("/api/restaurants", async (req, res) => {
+  try {
+    const q = (req.query.q || "").trim();
+    const open = req.query.open === "true";
+    const limit = Math.min(parseInt(req.query.limit || "30", 10), 100);
+    const sort = req.query.sort || "rating";
+
+    const where = [];
+    const params = [];
+    let i = 1;
+
+    if (q) {
+      where.push(`r.name ILIKE $${i++}`);
+      params.push(`%${q}%`);
+    }
+
+    if (open) {
+      where.push(`r.opening_now = true`);
+    }
+
+    const orderBy =
+      sort === "reviews"
+        ? "r.user_ratings_total DESC NULLS LAST"
+        : sort === "price"
+        ? "r.price_level ASC NULLS LAST"
+        : "r.rating DESC NULLS LAST";
+
+    const sql = `
+      SELECT
+        r.id,
+        r.google_place_id,
+        r.name,
+        r.address,
+        r.lat,
+        r.lng,
+        r.rating,
+        r.user_ratings_total,
+        r.price_level,
+        r.opening_now,
+        r.business_status,
+        r.phone,
+        r.website,
+        r.google_maps_url,
+        r.delivery,
+        r.dine_in,
+        r.takeout,
+        r.reservable,
+        r.wheelchair_accessible_entrance,
+        r.details_fetched_at,
+        (
+          SELECT p.photo_reference
+          FROM restaurant_photos p
+          WHERE p.restaurant_id = r.id
+          ORDER BY p.id ASC
+          LIMIT 1
+        ) AS photo_reference
+      FROM restaurants r
+      ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+      ORDER BY ${orderBy}
+      LIMIT $${i++}
+    `;
+    params.push(limit);
+
+    const result = await pg.query(sql, params);
+    res.json({ ok: true, data: result.rows });
+  } catch (err) {
+    console.error("GET /api/restaurants error:", err);
+    res.status(500).json({ ok: false, error: "SERVER_ERROR" });
+  }
+});
+
+// 取得單一餐廳（含多張照片）
+app.get("/api/restaurants/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const r = await pg.query(
+      `SELECT r.*
+       FROM restaurants r
+       WHERE r.id = $1`,
+      [id]
+    );
+
+    if (r.rows.length === 0) {
+      return res.json({ ok: false, error: "NOT_FOUND" });
+    }
+
+    const store = r.rows[0];
+
+    // ✅ 抓該餐廳的多張照片 references
+    const p = await pg.query(
+      `SELECT photo_reference, width, height
+       FROM restaurant_photos
+       WHERE restaurant_id = $1
+       ORDER BY id ASC
+       LIMIT 10`,
+      [id]
+    );
+
+    store.photos = p.rows;
+
+    res.json({ ok: true, data: store });
+  } catch (err) {
+    console.error("GET /api/restaurants/:id error:", err);
+    res.status(500).json({ ok: false, error: "SERVER_ERROR" });
+  }
+});
+
+// ✅ Render 必須吃它給的 PORT；本機才用預設
+const PORT = process.env.PORT || 3000;
+
+async function start() {
+  try {
+    await pg.connect();
+    console.log("✅ Connected to PostgreSQL");
+  } catch (e) {
+    console.error("❌ Failed to connect PostgreSQL. Check DATABASE_URL:", e.message);
+    process.exit(1);
+  }
+
+  // ✅ 監聽所有介面（雲端環境必備）
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`✅ Server listening on port ${PORT}`);
+    console.log(`✅ Health:         /health`);
+    console.log(`✅ Restaurants:    /api/restaurants`);
+    console.log(`✅ Photo proxy:    /api/photo/<photo_reference>?maxwidth=800`);
+  });
+}
+
+start();

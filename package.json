@@ -1,0 +1,29 @@
+{
+  "name": "test2",
+  "version": "1.0.0",
+  "description": "test2\r test aaa",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/F00000D/test2.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/F00000D/test2/issues"
+  },
+  "homepage": "https://github.com/F00000D/test2#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.4",
+    "express": "^5.2.1",
+    "openai": "^6.25.0",
+    "pg": "^8.18.0"
+  }
+}

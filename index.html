@@ -1,0 +1,3061 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>食在中原</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      text-align: center;
+      background-color: #f9f9f9;
+    }
+
+    .login-icon {
+      position: fixed;
+      top: 24px;
+      right: 28px;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: #fff;
+      color: #8b6f6f;
+      border: 2px solid #d6caca;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      cursor: pointer;
+      z-index: 9999;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+      transition: transform 0.15s ease;
+    }
+
+    .login-icon:hover {
+      transform: scale(1.05);
+    }
+
+    #helpIcon {
+      position: fixed;
+      top: 24px;
+      left: 28px;                  /* 左右對稱關鍵：固定在左邊 28px */
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: #fff;
+      color: #8b6f6f;
+      border: 2px solid #d6caca;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 9999;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+      transition: transform 0.15s ease;
+      outline: none;               /* 移除按鈕預設的外框 */
+    }
+
+    #helpIcon:hover {
+      transform: scale(1.05);
+    }
+
+    h1 {
+      font-size: 3rem;
+      color: #ff5722;
+      margin-bottom: -10px;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 20px;
+    }
+
+    .search-input {
+      width: 300px;
+      padding: 12px 20px;
+      border-radius: 50px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+    }
+
+    .search-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .random-btn {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      border: 2px solid #ff5722;
+      background-color: white;
+      font-size: 24px;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.2s ease;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+      padding: 0;
+    }
+
+    .random-btn:hover {
+      background-color: #ff5722;
+      transform: rotate(20deg) scale(1.1);
+    }
+
+    .divider {
+      height: 4px;
+      background: #eee;
+      margin: 20px 0;
+    }
+
+    .card-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+      padding: 16px;
+    }
+
+    .card {
+      position: relative;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+      cursor: pointer;
+      overflow: hidden;
+      transition: transform 0.15s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+    }
+
+    .card img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+    }
+
+    .card-info {
+      padding: 10px;
+      padding-bottom: 42px;
+      text-align: center; /* 1. 將靠左改為靠中 */
+      display: flex; /* 2. 開啟 Flex 佈局 */
+      flex-direction: column; /* 讓內容垂直排列 */
+      align-items: center; /* 3. 強制子元素（文字、圖示）水平置中 */
+    }
+
+    .card-info h3 {
+      margin: 6px 0;
+      font-size: 1.1rem;
+      width: 100%; /* 確保標題充滿寬度並置中 */
+    }
+
+    .card-info p {
+      margin: 4px 0;
+      font-size: 0.9rem;
+      color: #555;
+      display: flex;
+      align-items: center;
+      justify-content: center; /* 讓帶有 Emoji 圖示與文字的段落完美對齊置中 */
+      gap: 4px; /* 圖示與文字間距 */
+    }
+
+    .heart {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 5;
+    }
+
+    .note-icon {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      font-size: 1.2rem;
+      z-index: 10;
+      transition: transform 0.2s ease;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    }
+
+    .note-icon:hover {
+      transform: scale(1.1);
+      background: #fff;
+    }
+
+    .price-container {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin: 10px 0 20px;
+      flex-wrap: wrap;
+    }
+
+    .price-btn {
+      padding: 8px 16px;
+      border-radius: 20px;
+      border: 1px solid #4caf50;
+      background: white;
+      color: #4caf50;
+      cursor: pointer;
+    }
+
+    .price-btn:hover,
+    .price-btn.active {
+      background: #4caf50;
+      color: white;
+    }
+
+    .distance-badge {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      color: #333;
+      z-index: 9;
+      user-select: none;
+      pointer-events: none;
+      backdrop-filter: blur(6px);
+    }
+
+    .category-container {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin: 15px 0;
+      flex-wrap: wrap;
+    }
+
+    .category-btn {
+      padding: 8px 16px;
+      border-radius: 20px;
+      border: 1px solid #ff5722;
+      background-color: white;
+      color: #ff5722;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .hidden-tag{
+    display:none;
+}
+
+.hidden-tag.show{
+    display:inline-flex;
+}
+
+    .category-btn:hover , .category-btn.active {
+      background-color: #ff5722;
+      color: white;
+    }
+
+    /* AI 按鈕 */
+    #aiBtn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #ff5722;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      font-size: 28px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      z-index: 999;
+    }
+
+    #aiChat {
+      position: fixed;
+      bottom: 90px;
+      right: 20px;
+      width: 300px;
+      max-height: 400px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      padding: 10px;
+      overflow-y: auto;
+      display: none;
+      z-index: 999;
+    }
+
+    #aiChat textarea {
+      width: 100%;
+      height: 60px;
+      border-radius: 8px;
+      padding: 8px;
+      margin-bottom: 6px;
+      z-index: 999;
+    }
+
+    #aiChat button {
+      padding: 6px 12px;
+      border: none;
+      background-color: #ff5722;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      z-index: 999;
+    }
+
+    #aiOutput {
+      text-align: left;
+      margin-top: 8px;
+      font-size: 0.9rem;
+      z-index: 999;
+    }
+
+    /* --- 浮動視窗遮罩層 --- */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      backdrop-filter: blur(3px);
+    }
+
+    .modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 500px;
+      position: relative;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      animation: fadeIn 0.3s ease;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      font-size: 28px;
+      color: #999;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .close-btn:hover {
+      color: #333;
+    }
+
+    @keyframes fadeIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    /* --- 登入容器 --- */
+    .login-container {
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      width: 100%;
+      max-width: 350px;
+      text-align: center;
+      position: relative;
+      animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+      from { transform: translateY(-20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: space-between;
+    }
+
+    .btn-primary {
+      flex: 1;
+      padding: 12px;
+      background-color: #4da6ff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .btn-primary:hover { background-color: #338fe6; }
+
+    .btn-secondary {
+      flex: 1;
+      padding: 12px;
+      background-color: white;
+      color: #333;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .btn-secondary:hover { background-color: #f5f5f5; }
+
+    .login-container h2 { color: #ff5722; font-size: 2rem; margin-top: 0; margin-bottom: 30px; }
+    .login-container .input-group { margin-bottom: 20px; text-align: left; }
+    .login-container input { width: 100%; padding: 12px 15px; margin-top: 5px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 1rem; }
+    .login-container input:focus { outline: none; border-color: #ff5722; box-shadow: 0 0 0 3px rgba(255, 87, 34, 0.1); }
+    
+    .hint {
+      font-size: 0.85rem;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    /* ==================== 頂部好友按鈕 ==================== */
+    /* 外層容器 */
+
+    .user-dropdown-container {
+      position: fixed;
+      top: 24px;
+      right: 28px;
+      z-index: 9999;
+      padding-bottom: 8px; /* 移向選單時的防斷開緩衝區 */
+      margin-bottom: -8px;
+    }
+
+    .user-dropdown-container .icon-btn {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: #ffffff;
+      color: #8b6f6f;
+      border: 2px solid #d6caca;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+      transition: transform 0.15s ease;
+      outline: none;
+    }
+
+    .user-dropdown-container .icon-btn:hover {
+      transform: scale(1.05);
+    }
+
+    /* 下拉選單本體 */
+    .user-dropdown-menu {
+      display: none !important; /* 預設強制隱藏 */
+      position: absolute;
+      right: 0;
+      top: 100%;
+      background-color: #ffffff;
+      min-width: 160px;
+      box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.18);
+      border-radius: 12px;
+      overflow: hidden;
+      z-index: 999999 !important; /* 強制提升至最上層 */
+      padding: 6px 0;
+      margin-top: 0px;
+      border: 1px solid #f0f0f0;
+    }
+
+    /* 🎯 滑鼠移入 .user-dropdown 時強制顯示選單 */
+/* 電腦版：滑鼠移入顯示 */
+@media (hover: hover) and (pointer: fine) {
+  .user-dropdown-container:hover .user-dropdown-menu {
+    display: block !important;
+  }
+}
+
+/* 手機 / 點擊開啟 */
+.user-dropdown-container.active .user-dropdown-menu {
+  display: block !important;
+}
+
+    /* 選單內的按鈕選項 */
+    .dropdown-item {
+      width: 100%;
+      padding: 10px 16px;
+      text-align: left;
+      border: none;
+      background: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #333333;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background-color 0.2s;
+      white-space: nowrap;
+    }
+
+    .dropdown-item:hover {
+      background-color: #f8f9fa;
+      color: #ff5722;
+    }
+
+    /* 下拉選單中的未讀好友通知徽章 */
+    .friend-badge {
+      background-color: #ff3b30;
+      color: #ffffff;
+      font-size: 0.72rem;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 10px;
+    }
+
+    /* ==================== 好友 Modal 遮罩與卡片 ==================== */
+    .friends-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(3px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      
+      /* 🎯 關鍵修復：預設不接收滑鼠事件，且強制隱藏 */
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none; /* 防止透明遮罩擋住底下的餐廳卡片 */
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+
+    /* 🎯 當打開 Modal 時說明的 CSS */
+    .friends-modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto; /* 打開時恢復接收點擊 */
+    }
+
+    .friends-modal-card {
+      width: 90%;
+      max-width: 480px;
+      height: 560px;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform: translateY(15px);
+      transition: transform 0.25s ease;
+    }
+
+    .friends-modal-overlay.active .friends-modal-card {
+      transform: translateY(0);
+    }
+
+    /* Modal 頂部 */
+    .friends-modal-header {
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .friends-modal-header h3 {
+      margin: 0;
+      font-size: 1.15rem;
+      color: #222222;
+    }
+
+    .modal-close-btn {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: #888888;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .modal-close-btn:hover {
+      color: #222222;
+    }
+
+    /* Tab 頁籤 (適合 4 個 Tab 的優化版本) */
+    .friends-tabs {
+      display: flex;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px 4px; /* 稍微縮小左右內距，防止 4 個 Tab 在小螢幕時文字折行 */
+      border: none;
+      background: none;
+      font-size: 0.82rem; /* 字體稍微縮小，確保 4 個頁籤都能完美齊平 */
+      font-weight: 600;
+      color: #6c757d;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s ease;
+      white-space: nowrap; /* 避免文字換行 */
+    }
+
+    .tab-btn.active {
+      color: #ff5722;
+      background: #ffffff;
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background-color: #ff5722;
+    }
+
+    /* 頁籤小紅點徽章 (通知數) */
+    .tab-badge {
+      background-color: #ff3b30;
+      color: #ffffff;
+      font-size: 0.68rem;
+      font-weight: bold;
+      padding: 1px 5px;
+      border-radius: 8px;
+      margin-left: 2px;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    
+    /* Modal 內容區 */
+    .friends-modal-body {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* 列表與搜尋框控制 */
+    .friends-search-bar, .add-friend-search-box {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .friends-search-bar input, .add-friend-search-box input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #dddddd;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      outline: none;
+    }
+
+    .friends-search-bar input:focus, .add-friend-search-box input:focus {
+      border-color: #ff5722;
+    }
+
+    .friends-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .friend-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      background: #f8f9fa;
+      border-radius: 12px;
+      gap: 12px;
+    }
+
+    .friend-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #ffebe6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .friend-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .friend-name {
+      font-weight: 600;
+      font-size: 0.92rem;
+      color: #333333;
+    }
+
+    .friend-id {
+      font-size: 0.78rem;
+      color: #888888;
+    }
+
+    /* 按鈕樣式 */
+    .action-btn {
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .action-btn:hover {
+      opacity: 0.88;
+    }
+
+    .action-btn.primary { background: #ff5722; color: #ffffff; }
+    .action-btn.secondary { background: #e9ecef; color: #495057; }
+    .action-btn.success { background: #34c759; color: #ffffff; }
+    .action-btn.danger { background: #ff3b30; color: #ffffff; }
+
+    .btn-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    .empty-tip {
+      text-align: center;
+      color: #888888;
+      font-size: 0.88rem;
+      margin-top: 40px;
+    }
+
+    /* ============================= */
+/* 📝 發布貼文 */
+/* ============================= */
+
+.create-post-box {
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.post-textarea {
+  width: 100%;
+  min-height: 90px;
+  resize: vertical;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 15px;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.post-textarea:focus {
+  border-color: #ff7043;
+}
+
+.post-restaurant-area {
+  position: relative;
+  margin-top: 10px;
+}
+
+.post-restaurant-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  outline: none;
+}
+
+.post-restaurant-results {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 5px 15px rgba(0,0,0,.1);
+}
+
+.post-restaurant-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+}
+
+.post-restaurant-item:hover {
+  background: #fff5f1;
+}
+
+.post-restaurant-name {
+  font-weight: bold;
+}
+
+.post-restaurant-address {
+  margin-top: 3px;
+  font-size: 12px;
+  color: #888;
+}
+
+.restaurant-search-empty {
+  padding: 12px;
+  color: #888;
+}
+
+.selected-restaurant-box {
+  margin-top: 8px;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff3ee;
+  color: #e85d32;
+  padding: 8px 12px;
+  border-radius: 10px;
+}
+
+.selected-restaurant-box button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.create-post-actions {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.post-hint {
+  color: #999;
+  font-size: 12px;
+}
+
+/* ============================= */
+/* 🖼️ 發文圖片 */
+/* ============================= */
+
+.post-image-area {
+  margin-top: 12px;
+  text-align: left;
+}
+
+.post-image-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 8px 14px;
+
+  border: 1px solid #ddd;
+  border-radius: 20px;
+
+  background: #fff;
+  color: #555;
+
+  font-size: 13px;
+  cursor: pointer;
+
+  transition: 0.2s;
+}
+
+.post-image-btn:hover {
+  border-color: #ff7043;
+  color: #ff5722;
+  background: #fff7f4;
+}
+
+.post-image-preview-box {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.post-image-preview {
+  width: 110px;
+  height: 110px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid #eee;
+}
+
+.remove-post-image-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+
+  width: 30px;
+  height: 30px;
+
+  border: none;
+  border-radius: 50%;
+
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.publish-post-btn {
+  border: none;
+  background: #ff7043;
+  color: white;
+  padding: 9px 22px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.publish-post-btn:hover {
+  opacity: .9;
+}
+
+.publish-post-btn:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+/* ============================= */
+/* 📝 好友動態發文工具列 */
+/* ============================= */
+
+.feed-toolbar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+}
+
+/* ＋ 按鈕 */
+.open-post-btn {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+
+  border-radius: 50%;
+  border: 1px solid #ff7043;
+
+  background: #fff;
+  color: #ff5722;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 26px;
+  line-height: 1;
+
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.open-post-btn:hover {
+  background: #ff7043;
+  color: white;
+}
+
+/* ＋ 右邊的 照片 / 取消 / 發布 */
+.post-toolbar-actions {
+  flex: 1;
+  min-width: 0;
+
+  align-items: center;
+  gap: 8px;
+}
+
+/* 照片 */
+.toolbar-image-btn {
+  display: inline-flex;
+  align-items: center;
+
+  border: none;
+  background: transparent;
+
+  color: #555;
+  font-size: 13px;
+
+  cursor: pointer;
+
+  padding: 7px 10px;
+  border-radius: 18px;
+
+  white-space: nowrap;
+}
+
+.toolbar-image-btn:hover {
+  background: #fff3ef;
+  color: #ff5722;
+}
+
+/* 取消 */
+.toolbar-cancel-btn {
+  margin-left: auto;
+
+  border: none;
+  background: #f3f3f3;
+  color: #777;
+
+  padding: 8px 14px;
+  border-radius: 18px;
+
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toolbar-cancel-btn:hover {
+  background: #e5e5e5;
+}
+
+/* 發布 */
+.toolbar-publish-btn {
+  border: none;
+
+  background: #ff7043;
+  color: white;
+
+  font-weight: 700;
+
+  padding: 8px 16px;
+  border-radius: 18px;
+
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toolbar-publish-btn:hover {
+  opacity: 0.9;
+}
+
+/* 發文框 */
+#createPostBox {
+  margin-bottom: 18px;
+}
+
+/* ========================================
+   📸 IG 式貼文照片左右滑
+======================================== */
+
+.feed-carousel {
+  position: relative;
+  width: 100%;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.feed-carousel-track {
+  display: flex;
+
+  width: 100%;
+
+  overflow-x: auto;
+  overflow-y: hidden;
+
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+
+  scrollbar-width: none;
+
+  border-radius: 12px;
+}
+
+.feed-carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+.feed-carousel-slide {
+  flex: 0 0 100%;
+  width: 100%;
+
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.feed-carousel-image {
+  display: block;
+
+  width: 100%;
+  height: auto;
+
+  max-height: 430px;
+
+  object-fit: cover;
+
+  border-radius: 12px;
+}
+
+
+/* 右上角 1 / 3 */
+
+.feed-carousel-count {
+  position: absolute;
+
+  top: 10px;
+  right: 10px;
+
+  padding: 4px 9px;
+
+  background: rgba(0, 0, 0, 0.65);
+  color: white;
+
+  border-radius: 14px;
+
+  font-size: 12px;
+}
+
+
+/* 下方圓點 */
+
+.feed-carousel-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  gap: 5px;
+
+  margin-top: 8px;
+}
+
+.feed-carousel-dot {
+  width: 6px;
+  height: 6px;
+
+  border-radius: 50%;
+
+  background: #d5d5d5;
+
+  transition: 0.2s;
+}
+
+.feed-carousel-dot.active {
+  background: #ff5722;
+  transform: scale(1.15);
+}
+
+/* =========================================================
+   📸 好友動態 - Instagram 風格
+========================================================= */
+
+.feed-list {
+  width: 100%;
+  max-width: 430px;
+  margin: 18px auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-sizing: border-box;
+}
+
+.feed-card {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 14px;
+  overflow: hidden;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.feed-header {
+  display: flex;
+  align-items: center;
+  padding: 14px 14px 8px;
+  gap: 10px;
+}
+
+
+.feed-avatar {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff7043, #ff5722);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.feed-user-info {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+}
+
+.feed-author {
+  color: #262626;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+
+
+.feed-image {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: cover;
+  background: #f5f5f5;
+}
+
+.feed-body {
+  padding: 6px 14px 14px 64px;
+}
+
+.feed-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.feed-action-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 23px;
+  cursor: pointer;
+}
+
+.feed-caption {
+  margin: 0;
+  color: #262626;
+  font-size: 14px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.feed-caption-author {
+  font-weight: 700;
+  margin-right: 5px;
+}
+
+.feed-restaurant {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 9px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #fff4f0;
+  color: #e64a19;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.feed-restaurant:hover {
+  background: #ffe8df;
+}
+
+.feed-bottom-time {
+  margin-top: 9px;
+  color: #aaa;
+  font-size: 10px;
+}
+
+.empty-msg {
+  text-align: center;
+  color: #999;
+  padding: 35px 10px;
+  font-size: 14px;
+}
+
+.post-delete-btn {
+  margin-left: auto;
+
+  width: 32px;
+  height: 32px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  background: transparent;
+
+  font-size: 17px;
+  cursor: pointer;
+  border-radius: 50%;
+
+  padding: 0;
+  opacity: 0.65;
+
+  transition: 0.2s;
+}
+
+.post-delete-btn:hover {
+  background: #fff0ed;
+  opacity: 1;
+  transform: scale(1.08);
+}
+
+/* ========================================
+   ❤️💬 好友動態互動區美化
+======================================== */
+
+.feed-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 0 6px;
+}
+
+/* 愛心、留言按鈕 */
+.feed-like-btn,
+.feed-comment-btn {
+  width: 32px !important;
+  height: 32px !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+  color: #262626;
+
+  transition: transform 0.15s ease;
+}
+
+/* 滑鼠移上去 */
+.feed-like-btn:hover,
+.feed-comment-btn:hover {
+  transform: scale(1.12);
+  background: transparent !important;
+}
+
+/* 愛心 */
+.heart-icon {
+  font-size: 27px;
+  line-height: 1;
+  font-family: Arial, sans-serif;
+}
+
+/* 已按讚 */
+.feed-like-btn.liked {
+  color: #ed4956 !important;
+}
+
+.feed-like-btn.liked .heart-icon {
+  color: #ed4956;
+}
+
+/* 讚數 */
+.feed-like-count {
+  margin: 2px 0 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #262626;
+}
+
+
+/* ================================
+   💬 留言區
+================================ */
+
+.post-comments-area {
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* 查看留言 */
+.view-comments-btn {
+  padding: 0 !important;
+  margin: 3px 0 8px !important;
+
+  border: none !important;
+  background: transparent !important;
+
+  color: #8e8e8e;
+  font-size: 13px;
+
+  cursor: pointer;
+}
+
+.view-comments-btn:hover {
+  color: #555;
+  background: transparent !important;
+}
+
+
+/* 每一則留言 */
+.post-comment {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+
+  margin: 6px 0;
+
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.post-comment-name {
+  color: #262626;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.post-comment-content {
+  color: #333;
+  word-break: break-word;
+}
+
+
+/* ================================
+   ✏️ 留言輸入
+================================ */
+
+.post-comment-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  margin-top: 10px;
+  padding-top: 10px;
+
+  border-top: 1px solid #efefef;
+}
+
+.post-comment-input {
+  flex: 1;
+  min-width: 0;
+
+  padding: 9px 13px;
+
+  border: 1px solid #e5e5e5;
+  border-radius: 20px;
+
+  background: #fafafa;
+
+  font-size: 13px;
+  outline: none;
+
+  box-sizing: border-box;
+}
+
+.post-comment-input:focus {
+  background: #fff;
+  border-color: #ff7043;
+}
+
+
+/* 發布留言 */
+.post-comment-submit {
+  width: auto !important;
+
+  padding: 8px 13px !important;
+  margin: 0 !important;
+
+  border: none !important;
+  border-radius: 18px !important;
+
+  background: #ff7043 !important;
+  color: white !important;
+
+  font-size: 12px !important;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.post-comment-submit:hover {
+  background: #f4511e !important;
+}
+
+
+/* ================================
+   📍 地點
+================================ */
+
+.feed-restaurant {
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+
+/* ================================
+   🕐 時間
+================================ */
+
+.feed-bottom-time {
+  margin-top: 10px;
+  color: #aaa;
+  font-size: 10px;
+}
+
+/* ================================
+   👥 好友頭像列整齊版
+================================ */
+
+.feed-toolbar {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 2px 0 8px;
+}
+
+/* ＋ 也跟頭像一樣寬 */
+.open-post-btn {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+
+  border-radius: 50%;
+  border: 2px solid #ff7043;
+
+  background: #fff;
+  color: #ff5722;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 26px;
+  line-height: 1;
+  padding: 0;
+  margin-top: 2px;
+}
+
+/* 好友橫向列 */
+.feed-friend-avatars {
+  flex: 1;
+
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+
+  overflow-x: auto;
+  overflow-y: hidden;
+
+  padding: 2px 4px 5px;
+
+  scrollbar-width: none;
+}
+
+.feed-friend-avatars::-webkit-scrollbar {
+  display: none;
+}
+
+/* 每一個固定寬度 */
+.feed-friend-avatar-item {
+  width: 46px;
+  flex: 0 0 46px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  gap: 4px;
+
+  cursor: pointer;
+}
+
+/* 圓形頭像全部一致 */
+.feed-friend-avatar-circle {
+  width: 40px;
+  height: 40px;
+
+  box-sizing: border-box;
+
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: linear-gradient(
+    135deg,
+    #ff7043,
+    #ff5722
+  );
+
+  color: #fff;
+
+  font-size: 14px;
+  font-weight: 700;
+
+  border: 2px solid #fff;
+
+  box-shadow: 0 0 0 2px #ff7043;
+}
+
+/* 全部 */
+.feed-all-avatar-circle {
+  background: #fff;
+  color: #5f4b8b;
+
+  box-shadow: 0 0 0 2px #ff7043;
+}
+
+/* 名字固定置中 */
+.feed-friend-avatar-name {
+  width: 46px;
+
+  font-size: 10px;
+  line-height: 1.2;
+
+  text-align: center;
+
+  color: #777;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 選中 */
+.feed-friend-avatar-item.active
+.feed-friend-avatar-circle {
+  box-shadow:
+    0 0 0 2px #ff5722,
+    0 2px 6px rgba(0,0,0,.15);
+
+  transform: scale(1.04);
+}
+
+.feed-create-item {
+  width: 46px;
+  flex: 0 0 46px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  gap: 4px;
+}
+
+.feed-create-label {
+  width: 46px;
+
+  font-size: 10px;
+  line-height: 1.2;
+
+  text-align: center;
+
+  color: #777;
+}
+
+.friend-item {
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+
+  transition:
+    transform 0.12s ease,
+    background 0.12s ease;
+}
+
+.friend-item:active {
+  transform: scale(0.985);
+  background: #fff3ef;
+}
+
+/* ========================================
+   👤 編輯使用者
+======================================== */
+
+.edit-user-modal-content {
+  width: min(420px, calc(100vw - 32px));
+
+  background: #fff;
+  border-radius: 20px;
+  overflow: hidden;
+
+  position: relative;
+  z-index: 10001;
+
+  max-height: 85vh;
+  overflow-y: auto;
+
+  box-shadow:
+    0 15px 45px rgba(0, 0, 0, .2);
+}
+
+.edit-user-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 18px 20px;
+
+  border-bottom: 1px solid #eee;
+}
+
+.edit-user-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.edit-user-close {
+  width: 34px;
+  height: 34px;
+
+  padding: 0;
+  margin: 0;
+
+  border: none;
+  background: transparent;
+
+  font-size: 27px;
+  color: #888;
+
+  cursor: pointer;
+}
+
+.edit-user-body {
+  padding: 20px;
+}
+
+.edit-user-avatar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  margin-bottom: 22px;
+}
+
+#editUserAvatarCircle {
+  width: 52px;
+  height: 52px;
+
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #fff0eb;
+  color: #ff603d;
+
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.edit-user-account {
+  margin-top: 3px;
+  font-size: 12px;
+  color: #999;
+}
+
+.edit-user-label {
+  display: block;
+
+  margin: 14px 0 6px;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  color: #555;
+}
+
+.edit-user-input {
+  width: 100%;
+
+  box-sizing: border-box;
+
+  padding: 11px 13px;
+
+  border: 1px solid #ddd;
+  border-radius: 10px;
+
+  font-size: 14px;
+  outline: none;
+}
+
+.edit-user-input:focus {
+  border-color: #ff7043;
+}
+
+.edit-user-input:disabled {
+  background: #f5f5f5;
+  color: #888;
+}
+
+.edit-user-hint {
+  margin-top: 5px;
+
+  font-size: 11px;
+  color: #aaa;
+}
+
+.edit-user-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+
+  margin-top: 24px;
+}
+
+.edit-user-cancel-btn,
+.edit-user-save-btn {
+  width: auto;
+
+  padding: 9px 18px;
+  margin: 0;
+
+  border: none;
+  border-radius: 20px;
+
+  cursor: pointer;
+}
+
+.edit-user-cancel-btn {
+  background: #f2f2f2;
+  color: #666;
+}
+
+.edit-user-save-btn {
+  background: #ff7043;
+  color: #fff;
+  font-weight: 700;
+}
+
+#editUserModal {
+  position: fixed !important;
+
+  top: 0;
+  left: 0;
+
+  width: 100vw;
+  height: 100vh;
+
+  z-index: 10000;
+
+  background: rgba(0, 0, 0, 0.45);
+
+  display: none;
+
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.friends-modal-card {
+  min-height: 0;
+}
+
+#userPanelFriends {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#userPanelFriends > .friends-tabs {
+  flex-shrink: 0;
+}
+
+#userPanelFriends > .friends-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ========================================
+   👤 編輯使用者頁面捲動修正
+======================================== */
+
+#userPanelEdit {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#userPanelEdit .friends-modal-body {
+  height: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  padding-bottom: 30px;
+}
+
+#userPanelEdit .edit-user-body {
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+#userPanelEdit .edit-user-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-bottom: 10px;
+}
+
+#userPanelEdit .edit-user-save-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 10px 22px;
+
+  border: none;
+  border-radius: 20px;
+
+  background: #ff7043;
+  color: white;
+
+  font-size: 14px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+#userPanelEdit .edit-user-save-btn:hover {
+  background: #f4511e;
+}
+
+/* =====================================================
+   📷 發文照片 / 拍照按鈕
+===================================================== */
+
+.post-image-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  margin-bottom: 10px;
+}
+
+.post-image-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 9px 16px;
+
+  background: #fff7f4;
+  color: #ff5722;
+
+  border: 1px solid #ffb39a;
+  border-radius: 20px;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: 0.2s;
+}
+
+.post-image-btn:hover {
+  background: #ff5722;
+  color: white;
+}
+
+.post-image-preview-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  margin-top: 10px;
+}
+
+.post-image-preview {
+  width: 85px;
+  height: 85px;
+
+  object-fit: cover;
+
+  border-radius: 10px;
+  border: 1px solid #eee;
+}
+
+/* ==============================
+   歡迎視窗
+============================== */
+
+#welcomeModal {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  padding: 28px 16px;
+  box-sizing: border-box;
+
+  display: none;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(20, 20, 20, 0.58);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+
+  z-index: 10000;
+  overflow-y: auto;
+}
+
+/* 白色歡迎卡片 */
+#welcomeModal .welcome-card {
+  width: min(92vw, 650px);
+  max-height: calc(100dvh - 56px);
+
+  margin-top: 175px;
+  padding: 92px 42px 34px;
+
+  box-sizing: border-box;
+  position: relative;
+
+  text-align: center;
+  background: #ffffff;
+  border-radius: 28px;
+
+  box-shadow:
+    0 18px 55px rgba(0, 0, 0, 0.30);
+
+  animation: welcomeFadeIn 0.3s ease;
+}
+
+/* 上方女孩與食物圖片 */
+#welcomeModal .welcome-hero {
+  position: absolute;
+  z-index: 2;
+
+  width: min(720px, 112%);
+  max-width: none;
+  height: auto;
+
+  left: 50%;
+  bottom: calc(100% - 112px);
+
+  transform: translateX(-50%);
+
+  pointer-events: none;
+
+  filter:
+    drop-shadow(0 7px 5px rgba(72, 43, 27, 0.12));
+}
+
+/* 標題 */
+#welcomeModal .welcome-title {
+  margin: 0 0 12px;
+
+  color: #ff5722;
+
+  font-size: clamp(1.65rem, 4vw, 2.15rem);
+  font-weight: 700;
+}
+
+/* 介紹文字 */
+#welcomeModal .welcome-description {
+  margin: 0 0 18px;
+
+  color: #666666;
+
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+/* 三個功能介紹區域 */
+#welcomeModal .welcome-features {
+  margin-bottom: 18px;
+  padding: 14px 20px;
+
+  text-align: left;
+
+  color: #555555;
+  background: linear-gradient(
+    135deg,
+    #fff8f4,
+    #fdf3ed
+  );
+
+  border-radius: 18px;
+}
+
+#welcomeModal .welcome-features p {
+  margin: 7px 0;
+
+  line-height: 1.5;
+}
+
+/* 開始探索按鈕 */
+#welcomeModal .welcome-start-btn {
+  width: 100%;
+  padding: 14px;
+
+  border: none;
+  border-radius: 999px;
+
+  color: #ffffff;
+  background: linear-gradient(
+    90deg,
+    #ff4b18,
+    #ff5a24
+  );
+
+  font-size: 1.1rem;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 7px 16px rgba(255, 87, 34, 0.30);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+#welcomeModal .welcome-start-btn:hover {
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 9px 20px rgba(255, 87, 34, 0.38);
+}
+
+#welcomeModal .welcome-start-btn:active {
+  transform: scale(0.98);
+}
+
+/* 出現動畫 */
+@keyframes welcomeFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ==============================
+   手機版
+============================== */
+
+@media (max-width: 600px) {
+  #welcomeModal {
+    padding: 18px 12px;
+  }
+
+  #welcomeModal .welcome-card {
+    width: min(94vw, 430px);
+
+    margin-top: 115px;
+    padding: 70px 20px 22px;
+
+    border-radius: 22px;
+  }
+
+  #welcomeModal .welcome-hero {
+    width: 108%;
+    bottom: calc(100% - 82px);
+  }
+
+  #welcomeModal .welcome-title {
+    margin-bottom: 9px;
+
+    font-size: 1.55rem;
+  }
+
+  #welcomeModal .welcome-description {
+    margin-bottom: 14px;
+
+    font-size: 0.88rem;
+    line-height: 1.55;
+  }
+
+  #welcomeModal .welcome-features {
+    margin-bottom: 14px;
+    padding: 10px 14px;
+
+    border-radius: 14px;
+
+    font-size: 0.82rem;
+  }
+
+  #welcomeModal .welcome-features p {
+    margin: 5px 0;
+  }
+
+  #welcomeModal .welcome-start-btn {
+    padding: 12px;
+
+    font-size: 1rem;
+  }
+}
+
+  </style>
+</head>
+
+<body>
+  <div class="top-right-tools">
+
+    <button
+      id="helpIcon"
+      class="icon-btn"
+      title="網頁使用說明"
+    >
+      ❓
+    </button>
+
+    <div class="user-dropdown-container">
+
+      <button
+        class="icon-btn"
+        id="userIcon"
+        type="button"
+        title="登入與好友功能"
+      >
+        👤
+      </button>
+
+      <!-- 使用者選單 -->
+      <div class="user-dropdown-menu">
+
+        <!-- 登入 / 登出 -->
+        <button
+          type="button"
+          id="loginItemBtn"
+          class="dropdown-item"
+          onclick="openLoginModal()"
+        >
+          🔑 登入
+        </button>
+
+        <!-- 👤 編輯使用者 -->
+        <button
+  type="button"
+  id="editUserItemBtn"
+  class="dropdown-item"
+  onclick="openUserPanel('edit')"
+>
+  👤 編輯使用者
+</button>
+
+        <!-- 👥 好友功能 -->
+        <button
+  type="button"
+  class="dropdown-item"
+  onclick="openUserPanel('friends')"
+>
+  👥 好友功能
+
+  <span
+    id="friendBadge"
+    class="friend-badge"
+    style="display:none;"
+  >
+    0
+  </span>
+</button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <h1>食在中原</h1>
+
+  <div class="search-container">
+    <input id="search" class="search-input" placeholder="搜尋餐廳名稱或地址..." />
+    <button id="randomBtn" class="random-btn" title="隨機推薦餐廳">🎲</button>
+    <button id="resetRandomBtn" class="random-btn" title="清除隨機結果" style="display: none; background-color: #f5f5f5; border-color: #ccc; font-size: 20px;">🗑️</button>
+  </div>
+
+  <div class="category-container" id="categoryContainer">
+
+  <button
+    class="category-btn active"
+    data-category="all"
+    onclick="filterByTag('全部', this)">
+    🌟 全部
+  </button>
+
+  <button class="category-btn" onclick="filterByTag('麵食', this)">🍜 麵食</button>
+  <button class="category-btn" onclick="filterByTag('飲料', this)">🧋 飲料</button>
+  <button class="category-btn" onclick="filterByTag('早餐', this)">🍳 早餐</button>
+  <button class="category-btn" onclick="filterByTag('韓式', this)">🇰🇷 韓式</button>
+  <button class="category-btn" onclick="filterByTag('火鍋', this)">🍲 火鍋</button>
+  <button class="category-btn" onclick="filterByTag('日式', this)">🍣 日式</button>
+
+  <!-- 更多標籤 -->
+  <button class="category-btn more-tag hidden-tag"
+          onclick="filterByTag('義式', this)">
+    🍝 義式
+  </button>
+
+  <button class="category-btn more-tag hidden-tag"
+          onclick="filterByTag('美式', this)">
+    🍔 美式
+  </button>
+
+  <button class="category-btn more-tag hidden-tag"
+          onclick="filterByTag('燒烤', this)">
+    🥩 燒烤
+  </button>
+
+  <button class="category-btn more-tag hidden-tag"
+          onclick="filterByTag('甜點', this)">
+    🍰 甜點
+  </button>
+
+  <button class="category-btn more-tag hidden-tag"
+          onclick="filterByTag('咖啡', this)">
+    ☕ 咖啡
+  </button>
+
+  <button class="category-btn more-tag hidden-tag"
+          onclick="filterByTag('小吃', this)">
+    🥟 小吃
+  </button>
+
+  <button
+    class="category-btn"
+    id="moreBtn"
+    type="button"
+    onclick="toggleMoreTags()">
+    ➕ 更多
+  </button>
+
+  
+
+</div>
+
+  <div class="price-container">
+    <button class="price-btn" onclick="filterByPrice(1)">NT$100~200</button>
+    <button class="price-btn" onclick="filterByPrice(2)">NT$200~400</button>
+    <button class="price-btn" onclick="filterByPrice(3)">NT$400~600</button>
+    <button class="price-btn" onclick="filterByPrice(4)">NT$600以上</button>
+  </div>
+
+  <div class="divider"></div>
+
+  <div id="cards" class="card-container"></div>
+  
+  <button id="aiBtn">🤖</button>
+
+  <div id="aiChat" style="display: none;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 8px;">
+      <h3 style="margin: 0; font-size: 1rem; color: #ff5722;">🤖 AI 美食助理</h3>
+      <div style="display: flex; gap: 8px;">
+        <button onclick="document.getElementById('aiHistoryModal').style.display='flex'; loadAiHistories('favorites');" style="background: #fff9e6; border: 1px solid #ffc107; font-size: 0.8rem; cursor: pointer; color: #d39e00; border-radius: 4px; padding: 2px 8px; font-weight: bold; transition: 0.2s;" onmouseover="this.style.background='#ffc107'; this.style.color='#fff';" onmouseout="this.style.background='#fff9e6'; this.style.color='#d39e00';">
+          ⭐ 收藏庫
+        </button>
+        <button id="aiHistoryBtn" title="全部歷史紀錄" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #555;">🕒</button>
+      </div>
+    </div>
+    
+    <div id="aiOutput" style="height: 250px; overflow-y: auto; border: 1px solid #eee; padding: 8px; margin-bottom: 8px; border-radius: 8px; background: #fafafa;"></div>
+    
+    <div style="display: flex; gap: 5px;">
+      <textarea id="aiInput" placeholder="想吃什麼？" style="flex: 1; height: 40px; resize: none;"></textarea>
+      <button id="aiSend" style="height: 40px;">送出</button>
+    </div>
+  </div>
+
+  <div id="aiHistoryModal" class="modal-overlay" style="display: none; z-index: 10001;">
+    <div class="modal-content" style="max-width: 400px;">
+      <span class="close-btn" onclick="document.getElementById('aiHistoryModal').style.display='none'">&times;</span>
+      <h2 style="color: #ff5722; margin-top: 0;">📜 歷史對話紀錄</h2>
+      <div id="aiHistoryList" style="max-height: 300px; overflow-y: auto; text-align: left;">
+        <p style="color: #888; text-align: center;">載入中...</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="loginModal" class="modal-overlay" style="display: none;">
+    <div class="login-container">
+      <span class="close-btn" onclick="closeModals()">&times;</span>
+      <h2 style="text-align: left; margin-bottom: 20px;">登入</h2>
+
+      <div class="input-group">
+        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">帳號</label>
+        <input id="loginUsername" placeholder="請輸入您的帳號" autocomplete="username">
+      </div>
+
+      <div class="input-group">
+        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">密碼</label>
+        <input id="loginPassword" type="password" placeholder="請輸入您的密碼" autocomplete="current-password">
+      </div>
+
+      <div style="text-align: right; margin-bottom: 20px; font-size: 0.9rem;">
+        <a href="javascript:void(0)" onclick="switchToForgotPassword()" style="color: #888; text-decoration: none; margin-right: 15px;">忘記密碼？</a>
+        <span style="color: #666;">還沒有帳號嗎？</span>
+        <a href="javascript:void(0)" onclick="switchToRegister()" style="color: #4da6ff; text-decoration: none; font-weight: bold;">前往註冊</a>
+      </div>
+
+      <div class="modal-buttons">
+        <button id="loginBtn" class="btn-primary" onclick="submitLogin()">登入</button>
+        <button class="btn-secondary" onclick="closeModals()">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="registerModal" class="modal-overlay" style="display: none;">
+  <div class="login-container">
+    <span class="close-btn" onclick="closeModals()">&times;</span>
+    <h2 style="text-align: left; margin-bottom: 20px;">註冊</h2>
+
+    <!-- 1. 設定帳號 -->
+    <div class="input-group">
+      <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">設定帳號</label>
+      <input id="reg-username" placeholder="請設定您的帳號">
+      <div id="regUsernameHint" class="hint">必須為 8 個純數字</div>
+    </div>
+
+    <!-- 2. 設定暱稱 (新增) -->
+    <div class="input-group">
+      <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">社群暱稱 / 顯示名字</label>
+      <input id="reg-nickname" placeholder="例如：小美、小明" maxlength="20">
+      <div id="regNicknameHint" class="hint">將顯示於好友牆與匿名評論</div>
+    </div>
+
+    <!-- 3. 設定密碼 -->
+    <div class="input-group">
+      <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">設定密碼</label>
+      <input id="reg-password" type="password" placeholder="請設定您的密碼">
+      <div id="regPasswordHint" class="hint">必須為 4~10 個英數字</div>
+    </div>
+
+    <!-- 4. 設定手機號碼 -->
+    <div class="input-group">
+      <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">手機號碼</label>
+      <input id="reg-phone" placeholder="例如：0912345678" maxlength="10">
+      <div id="regPhoneHint" class="hint">忘記密碼時用來驗證身份</div>
+    </div>
+
+    <div style="text-align: right; margin-bottom: 20px; font-size: 0.9rem;">
+      <span style="color: #666;">已經有帳號了？</span>
+      <a href="javascript:void(0)" onclick="switchToLogin()" style="color: #4da6ff; text-decoration: none; font-weight: bold;">返回登入</a>
+    </div>
+
+    <div class="modal-buttons">
+      <button id="regBtn" class="btn-primary" onclick="submitRegister()">註冊</button>
+      <button class="btn-secondary" onclick="closeModals()">取消</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ==================== 忘記密碼視窗 ==================== -->
+  <div id="forgotPasswordModal" class="modal-overlay" style="display: none;">
+    <div class="login-container">
+      <span class="close-btn" onclick="closeModals()">&times;</span>
+      <h2 style="text-align: left; margin-bottom: 20px;">忘記密碼</h2>
+      
+      <div class="input-group">
+        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">您的帳號</label>
+        <input id="forgot-username" placeholder="請輸入您的帳號">
+      </div>
+
+      <div class="input-group">
+        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">註冊手機號碼</label>
+        <input id="forgot-phone" placeholder="請輸入註冊時的手機號碼" maxlength="10">
+      </div>
+
+      <div class="input-group">
+        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">設定新密碼</label>
+        <input id="forgot-password" type="password" placeholder="請設定您的新密碼">
+        <div id="forgotPasswordHint" class="hint">必須為 4~10 個英數字</div>
+      </div>
+
+      <div style="text-align: right; margin-bottom: 20px; font-size: 0.9rem;">
+        <a href="javascript:void(0)" onclick="switchToLogin()" style="color: #4da6ff; text-decoration: none; font-weight: bold;">記起密碼了？返回登入</a>
+      </div>
+
+      <div class="modal-buttons">
+        <button id="forgotBtn" class="btn-primary" onclick="submitForgotPassword()">重設密碼</button>
+        <button class="btn-secondary" onclick="closeModals()">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="noteModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 400px;">
+      <span class="close-btn" onclick="closeNoteModal()">&times;</span>
+      
+      <h3 style="color: #ff5722; margin-top: 10px; text-align: center;">📝 餐廳心得備忘錄</h3>
+      <p id="noteStoreName" style="font-weight: bold; margin-bottom: 10px; color:#555; text-align: center;"></p>
+      
+      <input type="hidden" id="currentNoteStoreId">
+
+      <textarea id="noteTextArea" rows="6" placeholder="寫下這家店的筆記吧（例如：招牌牛肉麵必點、環境乾淨有冷氣...）" 
+                style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; resize: none; box-sizing: border-box; font-size: 1rem;"></textarea>
+      
+      <div class="modal-buttons" style="margin-top: 15px; display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn-secondary" onclick="closeNoteModal()" style="margin:0;">取消</button>
+        <button class="btn-primary" onclick="submitStoreNote()" style="margin:0; background-color: #4da6ff;">儲存文字</button>
+      </div>
+    </div>
+  </div>
+
+<!-- ==============================
+     歡迎使用視窗
+============================== -->
+<div
+  id="welcomeModal"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="welcomeTitle"
+  style="display: none;"
+>
+  <div class="welcome-card">
+
+    <!--
+      圖片檔案必須和 index.html 放在同一個資料夾，
+      圖片名稱必須是 welcome-food-girl.png
+    -->
+    <img
+      class="welcome-hero"
+      src="welcome-food-girl.png"
+      alt="開心享用美食的小女孩"
+    >
+
+    <h2
+      id="welcomeTitle"
+      class="welcome-title"
+    >
+      歡迎使用食在中原！
+    </h2>
+
+    <p class="welcome-description">
+      這是專為你打造的中原大學周邊美食導航！
+      在這裡，你可以輕鬆搜尋附近最夯的餐廳、
+      查看營業狀態，還能
+      <b>收藏口袋名單</b>
+      與
+      <b>撰寫專屬的私房備忘錄</b>
+      📝。
+    </p>
+
+    <div class="welcome-features">
+
+      <p>
+        📍
+        <b>精準定位：</b>
+        一秒測出你與餐廳的真實距離
+      </p>
+
+      <p>
+        ⭐
+        <b>星級指標：</b>
+        快速篩選出高評價的口袋名單
+      </p>
+
+      <p>
+        ✍️
+        <b>個人筆記：</b>
+        隨手記錄必點招牌與踩雷心得
+      </p>
+
+    </div>
+
+    <button
+      type="button"
+      class="welcome-start-btn"
+      onclick="closeWelcomeModal()"
+    >
+      太棒了，開始探索！🚀
+    </button>
+
+  </div>
+</div>
+
+<!-- =========================================================
+     👥 / 👤 使用者功能共用視窗
+========================================================= -->
+
+<div id="friendsModal" class="friends-modal-overlay">
+
+  <div class="friends-modal-card">
+
+    <!-- =========================
+         共用標題
+    ========================== -->
+    <div class="friends-modal-header">
+
+      <h3 id="userPanelTitle">
+        👥 好友社群
+      </h3>
+
+      <button
+        type="button"
+        class="modal-close-btn"
+        onclick="closeFriendsModal()"
+      >
+        ✕
+      </button>
+
+    </div>
+
+
+    <!-- =====================================================
+         👥 好友社群頁面
+    ====================================================== -->
+    <div id="userPanelFriends">
+
+      <!-- 4 個好友頁籤 -->
+      <div class="friends-tabs">
+
+        <button
+          class="tab-btn active"
+          onclick="switchFriendTab('feed')"
+        >
+          📸 好友動態
+        </button>
+
+        <button
+          class="tab-btn"
+          onclick="switchFriendTab('list')"
+        >
+          👭 我的好友
+        </button>
+
+        <button
+          class="tab-btn"
+          onclick="switchFriendTab('add')"
+        >
+          🔍 新增好友
+        </button>
+
+        <button
+          class="tab-btn"
+          onclick="switchFriendTab('requests')"
+        >
+          📩 好友申請
+
+          <span
+            id="tabBadge"
+            class="tab-badge"
+            style="display:none;"
+          >
+            0
+          </span>
+        </button>
+
+      </div>
+
+
+      <!-- =========================
+           好友內容
+      ========================== -->
+      <div class="friends-modal-body">
+
+
+        <!-- =====================================
+             Tab 1：📸 好友動態
+        ====================================== -->
+        <div
+          id="tab-feed"
+          class="tab-content active"
+        >
+
+          <!-- 發文工具列 -->
+          <div class="feed-toolbar">
+
+            <div class="feed-create-item">
+
+              <button
+                type="button"
+                class="open-post-btn"
+                onclick="toggleCreatePost()"
+                title="發布貼文"
+              >
+                ＋
+              </button>
+
+              <div class="feed-create-label">
+                發布
+              </div>
+
+            </div>
+
+
+            <!-- 好友頭像 -->
+            <div
+              id="feedFriendAvatars"
+              class="feed-friend-avatars"
+            >
+            </div>
+
+          </div>
+
+
+          <!-- 發布貼文 -->
+          <div
+            id="createPostBox"
+            class="create-post-box"
+            style="display:none;"
+          >
+
+            <textarea id="postContent" class="post-textarea" placeholder="分享你今天吃了什麼..." maxlength="500"></textarea>
+
+
+            <!-- 餐廳搜尋 -->
+            <div class="post-restaurant-area">
+
+              <input
+                id="postRestaurantSearch"
+                class="post-restaurant-search"
+                type="text"
+                placeholder="📍 搜尋餐廳..."
+                autocomplete="off"
+              >
+
+              <div
+                id="postRestaurantResults"
+                class="post-restaurant-results"
+              >
+              </div>
+
+              <div
+                id="selectedRestaurantBox"
+                class="selected-restaurant-box"
+                style="display:none;"
+              >
+
+                <span id="selectedRestaurantName"></span>
+
+                <button type="button" onclick="clearPostRestaurant()">✕</button>
+
+              </div>
+
+            </div>
+
+
+            <!-- 圖片 / 拍照 -->
+<div class="post-image-area">
+
+  <div class="post-image-actions">
+
+    <!-- 從相簿選照片 -->
+    <label
+      for="postImageInput"
+      class="post-image-btn"
+    >
+      🖼️ 照片
+    </label>
+
+    <!-- 直接拍照 -->
+    <label
+      for="postCameraInput"
+      class="post-image-btn"
+    >
+      📷 拍照
+    </label>
+
+  </div>
+
+  <!-- 相簿選照片 -->
+  <input
+    id="postImageInput"
+    type="file"
+    accept="image/*"
+    multiple
+    style="display:none;"
+    onchange="previewPostImages(event)"
+  >
+
+  <!-- 手機拍照 -->
+  <input
+    id="postCameraInput"
+    type="file"
+    accept="image/*"
+    capture="environment"
+    style="display:none;"
+    onchange="handlePostCamera(event)"
+  >
+
+  <!-- 圖片預覽區 -->
+  <div
+    id="postImagePreviewBox"
+    class="post-image-preview-box"
+    style="display:none;"
+  >
+  </div>
+
+</div>
+
+
+            <!-- 發布 -->
+            <div class="create-post-actions">
+
+              <span class="post-hint"> 最多 500 字 </span>
+
+              <button id="publishPostBtn" type="button" class="publish-post-btn" onclick="publishPost()">發布</button>
+
+            </div>
+
+          </div>
+
+
+          <!-- 好友動態列表 -->
+          <div id="friendFeedList" class="feed-list" >
+            <p class="empty-msg"> 載入好友動態中... </p>
+          </div>
+
+        </div>
+
+
+        <!-- =====================================
+             Tab 2：👭 我的好友
+        ====================================== -->
+        <div
+          id="tab-list"
+          class="tab-content"
+        >
+
+          <div class="friends-search-bar">
+
+            <input
+              type="text"
+              id="friendListSearch"
+              placeholder="搜尋好友..."
+            >
+
+          </div>
+
+          <div
+            id="myFriendsList"
+            class="friends-list"
+          >
+          </div>
+
+        </div>
+
+
+        <!-- =====================================
+             Tab 3：🔍 新增好友
+        ====================================== -->
+        <div
+          id="tab-add"
+          class="tab-content"
+        >
+
+          <div class="add-friend-search-box">
+
+            <input
+              type="text"
+              id="friendSearchInput"
+              placeholder="輸入 8 位數學號(帳號)..."
+            >
+
+            <button
+              type="button"
+              class="action-btn primary"
+              onclick="searchUsers()"
+            >
+              搜尋
+            </button>
+
+          </div>
+
+
+          <div
+            id="friendSearchResults"
+            class="friends-list"
+          >
+          </div>
+
+        </div>
+
+
+        <!-- =====================================
+             Tab 4：📩 好友申請
+        ====================================== -->
+        <div
+          id="tab-requests"
+          class="tab-content"
+        >
+
+          <div
+            id="requestsList"
+            class="friends-list"
+          >
+          </div>
+
+        </div>
+
+
+      </div>
+      <!-- ↑ friends-modal-body 結束 -->
+
+    </div>
+    <!-- ↑ userPanelFriends 結束 -->
+
+
+    <!-- =====================================================
+         👤 編輯使用者頁面
+    ====================================================== -->
+    <div
+      id="userPanelEdit"
+      style="display:none;"
+    >
+
+      <!-- 使用跟好友社群一樣的內容區 -->
+      <div class="friends-modal-body">
+
+        <div class="edit-user-body">
+
+
+          <!-- 使用者資訊 -->
+          <div class="edit-user-avatar">
+
+            <div id="editUserAvatarCircle">
+              👤
+            </div>
+
+            <div>
+
+              <strong id="editUserDisplayName">
+                使用者
+              </strong>
+
+              <div class="edit-user-account">
+                個人資料
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <!-- 暱稱 -->
+          <label class="edit-user-label">
+            暱稱
+          </label>
+
+          <input
+            type="text"
+            id="editUserNickname"
+            class="edit-user-input"
+            placeholder="輸入新的暱稱"
+            maxlength="20"
+          >
+
+
+          <!-- 帳號 -->
+          <label class="edit-user-label">
+            帳號 / 學號
+          </label>
+
+          <input
+            type="text"
+            id="editUserUsername"
+            class="edit-user-input"
+            disabled
+          >
+
+<!-- 手機號碼 -->
+<label class="edit-user-label">
+  手機號碼
+</label>
+
+<input
+  type="tel"
+  id="editUserPhone"
+  class="edit-user-input"
+  placeholder="例如：0912345678"
+  maxlength="10"
+  inputmode="numeric"
+>
+
+<div class="edit-user-hint">
+  忘記密碼時會使用此手機號碼驗證身分
+</div>
+
+          <div class="edit-user-hint">
+            帳號 / 學號目前不可修改
+          </div>
+
+
+          <!-- 儲存 -->
+          <div class="edit-user-actions">
+
+            <button
+              type="button"
+              class="edit-user-save-btn"
+              onclick="saveUserProfile()"
+            >
+              儲存變更
+            </button>
+
+          </div>
+
+
+        </div>
+
+      </div>
+
+    </div>
+    <!-- ↑ userPanelEdit 結束 -->
+
+
+  </div>
+  <!-- ↑ friends-modal-card 結束 -->
+
+</div>
+<!-- ↑ friendsModal 結束 -->
+
+  <script src="app.js"></script>
+
+</body>
+</html>
