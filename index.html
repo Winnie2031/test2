@@ -2240,6 +2240,464 @@
   }
 }
 
+/* =========================================================
+   手機版首頁設計
+   只有寬度 650px 以下才會套用
+========================================================= */
+
+/* 電腦版隱藏手機專用文字 */
+.home-subtitle,
+.restaurant-section-title {
+  display: none;
+}
+
+@media (max-width: 650px) {
+  :root {
+    --mobile-orange: #ff5a24;
+    --mobile-brown: #8c4825;
+    --mobile-border: #ffb38d;
+  }
+
+  body {
+    min-height: 100vh;
+    color: #3f2b20;
+
+    background:
+      radial-gradient(
+        circle at 15% 8%,
+        rgba(255, 199, 151, 0.2),
+        transparent 25%
+      ),
+      radial-gradient(
+        circle at 85% 12%,
+        rgba(255, 226, 182, 0.28),
+        transparent 28%
+      ),
+      linear-gradient(
+        180deg,
+        #fffdf9 0%,
+        #fff8ef 55%,
+        #fffdf9 100%
+      );
+  }
+
+  /* 網站標題 */
+  body > h1 {
+    margin: 88px 66px 5px;
+
+    color: var(--mobile-orange);
+
+    font-size: clamp(2.45rem, 12.5vw, 4rem);
+    line-height: 1;
+    letter-spacing: 0.04em;
+
+    white-space: nowrap;
+
+    text-shadow:
+      0 4px 0 rgba(255, 199, 158, 0.22);
+  }
+
+  body > h1::after {
+    content: "🍴";
+
+    display: inline-block;
+
+    margin-left: 3px;
+
+    font-size: 0.4em;
+
+    transform: rotate(7deg);
+  }
+
+  /* 網站副標題 */
+  .home-subtitle {
+    display: block;
+
+    margin: 14px 22px 30px;
+
+    color: #96502c;
+
+    font-size: 0.98rem;
+    font-weight: 700;
+    line-height: 1.5;
+    letter-spacing: 0.03em;
+  }
+
+  /* 左上問號、右上帳號 */
+  #helpIcon,
+  #userIcon {
+    width: 48px;
+    height: 48px;
+
+    color: var(--mobile-orange);
+    background: rgba(255, 255, 255, 0.92);
+
+    border: 2px solid currentColor;
+    border-radius: 50%;
+
+    box-shadow:
+      0 6px 18px rgba(144, 82, 45, 0.14);
+  }
+
+  #helpIcon {
+    top: 22px;
+    left: 18px;
+
+    font-size: 25px;
+  }
+
+  #userIcon {
+    color: #4587ee;
+
+    font-size: 23px;
+  }
+
+  .user-dropdown-container {
+    top: 22px;
+    right: 18px;
+  }
+
+  /* 搜尋欄 */
+  .search-container {
+    width: calc(100% - 28px);
+    min-height: 58px;
+
+    margin: 0 auto 22px;
+    padding: 5px 7px 5px 18px;
+
+    box-sizing: border-box;
+
+    display: flex;
+    align-items: center;
+    gap: 7px;
+
+    background: rgba(255, 255, 255, 0.95);
+
+    border: 2px solid #ffd1b8;
+    border-radius: 999px;
+
+    box-shadow:
+      0 8px 22px rgba(227, 123, 62, 0.14);
+  }
+
+  .search-container::before {
+    content: "⌕";
+
+    flex-shrink: 0;
+
+    color: #b77750;
+
+    font-size: 1.9rem;
+    line-height: 1;
+
+    transform: rotate(-18deg);
+  }
+
+  .search-input {
+    width: auto;
+    min-width: 0;
+    flex: 1;
+
+    padding: 10px 3px;
+
+    color: #5e4638;
+    background: transparent;
+
+    border: none;
+    outline: none;
+
+    font-size: 0.95rem;
+  }
+
+  /* 隨機按鈕 */
+  .random-btn {
+    width: 46px;
+    height: 46px;
+    flex: 0 0 46px;
+
+    padding: 0;
+
+    color: var(--mobile-brown);
+    background: #fff9f5;
+
+    border: 1.5px solid #ffad82;
+    border-radius: 50%;
+
+    box-shadow: none;
+  }
+
+  /* 分類與價格容器 */
+  .category-container,
+  .price-container {
+    width: calc(100% - 28px);
+
+    margin-left: auto;
+    margin-right: auto;
+
+    display: grid;
+
+    grid-template-columns:
+      repeat(4, minmax(0, 1fr));
+
+    gap: 10px;
+  }
+
+  .category-container {
+    margin-top: 0;
+    margin-bottom: 14px;
+  }
+
+  .price-container {
+    margin-top: 18px;
+    margin-bottom: 22px;
+
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  /* 分類與價格按鈕 */
+  .category-btn,
+  .price-btn {
+    min-width: 0;
+    min-height: 47px;
+
+    padding: 8px 5px;
+
+    color: var(--mobile-brown);
+    background: rgba(255, 255, 255, 0.82);
+
+    border: 1.5px solid var(--mobile-border);
+    border-radius: 999px;
+
+    font-size: 0.88rem;
+    font-weight: 700;
+
+    white-space: nowrap;
+
+    box-shadow:
+      0 5px 13px rgba(187, 105, 55, 0.08);
+
+    transition:
+      transform 0.18s ease,
+      background 0.18s ease,
+      color 0.18s ease;
+  }
+
+  .price-btn {
+    color: var(--mobile-orange);
+
+    font-size: 0.84rem;
+    font-weight: 500;
+  }
+
+  .category-btn:hover,
+  .category-btn.active,
+  .price-btn:hover,
+  .price-btn.active {
+    color: white;
+
+    background:
+      linear-gradient(
+        135deg,
+        #ff7a38,
+        #ff4f1e
+      );
+
+    border-color: transparent;
+
+    transform: translateY(-2px);
+  }
+
+  /* 隱藏原本分隔線 */
+  .divider {
+    display: none;
+  }
+
+  /* 餐廳區標題 */
+  .restaurant-section-title {
+    display: block;
+
+    width: calc(100% - 28px);
+
+    margin: 14px auto 0;
+    padding: 18px 2px 8px;
+
+    box-sizing: border-box;
+
+    color: #28211d;
+
+    text-align: left;
+    font-size: 1.28rem;
+  }
+
+  .restaurant-section-title::before {
+    content: "📍 ";
+  }
+
+  /* 餐廳卡片列表 */
+  .card-container {
+    width: calc(100% - 24px);
+
+    margin: 0 auto 70px;
+    padding: 8px 0 30px;
+
+    box-sizing: border-box;
+
+    display: grid;
+    grid-template-columns: 1fr;
+
+    gap: 13px;
+  }
+
+  /* 單張餐廳卡片 */
+  .card {
+    min-width: 0;
+    min-height: 154px;
+
+    display: grid;
+
+    grid-template-columns:
+      38% 62%;
+
+    overflow: hidden;
+
+    background: rgba(255, 255, 255, 0.95);
+
+    border:
+      1px solid rgba(255, 211, 187, 0.42);
+
+    border-radius: 20px;
+
+    box-shadow:
+      0 10px 28px rgba(130, 76, 38, 0.12);
+  }
+
+  /* 餐廳照片 */
+  .card > img {
+    display: block;
+
+    width: 100%;
+    height: 100%;
+    min-height: 154px;
+
+    object-fit: cover;
+
+    border-radius: 20px 0 0 20px;
+  }
+
+  /* 餐廳文字 */
+  .card-info {
+    min-height: 154px;
+
+    padding: 12px 34px 36px 15px;
+
+    box-sizing: border-box;
+
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+
+    text-align: left;
+  }
+
+  .card-info h3 {
+    width: 100%;
+
+    margin: 0 0 6px;
+
+    color: #181513;
+
+    font-size: 1rem;
+    line-height: 1.25;
+
+    text-align: left;
+  }
+
+  .card-info p {
+    margin: 2px 0;
+
+    color: #70635c;
+
+    display: flex;
+    justify-content: flex-start;
+
+    font-size: 0.78rem;
+    line-height: 1.35;
+
+    text-align: left;
+  }
+
+  /* 手機版先隱藏筆記按鈕 */
+  .note-icon {
+    display: none;
+  }
+
+  /* 收藏愛心 */
+  .heart {
+    top: 8px;
+    right: 8px;
+
+    padding: 3px;
+
+    color: #ff8b5b;
+
+    font-size: 22px;
+
+    filter:
+      drop-shadow(
+        0 2px 3px rgba(0, 0, 0, 0.16)
+      );
+  }
+
+  /* 距離標籤 */
+  .distance-badge {
+    left: 10px;
+    bottom: 9px;
+
+    padding: 5px 9px;
+
+    background: rgba(255, 255, 255, 0.96);
+
+    font-size: 0.72rem;
+  }
+
+  /* AI 按鈕 */
+  #aiBtn {
+    right: 15px;
+    bottom: 15px;
+
+    width: 64px;
+    height: 64px;
+
+    padding: 0;
+
+    border: 4px solid #ff8a43;
+    border-radius: 50%;
+
+    font-size: 28px;
+
+    box-shadow:
+      0 9px 25px rgba(114, 70, 37, 0.25);
+  }
+}
+
+/* 更小的手機 */
+@media (max-width: 390px) {
+  .category-container {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+  }
+
+  .card {
+    grid-template-columns:
+      41% 59%;
+  }
+
+  .card-info {
+    padding-left: 12px;
+  }
+}
+
   </style>
 </head>
 
@@ -2313,6 +2771,10 @@
 
 
   <h1>食在中原</h1>
+
+<p class="home-subtitle">
+  探索中原大學周邊美食，找到你的口袋名單！
+</p>
 
   <div class="search-container">
     <input id="search" class="search-input" placeholder="搜尋餐廳名稱或地址..." />
@@ -2388,7 +2850,11 @@
 
   <div class="divider"></div>
 
-  <div id="cards" class="card-container"></div>
+  <h2 class="restaurant-section-title">
+  中原大學附近美食 ✨
+</h2>
+
+<div id="cards" class="card-container"></div>
   
   <button id="aiBtn">🤖</button>
 
