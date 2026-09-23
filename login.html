@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登入 - 食在中原</title>
+  <style>
+    /* 全域設定 */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #fff5f2 0%, #ffe0d6 100%);
+    }
+
+    /* 登入容器 */
+    .login-container {
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 350px;
+      text-align: center;
+    }
+
+    h2 {
+      color: #ff5722;
+      font-size: 2rem;
+      margin-bottom: 30px;
+    }
+
+    /* 輸入框樣式 */
+    .input-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 15px;
+      margin-top: 5px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      box-sizing: border-box; /* 確保 padding 不會撐開寬度 */
+      font-size: 1rem;
+      transition: border-color 0.3s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #ff5722;
+      box-shadow: 0 0 0 3px rgba(255, 87, 34, 0.1);
+    }
+
+    /* 按鈕樣式 */
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #ff5722;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.2s, background-color 0.3s;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background-color: #e64a19;
+      transform: translateY(-2px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    /* 註冊連結 */
+    .footer-text {
+      margin-top: 20px;
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .footer-text a {
+      color: #ff5722;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .footer-text a:hover {
+      text-decoration: underline;
+    }
+
+    /* 裝飾小 icon (選擇性) */
+    .logo {
+      margin-bottom: 10px;
+    }
+
+    .logo img {
+      width: 120px;       
+      height: auto;        
+      display: block;      
+      margin: 0 auto;    
+      transition: transform 0.3s ease;
+    }
+
+    .logo img:hover {
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-container">
+    <div class="logo">
+      <img src="https://upload.wikimedia.org/wikipedia/zh/8/83/CYCU.svg" alt="中原大學校徽">
+    </div>
+    <h2>登入食在中原</h2>
+
+    <div class="input-group">
+      <input id="username" placeholder="帳號" autocomplete="username">
+    </div>
+
+    <div class="input-group">
+      <input id="password" type="password" placeholder="密碼" autocomplete="current-password">
+    </div>
+
+    <button id="loginBtn" onclick="login()">立即登入</button>
+
+    <p class="footer-text">
+      還沒有帳號？ <a href="register.html">按此註冊</a>
+    </p>
+  </div>
+
+  <script>
+    async function login() {
+      const btn = document.getElementById("loginBtn");
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      if (!username || !password) {
+        alert("請輸入帳號密碼");
+        return;
+      }
+
+      // 讓按鈕變色顯示正在讀取
+      btn.disabled = true;
+      btn.textContent = "登入中...";
+
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+
+        if (data.ok) {
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("username", data.username);
+          location.href = "index.html";
+        } else {
+          alert(data.error || "登入失敗");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("連線發生問題，請稍後再試");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "立即登入";
+      }
+    }
+
+    // 支援 Enter 鍵登入
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') login();
+    });
+    
+  </script>
+</body>
+</html>
