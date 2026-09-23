@@ -1826,6 +1826,121 @@
       }
     }
 
+    /* 桌機首頁延續手機版的暖橙色視覺 */
+@media (min-width: 769px) {
+  body {
+    min-height: 100vh;
+    color: #3f2b20;
+    background:
+      radial-gradient(circle at 12% 7%, rgba(255, 190, 133, 0.28), transparent 27%),
+      radial-gradient(circle at 89% 16%, rgba(255, 222, 180, 0.34), transparent 30%),
+      linear-gradient(180deg, #fffdf9 0%, #fff3e6 52%, #fffaf4 100%);
+  }
+
+  body > h1 {
+    margin: 64px auto 10px;
+    color: #ff5a24;
+    font-size: clamp(3rem, 4vw, 4.3rem);
+    letter-spacing: 0.05em;
+    text-shadow: 0 4px 0 rgba(255, 199, 158, 0.28);
+  }
+
+  .home-subtitle {
+    display: block;
+    margin: 0 auto 28px;
+    color: #96502c;
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+
+  .search-container {
+    width: min(560px, calc(100% - 48px));
+    margin: 0 auto 26px;
+    padding: 6px 7px 6px 20px;
+    box-sizing: border-box;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 2px solid #ffd1b8;
+    border-radius: 999px;
+    box-shadow: 0 10px 28px rgba(227, 123, 62, 0.14);
+  }
+
+  .search-input {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #5e4638;
+  }
+
+  .random-btn {
+    flex: 0 0 46px;
+    color: #8c4825;
+    background: #fff9f5;
+    border: 1.5px solid #ffad82;
+    box-shadow: none;
+  }
+
+  .category-container,
+  .price-container {
+    max-width: 1260px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0 24px;
+    box-sizing: border-box;
+  }
+
+  .category-btn,
+  .price-btn {
+    min-height: 42px;
+    padding: 9px 17px;
+    color: #8c4825;
+    background: rgba(255, 255, 255, 0.86);
+    border: 1.5px solid #ffb38d;
+    border-radius: 999px;
+    font-weight: 700;
+    box-shadow: 0 5px 13px rgba(187, 105, 55, 0.08);
+  }
+
+  .category-btn:hover,
+  .category-btn.active,
+  .price-btn:hover,
+  .price-btn.active {
+    color: #fff;
+    background: linear-gradient(135deg, #ff7a38, #ff4f1e);
+    border-color: transparent;
+  }
+
+  .divider {
+    max-width: 1400px;
+    height: 1px;
+    margin: 24px auto 0;
+    background: #f4d6c3;
+  }
+
+  .restaurant-section-title {
+    display: block;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 22px 16px 0;
+    box-sizing: border-box;
+    color: #653e2b;
+    font-size: 1.4rem;
+    text-align: left;
+  }
+
+  .card {
+    border: 1px solid rgba(255, 199, 158, 0.42);
+    box-shadow: 0 7px 20px rgba(118, 69, 37, 0.1);
+  }
+
+  .card:hover {
+    box-shadow: 0 12px 26px rgba(118, 69, 37, 0.16);
+  }
+}
+
     @media (max-width: 390px) {
       .category-container {
         grid-template-columns: repeat(3, minmax(0, 1fr));
