@@ -1971,6 +1971,16 @@ function toggleMoreTags() {
   }
 }
 
+function scrollCategories(distance) {
+  const container = document.getElementById('categoryContainer');
+  if (container) {
+    container.scrollBy({
+      left: distance,
+      behavior: 'smooth'
+    });
+  }
+}
+
 // ==================== 歡迎視窗控制功能 ====================
 function closeWelcomeModal() {
   const modal = document.getElementById("welcomeModal");
