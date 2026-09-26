@@ -2247,7 +2247,7 @@
   position: relative;
   max-width: 1000px;
   margin: 15px auto;
-  padding: 0 45px;
+  padding: 0 55px !important;
   box-sizing: border-box;
 }
 
@@ -2255,12 +2255,14 @@
 .category-container {
   display: flex !important;
   flex-wrap: nowrap !important;
+  justify-content: flex-start !important;
   gap: 10px;
   overflow-x: auto;
   scroll-behavior: smooth;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  padding: 8px 4px;
+  padding: 8px 10px !important;
+  box-sizing: border-box;
 }
 
 .category-container::-webkit-scrollbar {
