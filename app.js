@@ -1971,14 +1971,17 @@ function toggleMoreTags() {
   }
 }
 
+let isScrolling = false;
+
 function scrollCategories(distance) {
   const container = document.getElementById('categoryContainer');
-  if (container) {
-    container.scrollBy({
-      left: distance,
-      behavior: 'smooth'
-    });
-  }
+  if (!container) return;
+
+  // 使用 smooth 滾動
+  container.scrollBy({
+    left: distance,
+    behavior: 'smooth'
+  });
 }
 
 // ==================== 歡迎視窗控制功能 ====================
