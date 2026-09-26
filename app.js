@@ -1953,20 +1953,22 @@ async function submitStoreNote() {
   }
 }
 
-let moreOpen = false;
 
 function toggleMoreTags() {
+  const moreTags = document.querySelectorAll('.more-tag');
+  const moreBtn = document.getElementById('moreBtn');
 
-    moreOpen = !moreOpen;
+  moreTags.forEach(tag => {
+    tag.classList.toggle('hidden-tag');
+  });
 
-    const tags = document.querySelectorAll(".more-tag");
-    const btn = document.getElementById("moreBtn");
-
-    tags.forEach(tag=>{
-        tag.classList.toggle("show", moreOpen);
-    });
-
-    btn.textContent = moreOpen ? "➖ 收起" : "➕ 更多";
+  if (moreBtn) {
+    if (moreBtn.innerText.includes('更多')) {
+      moreBtn.innerText = '➖ 收起';
+    } else {
+      moreBtn.innerText = '➕ 更多';
+    }
+  }
 }
 
 // ==================== 歡迎視窗控制功能 ====================

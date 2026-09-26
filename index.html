@@ -18,21 +18,19 @@
       touch-action: none;
     }
 
-    /* 2. 確定好友 Modal 背景遮罩層級夠高且滿版 */
     #friendsModal {
       position: fixed;
       top: 0;
       left: 0;
       width: 100vw;
       height: 100vh;
-      z-index: 200000; /* 確保蓋過主頁面餐廳卡片 */
+      z-index: 200000;
       background-color: rgba(0, 0, 0, 0.5);
-      display: none; /* 預設隱藏 */
+      display: none;
       justify-content: center;
       align-items: center;
     }
 
-    /* 3. Modal 內容主體：限制高度，內容過長時自己在內部滾動 */
     .friends-modal-content {
       background: #ffffff;
       width: 90%;
@@ -45,13 +43,12 @@
       overflow: hidden;
     }
 
-    /* 4. 好友動態列表的滾動區域（最重要的一段） */
     .friends-modal-body,
     #friendFeedList {
       flex: 1;
-      overflow-y: auto !important; /* 強制開啟內部垂直滾動 */
-      -webkit-overflow-scrolling: touch; /* 讓 iOS 滑動更平滑 */
-      touch-action: pan-y; /* 允許垂直方向的手勢滑動 */
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
       padding: 15px;
     }
 
@@ -176,11 +173,10 @@
       overflow: hidden;
       transition: transform 0.15s ease;
       
-      /* 關鍵設定：開啟 Grid 改為左圖右邊資訊 */
       display: grid;
       grid-template-columns: 38% minmax(0, 62%);
       align-items: stretch;
-      height: 180px; /* 每張卡片等高，容納兩行地址與價格 */
+      height: 180px;
     }
 
     .card:hover {
@@ -228,13 +224,13 @@
 
     @media (max-width: 1200px) {
       .card-container {
-        grid-template-columns: repeat(2, minmax(0, 1fr)); /* 螢幕較窄時一列 2 間 */
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
 
     @media (max-width: 650px) {
       .card-container {
-        grid-template-columns: 1fr; /* 手機維持一列 1 間 */
+        grid-template-columns: 1fr;
       }
     }
 
@@ -526,7 +522,6 @@
       margin-top: 4px;
     }
 
-    /* ==================== 頂部好友按鈕 ==================== */
    .user-dropdown-container {
       position: fixed;
       top: 24px;
@@ -550,7 +545,7 @@
       box-shadow: 0 3px 10px rgba(0,0,0,0.12);
       transition: transform 0.15s ease;
       outline: none;
-      -webkit-tap-highlight-color: transparent; /* 清除手機點擊時的灰色高亮框 */
+      -webkit-tap-highlight-color: transparent;
     }
 
     .user-dropdown-container .icon-btn:hover {
@@ -561,7 +556,7 @@
       display: none;
       position: absolute;
       right: 0;
-      top: calc(100% + 6px); /* 留出適當間距 */
+      top: calc(100% + 6px);
       background-color: #ffffff;
       min-width: 160px;
       box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.18);
@@ -615,7 +610,6 @@
       border-radius: 10px;
     }
 
-    /* ==================== 好友 Modal 遮罩與卡片 ==================== */
     .friends-modal-overlay {
       position: fixed;
       top: 0;
@@ -687,8 +681,8 @@
 
     .friends-tabs {
       display: flex !important;
-      flex-direction: row !important; /* 確保按鈕橫向排成一排 */
-      flex-wrap: nowrap !important;   /* 強制不換行 */
+      flex-direction: row !important; 
+      flex-wrap: nowrap !important;
       width: 100%;
       background: #f8f9fa;
       border-bottom: 1px solid #e9ecef;
@@ -857,7 +851,6 @@
       margin-top: 40px;
     }
 
-    /* 發布貼文區塊 */
     .create-post-box {
       background: #fff;
       border: 1px solid #eee;
@@ -924,11 +917,10 @@
     .post-restaurant-name {
       font-weight: bold;
       font-size: 15px;
-      line-height: 1.4 !important; /* 給予適當行高，防止文字垂直重疊 */
-      height: auto !important; /* 解除固定高度 */
-      padding-right: 36px; /* 右側留出空間，避免撞到愛心按鈕 */
+      line-height: 1.4 !important;
+      height: auto !important;
+      padding-right: 36px;
       
-      /* 防止文字異常換行或擠壓 */
       word-break: break-word;
       overflow-wrap: break-word;
     }
@@ -1733,7 +1725,7 @@
         flex-direction: column;
         background: #fff;
         border-radius: 20px;
-        padding: 12px; /* 卡片留白 */
+        padding: 12px;
         box-sizing: border-box;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
       }
@@ -1742,10 +1734,10 @@
         display: block;
         width: 100%;
         height: auto;
-        max-height: 280px; /* 控制圖片最大高度，避免太長 */
+        max-height: 280px;
         min-height: 0;
         object-fit: cover;
-        border-radius: 12px; /* 圖片四角圓角 */
+        border-radius: 12px;
       }
 
       .card-info {
@@ -1762,17 +1754,15 @@
       .card-info h3 {
         display: inline-flex;
         align-items: center;
-        width: auto; /* 不佔滿整行 */
+        width: auto;
         max-width: 100%;
         margin: 4px 0 8px 0;
         padding: 6px 12px;
         font-size: 0.88rem;
         font-weight: 600;
-        color: #8c4825; /* 文字顏色 */
-        background: #fceae1; /* 標籤淺粉/橘底色 */
-        border-radius: 8px; /* 標籤圓角 */
-        
-        /* 文字過長時顯示 ... */
+        color: #8c4825;
+        background: #fceae1;
+        border-radius: 8px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1826,7 +1816,6 @@
       }
     }
 
-    /* 桌機首頁延續手機版的暖橙色視覺 */
 @media (min-width: 769px) {
   body {
     min-height: 100vh;
@@ -2018,19 +2007,15 @@
       gap: 12px;
     }
 
-    /* 🎯 貼在最下面的新程式碼從這裡開始 ================= */
 
     .scroll-hint-right {
-      display: none; /* 電腦版隱藏提示箭頭 */
+      display: none;
     }
 
     .category-btn.hidden-tag {
-      display: none; /* 電腦版預設隱藏更多標籤 */
+      display: none;
     }
 
-   /* ============================================================
-   💻 桌機版：向左微調 + 垂直拉長 + 修復右側溢出
-   ============================================================ */
   @media (min-width: 769px) {
 
     .ai-container,
@@ -2039,12 +2024,10 @@
       width: 80% !important;
       max-width: 800px !important;
       
-      /* 🎯 增加整體垂直高度 */
       height: 1800px !important; 
       min-height: 1600px !important;
       max-height: none !important; 
       
-      /* 🎯 靠左偏移（左邊距設 10% 或適度縮減，避免右側被裁切） */
       margin: 40px auto 40px 5% !important;
       padding: 0 !important;
 
@@ -2062,7 +2045,7 @@
       display: flex !important;
       align-items: center !important;
       justify-content: space-between !important;
-      padding: 16px 20px !important; /* 稍微縮減內邊距留出更多空間 */
+      padding: 16px 20px !important;
       background: #ffffff;
       border-bottom: 1px solid #f0f0f0;
       flex-shrink: 0 !important;
@@ -2084,7 +2067,7 @@
     .ai-tools {
       display: flex;
       align-items: center;
-      gap: 8px !important; /* 縮小按鈕間距 */
+      gap: 8px !important;
       flex-shrink: 0;
       margin-left: 10px !important;
     }
@@ -2093,7 +2076,7 @@
       background-color: #fff4e6;
       color: #ff9800;
       border: 1px solid #ffe0b2;
-      padding: 6px 14px; /* 稍微縮小收藏按鈕大小 */
+      padding: 6px 14px;
       border-radius: 20px;
       font-size: 0.85rem;
       font-weight: 600;
@@ -2116,7 +2099,6 @@
       flex-shrink: 0;
     }
 
-    /* 🎯 對話區域：保持內部滾動，適應新高度 */
     #aiOutput {
       flex: 1 1 auto !important;
       height: 100% !important;
@@ -2130,12 +2112,11 @@
       line-height: 1.6;
     }
 
-    /* 🎯 輸入框區域：縮減輸入框長度 */
     .ai-input-area {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 14px 20px; /* 稍微減小上下邊距 */
+      padding: 14px 20px;
       background-color: #ffffff;
       border-top: 1px solid #f0f0f0;
       flex-shrink: 0 !important;
@@ -2144,7 +2125,7 @@
 
     #aiInput {
       flex: 1;
-      height: 44px; /* 稍微縮短搜尋框長度/高度 */
+      height: 44px; 
       min-height: 44px;
       max-height: 100px;
       border: 1.5px solid #e2e8f0;
@@ -2162,7 +2143,7 @@
       background: linear-gradient(135deg, #ff7043 0%, #ff5722 100%);
       color: #ffffff;
       border: none;
-      padding: 0 22px; /* 縮減送出按鈕的左右寬度 */
+      padding: 0 22px;
       height: 44px;
       border-radius: 22px;
       font-weight: 600;
@@ -2174,11 +2155,7 @@
     }
   }
 
-  /* ==========================================
-   📷 貼文多圖左右橫向輪播區塊
-   ========================================== */
 
-/* 1. 輪播外框容器 */
 .feed-carousel {
   position: relative;
   width: 100%;
@@ -2188,45 +2165,42 @@
   background-color: #f8f8f8;
 }
 
-/* 2. 橫向滑動軌道（支援捲軸吸附與隱藏橫向捲軸） */
 .feed-carousel-track {
   display: flex !important;
   flex-direction: row !important;
   width: 100%;
-  overflow-x: auto !important;          /* 啟用橫向滑動 */
+  overflow-x: auto !important;    
   overflow-y: hidden;
-  scroll-snap-type: x mandatory;         /* 滑動時自動吸附對齊照片 */
-  -webkit-overflow-scrolling: touch;     /* iOS 平滑滑動 */
-  scrollbar-width: none;                 /* 隱藏捲軸 (Firefox) */
+  scroll-snap-type: x mandatory;     
+  -webkit-overflow-scrolling: touch;  
+  scrollbar-width: none;             
 }
 
-/* 隱藏 Webkit 瀏覽器 (Chrome/Safari) 的橫向捲軸 */
 .feed-carousel-track::-webkit-scrollbar {
   display: none !important;
 }
 
 /* 3. 單張照片外框容器 */
 .feed-carousel-slide {
-  flex: 0 0 100% !important;             /* 強制每張照片佔滿 100% 寬度 */
+  flex: 0 0 100% !important;       
   width: 100% !important;
-  scroll-snap-align: start;              /* 停止滑動時靠左吸附 */
+  scroll-snap-align: start;           
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #f8f8f8;             /* 照片載入前的預設底色 */
+  background-color: #f8f8f8;          
 }
 
 /* 4. 照片本體樣式 */
 .feed-carousel-image {
   width: 100% !important;
-  height: 300px !important;              /* 固定高度（可視需求改為 max-height: 350px） */
-  object-fit: cover !important;          /* cover: 自動裁切填滿；contain: 完整顯示不裁切 */
+  height: 300px !important;          
+  object-fit: cover !important;         
   border-radius: 8px;
   display: block;
   margin: 0 auto;
 }
 
-/* 5. 右上角頁數標籤 (例如：1 / 3) */
 .feed-carousel-count {
   position: absolute;
   top: 10px;
@@ -2241,7 +2215,6 @@
   z-index: 5;
 }
 
-/* 6. 下方小圓點分頁指示器 */
 .feed-carousel-dots {
   position: absolute;
   bottom: 10px;
@@ -2266,9 +2239,6 @@
   transform: scale(1.3);
 }
 
-/* ============================================================
-   📱 手機版 (768px 以下)
-   ============================================================ */
 @media (max-width: 768px) {
   .category-wrapper {
     position: relative;
@@ -2477,12 +2447,11 @@
   }
 }
 
-    /* 單間餐廳的卡片容器 */
     .restaurant-card, 
     .card-item, 
     .post-restaurant-item {
-      display: flex !important; /* 使用 Flex 佈局 */
-      align-items: flex-start !important; /* 文字對齊圖片頂部 */
+      display: flex !important;
+      align-items: flex-start !important;
       padding: 12px 14px !important;
       border-radius: 12px;
       background-color: #ffffff;
@@ -2495,22 +2464,22 @@
     /* 卡片內的圖片容器 */
     .restaurant-image-container, 
     .card-img-wrapper {
-      width: 100px !important; /* 🎯 固定圖片寬度，不允許被壓縮 */
-      height: 100px !important; /* 固定圖片高度 */
+      width: 100px !important;
+      height: 100px !important; 
       border-radius: 8px;
       overflow: hidden;
-      margin-right: 12px !important; /* 與文字的間距 */
-      flex-shrink: 0 !important; /* 🎯 強制不被壓縮，保持 100px */
+      margin-right: 12px !important; 
+      flex-shrink: 0 !important;
     }
 
     /* 卡片內的文字資訊區域 */
     .restaurant-info, 
     .card-details-wrapper {
-      flex: 1 1 auto !important; /* 🎯 自動填滿剩餘的所有水平空間 */
+      flex: 1 1 auto !important; 
       display: flex;
       flex-direction: column;
       justify-content: flex-start;
-      min-width: 0 !important; /* 🎯 關鍵：允許子元素控制溢出，防止文字擠壓卡片 */
+      min-width: 0 !important; 
       box-sizing: border-box !important;
     }
 
@@ -2522,56 +2491,51 @@
       font-weight: 700 !important;
       color: #222222 !important;
       
-      /* 🎯 文字換行與溢出控制 */
-      word-break: break-word !important; /* 允許長單字換行 */
-      overflow-wrap: break-word !important; /* 確保超長單字不超出容器 */
-      line-height: 1.4 !important; /* 給予適當行高，防止文字垂直重疊 */
-      height: auto !important; /* 解除固定高度 */
+      word-break: break-word !important; 
+      overflow-wrap: break-word !important; 
+      line-height: 1.4 !important;
+      height: auto !important;
       
-      margin: 0 0 4px 0 !important; /* 下方留白 */
+      margin: 0 0 4px 0 !important;
 
-      /* 💡 進階選項：若名稱很長，最多顯示兩行，超出則顯示 "..." */
       display: -webkit-box !important;
-      -webkit-line-clamp: 2 !important; /* 最多顯示 2 行 */
+      -webkit-line-clamp: 2 !important;
       -webkit-box-orient: vertical !important;
       overflow: hidden !important;
-      text-overflow: ellipsis !important; /* 溢出顯示 "..." */
+      text-overflow: ellipsis !important; 
     }
 
-    /* 其他文字資訊（如地址、星級） */
     .restaurant-address, 
     .card-subtitle {
       font-size: 0.9rem;
       color: #666666;
       margin: 0;
-      white-space: nowrap; /* 限制單行顯示 */
+      white-space: nowrap;
       overflow: hidden;
-      text-overflow: ellipsis; /* 溢出顯示 "..." */
+      text-overflow: ellipsis; 
     }
 
     .feed-avatars-container {
       display: flex !important;
-      flex-direction: row !important; /* 強制水平排列 */
-      gap: 12px;                      /* 頭像之間的間距 */
-      overflow-x: auto !important;    /* 開啟水平滾動 */
+      flex-direction: row !important; 
+      gap: 12px;                      
+      overflow-x: auto !important;   
       overflow-y: hidden;
       padding: 10px 5px;
       white-space: nowrap;
-      -webkit-overflow-scrolling: touch; /* iOS 平滑滾動 */
-      scrollbar-width: none;          /* 隱藏滾動條 (Firefox) */
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;          
     }
 
-    /* 隱藏 Chrome/Safari 滾動條 */
     .feed-avatars-container::-webkit-scrollbar {
       display: none;
     }
 
-    /* 單個好友頭像項目 */
     .feed-avatar-item {
       display: flex;
       flex-direction: column;
       align-items: center;
-      flex: 0 0 auto; /* 防止頭像被壓縮 */
+      flex: 0 0 auto;
       width: 60px;
     }
 
@@ -2581,7 +2545,6 @@
 <body>
   <div class="top-right-tools">
 
-    <!-- 說明按鈕 -->
     <button
       id="helpIcon"
       class="icon-btn btn-icon-text"
@@ -2592,10 +2555,8 @@
       <span class="btn-icon-emoji">❓</span>
     </button>
 
-    <!-- 登入與好友功能（包含選單） -->
     <div class="user-dropdown-container">
 
-      <!-- 觸發按鈕 -->
       <button
         id="userIcon"
         class="icon-btn welcome-login-btn"
@@ -2608,7 +2569,6 @@
 
       <div class="user-dropdown-menu">
 
-        <!-- 登入 -->
         <button
           id="loginItemBtn"
           class="dropdown-item"
@@ -2618,7 +2578,6 @@
           🔑 登入
         </button>
 
-        <!-- 編輯使用者 -->
         <button
           id="editUserItemBtn"
           class="dropdown-item"
@@ -2628,7 +2587,6 @@
           👤 編輯使用者
         </button>
 
-        <!-- 好友功能 -->
         <button
           class="dropdown-item"
           type="button"
@@ -2642,7 +2600,6 @@
           ></span>
         </button>
 
-        <!-- 登出 -->
         <button
           id="logoutItemBtn"
           class="dropdown-item"
@@ -2729,9 +2686,9 @@
         </button>
       </div>
     </div>
-    <!-- AI 對話內容 -->
+
     <div id="aiOutput"></div>
-    <!-- 輸入區 -->
+
     <div class="ai-input-area">
       <textarea
         id="aiInput"
@@ -2753,7 +2710,7 @@
     </div>
   </div>
 
-  <!-- 登入 Modal -->
+
   <div id="loginModal" class="modal-overlay" style="display: none;">
     <div class="login-container">
       <span class="close-btn" onclick="closeModals()">&times;</span>
@@ -2782,7 +2739,6 @@
     </div>
   </div>
 
-  <!-- 註冊 Modal -->
   <div id="registerModal" class="modal-overlay" style="display: none;">
     <div class="login-container">
       <span class="close-btn" onclick="closeModals()">&times;</span>
@@ -2824,7 +2780,7 @@
     </div>
   </div>
 
-  <!-- 忘記密碼 Modal -->
+
   <div id="forgotPasswordModal" class="modal-overlay" style="display: none;">
     <div class="login-container">
       <span class="close-btn" onclick="closeModals()">&times;</span>
@@ -2857,7 +2813,7 @@
     </div>
   </div>
 
-  <!-- 備忘錄 Modal -->
+
   <div id="noteModal" class="modal-overlay" style="display: none;">
     <div class="modal-content" style="max-width: 400px;">
       <span class="close-btn" onclick="closeNoteModal()">&times;</span>
@@ -2877,7 +2833,7 @@
     </div>
   </div>
 
-  <!-- 歡迎 Modal -->
+
   <div id="welcomeModal" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle" style="display: none;">
     <div class="welcome-card">
       <img class="welcome-hero" src="welcome-food-girl.png" alt="開心享用美食的小女孩">
@@ -2901,8 +2857,8 @@
     </div>
   </div>
 
-      <!-- 使用者與好友功能共用 Modal -->
-      <div id="friendsModal" class="modal-overlay" style="display: none;">
+
+  <div id="friendsModal" class="modal-overlay" style="display: none;">
         <div class="modal-content friends-modal-content">
           <div class="modal-header">
             <h3>👥 好友社群</h3>
