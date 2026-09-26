@@ -2644,6 +2644,108 @@
       width: 60px;
     }
 
+    /* ==================== 💬 留言區塊現代化美化 ==================== */
+
+/* 1. 查看更多留言按鈕 */
+.view-comments-btn {
+  background: none;
+  border: none;
+  padding: 4px 0;
+  margin-bottom: 8px;
+  color: #8e8e8e;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.2s ease;
+}
+
+.view-comments-btn:hover {
+  color: #262626;
+}
+
+/* 2. 留言列表容器 (移除邊框與背景，保持簡潔) */
+.post-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+/* 3. 單條留言樣式 */
+.post-comment-item {
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #262626;
+  word-break: break-word;
+  text-align: left;
+}
+
+/* 發言者暱稱加粗 */
+.post-comment-author {
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-right: 6px;
+}
+
+/* 留言內文 */
+.post-comment-text {
+  color: #333333;
+}
+
+/* 無留言時的提示 */
+.no-comments {
+  font-size: 0.82rem;
+  color: #a8a8a8;
+  padding: 4px 0;
+  text-align: left;
+}
+
+/* 4. 底下新增留言表單 */
+.post-comment-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0; /* 簡約極細分隔線 */
+}
+
+/* 輸入框美化 (圓角扁平風格) */
+.post-comment-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 20px;
+  background-color: #f8f9fa;
+  font-size: 0.85rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.post-comment-input:focus {
+  background-color: #ffffff;
+  border-color: #ff5722;
+  box-shadow: 0 0 0 2px rgba(255, 87, 34, 0.1);
+}
+
+/* 發布按鈕美化 */
+.post-comment-submit {
+  border: none;
+  background: transparent;
+  color: #ff5722;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: opacity 0.2s ease;
+}
+
+.post-comment-submit:hover {
+  opacity: 0.75;
+}
+
   </style>
 </head>
 

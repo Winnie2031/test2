@@ -2867,332 +2867,117 @@ async function togglePostLike(postId, button) {
 // 💬 展開 / 收合留言
 // ============================================================
 
-async function togglePostComments(postId) {
-
-  const list =
-    document.getElementById(
-      `commentsList-${postId}`
-    );
-
-  const form =
-    document.getElementById(
-      `commentForm-${postId}`
-    );
+async function togglePostComments(postId, forceOpenAll = false) {
+  const list = document.getElementById(`commentsList-${postId}`);
+  const form = document.getElementById(`commentForm-${postId}`);
 
   if (!list || !form) return;
 
-
-  // 已經打開 → 收起來
-  if (list.style.display !== "none") {
-
+  // 如果原本已經打開，且不是要強制展開全部，點擊則收起
+  if (list.style.display !== "none" && !forceOpenAll && list.dataset.expanded === "true") {
     list.style.display = "none";
     form.style.display = "none";
-
+    list.dataset.expanded = "false";
     return;
   }
-
 
   list.style.display = "block";
   form.style.display = "flex";
 
-  list.innerHTML =
-    `<div class="comments-loading">
-       留言載入中...
-     </div>`;
-
-
+  // 若尚未載入或要展開更多
   try {
-
-    const res = await fetch(
-      `/api/posts/${postId}/comments`,
-      {
-        headers: getAuthHeaders()
-      }
-    );
-
+    const res = await fetch(`/api/posts/${postId}/comments`, {
+      headers: getAuthHeaders()
+    });
     const data = await res.json();
 
-    if (!res.ok || !data.ok) {
+    if (!res.ok || !data.ok) throw new Error(data.error || "取得留言失敗");
 
-      throw new Error(
-        data.error || "取得留言失敗"
-      );
-    }
+    // 紀錄是否已完全展開
+    const showAll = forceOpenAll || list.dataset.expanded === "true";
+    if (forceOpenAll) list.dataset.expanded = "true";
 
-
-    renderPostComments(
-      postId,
-      data.comments || []
-    );
+    renderPostComments(postId, data.comments || [], showAll);
 
   } catch (err) {
-
-    console.error(
-      "取得留言失敗:",
-      err
-    );
-
-    list.innerHTML = `
-      <div class="comments-error">
-        ${escapeHtml(err.message)}
-      </div>
-    `;
+    console.error("取得留言失敗:", err);
+    list.innerHTML = `<div class="comments-error">${escapeHtml(err.message)}</div>`;
   }
 }
-function renderPostComments(
-  postId,
-  comments
-) {
 
-  const list =
-    document.getElementById(
-      `commentsList-${postId}`
-    );
-
+function renderPostComments(postId, comments, showAll = false) {
+  const list = document.getElementById(`commentsList-${postId}`);
+  const viewBtn = document.getElementById(`viewCommentsBtn-${postId}`);
   if (!list) return;
 
-
   if (!comments.length) {
-
-    list.innerHTML = `
-      <div class="no-comments">
-        還沒有留言
-      </div>
-    `;
-
+    list.innerHTML = `<div class="no-comments">還沒有留言，快來搶頭香！</div>`;
+    if (viewBtn) viewBtn.style.display = "none";
     return;
   }
 
+  // 判斷要顯示幾則：預設最多 3 則，展開後顯示全部
+  const limit = 3;
+  const hasMore = comments.length > limit;
+  const displayComments = showAll ? comments : comments.slice(0, limit);
 
-  list.innerHTML =
-    comments.map(comment => {
+  // 渲染留言列表
+  list.innerHTML = displayComments.map(comment => {
+    const nickname = comment.nickname || comment.student_id || "使用者";
+    return `
+      <div class="post-comment-item">
+        <span class="post-comment-author">${escapeHtml(nickname)}</span>
+        <span class="post-comment-text">${escapeHtml(comment.content)}</span>
+      </div>
+    `;
+  }).join("");
 
-      const nickname =
-        comment.nickname ||
-        comment.student_id ||
-        "使用者";
-
-      return `
-        <div class="post-comment">
-
-          <span class="post-comment-name">
-            ${escapeHtml(nickname)}
-          </span>
-
-          <span class="post-comment-content">
-            ${escapeHtml(comment.content)}
-          </span>
-
-        </div>
-      `;
-
-    }).join("");
+  // 更新或控制「查看全部留言」按鈕
+  if (viewBtn) {
+    if (hasMore && !showAll) {
+      viewBtn.style.display = "block";
+      viewBtn.textContent = `查看全部 ${comments.length} 則留言`;
+      viewBtn.onclick = () => togglePostComments(postId, true); // 點擊展開全部
+    } else {
+      viewBtn.style.display = "none";
+    }
+  }
 }
-// ============================================================
-// 💬 發布留言
-// ============================================================
 
 async function submitPostComment(postId) {
-
-  const input =
-    document.getElementById(
-      `commentInput-${postId}`
-    );
-
+  const input = document.getElementById(`commentInput-${postId}`);
   if (!input) return;
 
-  const content =
-    input.value.trim();
-
+  const content = input.value.trim();
   if (!content) return;
 
-
   try {
-
-    const res = await fetch(
-      `/api/posts/${postId}/comments`,
-      {
-        method: "POST",
-
-        headers:
-          getAuthHeaders(true),
-
-        body: JSON.stringify({
-          content
-        })
-      }
-    );
+    const res = await fetch(`/api/posts/${postId}/comments`, {
+      method: "POST",
+      headers: getAuthHeaders(true),
+      body: JSON.stringify({ content })
+    });
 
     const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || "留言失敗");
 
-    if (!res.ok || !data.ok) {
+    input.value = ""; // 清空輸入框
 
-      throw new Error(
-        data.error || "留言失敗"
-      );
-    }
+    // 重新抓取並渲染最新留言（保持當前展開狀態）
+    const list = document.getElementById(`commentsList-${postId}`);
+    const isExpanded = list?.dataset.expanded === "true";
+    
+    // 如果剛才沒打開，發布後自動開啟留言區
+    if (list) list.style.display = "block";
+    const form = document.getElementById(`commentForm-${postId}`);
+    if (form) form.style.display = "flex";
 
-
-    // 清空輸入框
-    input.value = "";
-
-
-    // 重新抓留言
-    const commentsRes = await fetch(
-      `/api/posts/${postId}/comments`,
-      {
-        headers: getAuthHeaders()
-      }
-    );
-
-    const commentsData = await commentsRes.json();
-
-    if (
-      commentsRes.ok &&
-      commentsData.ok
-    ) {
-      renderPostComments(
-        postId,
-        commentsData.comments || []
-      );
-
-      // 更新「查看全部 X 則留言」
-      const viewBtn = document.getElementById(
-        `viewCommentsBtn-${postId}`
-      );
-
-      if (viewBtn) {
-        viewBtn.textContent = `查看全部 ${commentsData.comments.length} 則留言`;
-      }
-    }
+    await togglePostComments(postId, isExpanded);
 
   } catch (err) {
     console.error("留言失敗:", err);
     alert(err.message || "留言失敗");
   }
-}
-
-// ============================================================
-// 🗑️ 永久刪除貼文
-// ============================================================
-async function deletePost(postId) {
-  const token = getToken();
-
-  if (!token) {
-    alert("請先登入");
-    return;
-  }
-
-  const confirmed = confirm(
-    "確定要永久刪除這篇貼文嗎？\n刪除後無法復原。"
-  );
-
-  if (!confirmed) return;
-
-  try {
-    const res = await fetch(
-      `/api/posts/${postId}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      }
-    );
-
-    const data = await res.json();
-
-    if (!res.ok || !data.ok) {
-      throw new Error(
-        data.error || "刪除貼文失敗"
-      );
-    }
-
-    await loadFriendFeeds();
-
-  } catch (err) {
-    console.error("刪除貼文失敗：", err);
-
-    alert(
-      err.message || "刪除貼文失敗"
-    );
-  }
-}
-
-
-// ==================== 5. 我的好友 ====================
-function renderMyFriends(friends) {
-  const container =
-    document.getElementById("myFriendsList");
-
-  if (!container) return;
-
-  if (!friends || friends.length === 0) {
-
-    container.innerHTML =
-      '<p class="empty-msg">目前還沒有好友喔！</p>';
-
-    return;
-  }
-
-  container.innerHTML =
-    friends.map(friend => {
-
-      const nickname =
-        friend.nickname || "中原同學";
-
-      return `
-        <div
-  class="friend-item"
-
-  onclick="
-    handleFriendClick(
-      ${friend.user_id},
-      '${escapeJsString(nickname)}'
-    )
-  "
-
-  onpointerdown="
-    startFriendLongPress(
-      ${friend.friendship_id},
-      '${escapeJsString(nickname)}'
-    )
-  "
-
-  onpointerup="cancelFriendLongPress()"
-  onpointerleave="cancelFriendLongPress()"
-  onpointercancel="cancelFriendLongPress()"
->
-
-          <div class="friend-avatar">
-            👤
-          </div>
-
-          <div class="friend-info">
-
-            <span class="friend-name">
-              ${escapeHtml(nickname)}
-            </span>
-
-            <span class="friend-id">
-              學號：
-              ${escapeHtml(friend.student_id || "")}
-            </span>
-
-          </div>
-
-          <span
-            style="
-              font-size:0.8rem;
-              color:#888;
-            "
-          >
-            查看動態 ❯
-          </span>
-
-        </div>
-      `;
-    }).join("");
 }
 
 // ============================================================
