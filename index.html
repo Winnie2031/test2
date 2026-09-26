@@ -2263,6 +2263,9 @@
   -webkit-overflow-scrolling: touch;
   padding: 8px 10px !important;
   box-sizing: border-box;
+  will-change: scroll-position;
+  transform: translateZ(0);
+  -webkit-overflow-scrolling: touch;
 }
 
 .category-container::-webkit-scrollbar {
@@ -2281,8 +2284,7 @@
   background-color: white;
   color: #ff5722;
   cursor: pointer;
-  transition: all 0.2s ease;
-  
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;  
   /* 文字過長時的排版防護 */
   white-space: nowrap;
   overflow: hidden;
