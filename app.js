@@ -4120,43 +4120,6 @@ async function searchPostRestaurants(keyword) {
   }
 }
 
-// ============================================================
-// 🖱️ 電腦版照片軌道：支援滑鼠按住拖曳 (Drag to Scroll)
-// ============================================================
-document.addEventListener("mousedown", (e) => {
-  const track = e.target.closest(".feed-carousel-track");
-  if (!track) return;
-
-  let isDown = true;
-  let startX = e.pageX - track.offsetLeft;
-  let scrollLeft = track.scrollLeft;
-
-  // 暫時關閉 scroll-snap，拖曳時才不會卡頓
-  track.style.scrollSnapType = "none";
-  track.style.cursor = "grabbing";
-
-  const onMouseMove = (e) => {
-    if (!isDown) return;
-    e.preventDefault();
-    const x = e.pageX - track.offsetLeft;
-    const walk = (x - startX) * 1.5; // 拖曳速度係數
-    track.scrollLeft = scrollLeft - walk;
-  };
-
-  const onMouseUp = () => {
-    isDown = false;
-    track.style.cursor = "grab";
-    // 拖曳結束後恢復 scroll-snap 自動吸附對齊
-    track.style.scrollSnapType = "x mandatory";
-
-    document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("mouseup", onMouseUp);
-  };
-
-  document.addEventListener("mousemove", onMouseMove);
-  document.addEventListener("mouseup", onMouseUp);
-});
-
 
 // ============================================================
 // 📍 選擇餐廳
@@ -5201,35 +5164,6 @@ async function deleteModalComment(commentId, postId) {
   } catch (err) {
     console.error("刪除留言失敗:", err);
     alert(err.message || "刪除失敗");
-  }
-}
-
-// 範例：渲染照片輪播區塊
-const carouselHtml = `
-  <div class="feed-carousel" style="position: relative;">
-    
-    <!-- 電腦版左右切換按鈕 -->
-    ${imagesList.length > 1 ? `
-      <button type="button" onclick="scrollCarousel('${post.post_id}', -1)" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); z-index: 10; background: rgba(0,0,0,0.4); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer;">❮</button>
-      <button type="button" onclick="scrollCarousel('${post.post_id}', 1)" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); z-index: 10; background: rgba(0,0,0,0.4); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer;">❯</button>
-    ` : ''}
-
-    <div class="feed-carousel-track" id="carousel-track-${post.post_id}">
-      ${imagesList.map(imgUrl => `
-        <div class="feed-carousel-slide">
-          <img src="${escapeHtml(imgUrl)}" class="feed-carousel-image" alt="貼文照片" />
-        </div>
-      `).join('')}
-    </div>
-  </div>
-`;
-
-// 點擊箭頭控制左右滑動的函式
-function scrollCarousel(postId, direction) {
-  const track = document.getElementById(`carousel-track-${postId}`);
-  if (track) {
-    const slideWidth = track.clientWidth;
-    track.scrollBy({ left: direction * slideWidth, behavior: 'smooth' });
   }
 }
 
