@@ -283,6 +283,60 @@ app.get("/api/restaurants/:id", async (req, res) => {
 // ============================================================
 
 app.get(
+  "/api/restaurants/:id/google-review-photos",
+  async (req, res) => {
+    const restaurantId = Number(req.params.id);
+
+    if (
+      !Number.isSafeInteger(restaurantId) ||
+      restaurantId <= 0
+    ) {
+      return res.status(400).json({
+        ok: false,
+        error: "餐廳編號格式錯誤"
+      });
+    }
+
+    try {
+      const result = await pg.query(
+        `
+        SELECT
+          google_review_id,
+          author_name,
+          rating,
+          content,
+          ARRAY_AGG(
+            cloudinary_url ORDER BY photo_index
+          ) AS photos
+        FROM google_review_photo_imports
+        WHERE restaurant_id = $1
+        GROUP BY
+          google_review_id,
+          author_name,
+          rating,
+          content
+        ORDER BY google_review_id
+        LIMIT 5
+        `,
+        [restaurantId]
+      );
+
+      return res.json({
+        ok: true,
+        reviews: result.rows
+      });
+    } catch (error) {
+      console.error("讀取帶圖評論失敗：", error);
+
+      return res.status(500).json({
+        ok: false,
+        error: "讀取帶圖評論失敗"
+      });
+    }
+  }
+);
+
+app.get(
   "/api/restaurants/:id/google-reviews",
   async (req, res) => {
 
