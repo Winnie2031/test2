@@ -795,6 +795,55 @@
   cursor: default;
 }
 
+.anonymous-comment-card {
+  padding: 16px 18px;
+  border-left: 3px solid #ff7043;
+  border-radius: 14px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
+}
+
+.anonymous-comment-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.anonymous-comment-top > span:nth-child(2) {
+  margin-left: auto;
+  color: #999;
+  font-size: 0.78rem;
+}
+
+.anonymous-comment-content {
+  padding-left: 2px;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.comment-delete-btn {
+  color: #a6a6a6;
+  font-size: 0.8rem;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+
+.comment-delete-btn:hover {
+  color: #e64a19;
+  background: #fff1eb;
+}
+
+@media (max-width: 600px) {
+  .anonymous-comment-top {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+  }
+
+  .anonymous-comment-top > span:nth-child(2) {
+    margin-left: auto;
+  }
+}
+
     /* ============================================================
        手機
     ============================================================ */
