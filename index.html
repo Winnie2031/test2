@@ -3194,10 +3194,22 @@
 
         <!-- 圖片上傳區塊 -->
         <div class="post-image-area" style="margin-top: 15px;">
-          <label for="postImageInput" style="cursor: pointer; background: #f0f0f0; padding: 6px 12px; border-radius: 20px; display: inline-block; font-size: 14px;">
-            📷 選擇照片 (最多5張)
-          </label>
-          <input type="file" id="postImageInput" accept="image/*" multiple style="display: none;" onchange="handlePostImageSelect(event)">
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <!-- 1. 從相冊選擇照片 -->
+            <label for="postImageInput" style="cursor: pointer; background: #f0f0f0; padding: 6px 14px; border-radius: 20px; display: inline-block; font-size: 14px; color: #333; font-weight: 500;">
+              🖼️ 選擇相片 (最多5張)
+            </label>
+            <input type="file" id="postImageInput" accept="image/*" multiple style="display: none;" onchange="handlePostImageSelect(event)">
+
+            <!-- 2. 直接打開相機拍照 -->
+            <label for="postCameraInput" style="cursor: pointer; background: #ffe8e0; color: #ff5722; padding: 6px 14px; border-radius: 20px; display: inline-block; font-size: 14px; font-weight: 500;">
+              📸 拍照
+            </label>
+            <!-- capture="environment" 會直接叫起後鏡頭拍照 -->
+            <input type="file" id="postCameraInput" accept="image/*" capture="environment" style="display: none;" onchange="handlePostImageSelect(event)">
+          </div>
+
+          <!-- 圖片預覽區 -->
           <div id="postImagePreviewBox" style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;"></div>
         </div>
 
