@@ -844,6 +844,31 @@
   }
 }
 
+.review-photo-section {
+  margin: 18px 0 22px;
+}
+
+.review-photo-section h3 {
+  color: #ff5722;
+  font-size: 1rem;
+  margin: 0 0 12px;
+}
+
+.review-photo-grid {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin-top: 12px;
+}
+
+.review-photo-grid img {
+  width: 110px;
+  height: 110px;
+  object-fit: cover;
+  border-radius: 9px;
+  flex: none;
+}
+
     /* ============================================================
        手機
     ============================================================ */
@@ -1028,7 +1053,7 @@
 
         </div>
 
-
+        <div id="importedReviewPhotos"></div>
         <div class="google-source">
           評論內容來源：Google Maps
         </div>
@@ -2695,6 +2720,92 @@ function updateDetailTabs(
     }
 
 
+    async function loadImportedReviewPhotos() {
+  const target = document.getElementById(
+    "importedReviewPhotos"
+  );
+
+  if (!target || !id) {
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `/api/restaurants/${encodeURIComponent(id)}/google-review-photos`
+    );
+
+    const data = await response.json();
+
+    if (
+      !response.ok ||
+      !data.ok ||
+      !Array.isArray(data.reviews)
+    ) {
+      return;
+    }
+
+    const reviews = data.reviews.filter(
+      review =>
+        Array.isArray(review.photos) &&
+        review.photos.length > 0
+    );
+
+    if (reviews.length === 0) {
+      return;
+    }
+
+    target.innerHTML = `
+      <section class="review-photo-section">
+        <h3>📷 有照片的 Google 評論</h3>
+
+        ${reviews.map(review => `
+          <article class="google-review-card">
+
+            <div class="google-review-author-name">
+              ${escapeHtml(
+                review.author_name || "Google 使用者"
+              )}
+            </div>
+
+            <div class="google-review-stars">
+              ${createGoogleStars(review.rating)}
+            </div>
+
+            <div class="google-review-text">
+              ${escapeHtml(
+                review.content || "此評論沒有文字內容"
+              )}
+            </div>
+
+            <div class="review-photo-grid">
+              ${(review.photos || [])
+                .filter(url =>
+                  /^https:\/\/res\.cloudinary\.com\//.test(url)
+                )
+                .map(url => `
+                  <a
+                    href="${escapeHtml(url)}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <img
+                      src="${escapeHtml(url)}"
+                      alt="評論者分享的照片"
+                      loading="lazy"
+                    >
+                  </a>
+                `)
+                .join("")}
+            </div>
+
+          </article>
+        `).join("")}
+      </section>
+    `;
+  } catch (error) {
+    console.error("載入帶圖評論失敗：", error);
+  }
+}
 
     async function loadGoogleReviews() {
 
@@ -2709,6 +2820,7 @@ function updateDetailTabs(
       if (!id) {
         return;
       }
+      loadImportedReviewPhotos();
 
 
       const list =
