@@ -3272,45 +3272,70 @@ function escapeJsString(str = "") {
 
 // ==================== 6. 載入我的好友 ====================
 async function loadMyFriends() {
-  const container =
-    document.getElementById("myFriendsList");
-
+  const container = document.getElementById("myFriendsList");
   if (!container) return;
 
-  container.innerHTML =
-    '<p class="empty-msg">好友載入中...</p>';
-
   try {
-
-    const res = await fetch(
-      "/api/friends",
-      {
-        headers: getAuthHeaders()
-      }
-    );
-
+    const res = await fetch("/api/friends", {
+      headers: getAuthHeaders()
+    });
     const data = await res.json();
 
     if (!res.ok || !data.ok) {
-      throw new Error(
-        data.error || "載入好友列表失敗"
-      );
+      throw new Error(data.error || "載入好友列表失敗");
     }
 
+    // 渲染好友清單
     renderMyFriends(data.friends);
 
   } catch (err) {
-
-    console.error(
-      "載入好友列表失敗:",
-      err
-    );
-
-    container.innerHTML =
-      `<p class="empty-msg" style="color:#e53e3e;">
-        ${escapeHtml(err.message)}
-      </p>`;
+    console.error("載入好友列表失敗:", err);
+    container.innerHTML = `<p class="empty-msg" style="color:#e53e3e;">${escapeHtml(err.message)}</p>`;
   }
+}
+
+function renderMyFriends(friends) {
+  const container = document.getElementById("myFriendsList");
+  if (!container) return;
+
+  if (!friends || friends.length === 0) {
+    container.innerHTML = `<p class="empty-msg">目前還沒有好友喔，快去新增好友吧！ 👥</p>`;
+    return;
+  }
+
+  // 1. 產生所有好友卡片的 HTML[cite: 2]
+  const friendsHtml = friends.map(friend => {
+    const nickname = friend.nickname || friend.student_id || "好友";
+    const initial = nickname.charAt(0).toUpperCase();
+
+    return `
+      <div 
+        class="friend-item"
+        onmousedown="startFriendLongPress(${friend.friendship_id}, '${escapeJsString(nickname)}')"
+        ontouchstart="startFriendLongPress(${friend.friendship_id}, '${escapeJsString(nickname)}')"
+        onmouseup="cancelFriendLongPress()"
+        onmouseleave="cancelFriendLongPress()"
+        ontouchend="cancelFriendLongPress()"
+        onclick="handleFriendClick(${friend.user_id}, '${escapeJsString(nickname)}')"
+      >
+        <div class="friend-avatar">${escapeHtml(initial)}</div>
+        <div class="friend-info">
+          <span class="friend-name">${escapeHtml(nickname)}</span>
+          <span class="friend-id">學號：${escapeHtml(friend.student_id || "")}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // 2. 在好友卡片下方拼接提示文字 💡
+  const hintHtml = `
+    <div style="text-align: center; color: #a0a0a0; font-size: 0.8rem; margin-top: 18px; padding-bottom: 10px;">
+      💡 提示：長按好友即可進行刪除
+    </div>
+  `;
+
+  // 3. 組合後寫入 DOM[cite: 2]
+  container.innerHTML = friendsHtml + hintHtml;
 }
 
 
