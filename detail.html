@@ -846,6 +846,7 @@
   .review-photo-section {
   margin: 22px 0;
 }
+}
 
 .review-photo-heading {
   display: flex;
@@ -918,6 +919,134 @@
   height: clamp(220px, 52vw, 360px);
   object-fit: cover;
   background: #f5f1ed;
+}
+
+.review-slide-body {
+  padding: 16px 20px 20px;
+}
+
+.review-slide-author {
+  margin-bottom: 8px;
+  color: #333;
+  font-weight: 700;
+}
+
+.review-slide-stars {
+  margin-bottom: 10px;
+  color: #f5a623;
+}
+
+.review-slide-text {
+  margin: 0;
+  color: #444;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.google-review-list {
+  display: block;
+}
+
+.review-photo-section {
+  margin: 22px 0;
+}
+
+.review-photo-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.review-photo-heading h3 {
+  margin: 0;
+  color: #ff5722;
+  font-size: 1rem;
+}
+
+.review-carousel-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-carousel-controls button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff1e9;
+  color: #eb5429;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.review-carousel-controls button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.review-carousel-count {
+  min-width: 38px;
+  color: #777;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.review-carousel {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+  border-radius: 16px;
+}
+
+.review-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.review-slide {
+  flex: 0 0 100%;
+  min-width: 0;
+  scroll-snap-align: start;
+  background: white;
+  overflow: hidden;
+}
+
+.review-slide-photos {
+  display: grid;
+  height: clamp(220px, 52vw, 360px);
+  grid-template-columns: 1fr;
+  background: #f5f1ed;
+}
+
+.review-slide-photos.multiple {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+}
+
+.review-slide-photos img {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: cover;
+}
+
+.review-slide-placeholder {
+  height: 160px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(
+    135deg,
+    #fff4e9,
+    #ffe0ca
+  );
+  color: #ff7043;
+  font-size: 48px;
 }
 
 .review-slide-body {
@@ -1127,7 +1256,6 @@
 
         </div>
 
-        <div id="importedReviewPhotos"></div>
         <div class="google-source">
           評論內容來源：Google Maps
         </div>
@@ -2794,55 +2922,150 @@ function updateDetailTabs(
     }
 
 
-async function loadImportedReviewPhotos() {
-  const target = document.getElementById(
-    "importedReviewPhotos"
-  );
-
-  if (!target || !id) {
+async function loadGoogleReviews() {
+  if (googleReviewsLoaded || googleReviewsLoading || !id) {
     return;
   }
 
+  const list = document.getElementById("googleReviewsList");
+  const score = document.getElementById("googleReviewScore");
+  const count = document.getElementById("googleReviewCount");
+
+  if (!list) return;
+
+  googleReviewsLoading = true;
+  list.innerHTML =
+    '<div class="google-loading">⭐ Google 評論載入中...</div>';
+
   try {
-    const response = await fetch(
-      `/api/restaurants/${encodeURIComponent(id)}/google-review-photos`
-    );
+    const [reviewResponse, photoResponse] = await Promise.all([
+      fetch(
+        `/api/restaurants/${encodeURIComponent(id)}/google-reviews`
+      ),
+      fetch(
+        `/api/restaurants/${encodeURIComponent(id)}/google-review-photos`
+      ).catch(() => null)
+    ]);
 
-    const data = await response.json();
+    const data = await reviewResponse.json();
 
-    if (
-      !response.ok ||
-      !data.ok ||
-      !Array.isArray(data.reviews)
-    ) {
-      return;
+    if (!reviewResponse.ok || !data.ok) {
+      throw new Error(data.error || "Google 評論取得失敗");
     }
 
-    const slides = data.reviews.flatMap(review =>
-      (review.photos || [])
-        .filter(url =>
-          /^https:\/\/res\.cloudinary\.com\//.test(url)
-        )
-        .map(url => ({ review, url }))
-    );
+    const photoData = photoResponse?.ok
+      ? await photoResponse.json()
+      : null;
+
+    const imported = Array.isArray(photoData?.reviews)
+      ? photoData.reviews
+      : [];
+
+    const reviews = Array.isArray(data.reviews)
+      ? data.reviews
+      : [];
+
+    const clean = value =>
+      String(value || "")
+        .replace(/\s+/g, "")
+        .toLowerCase();
+
+    const used = new Set();
+
+    // 將抓取的照片配回相同作者、相同內容的評論
+    const slides = reviews.map(review => {
+      const matchIndex = imported.findIndex(
+        (item, index) => {
+          if (used.has(index)) return false;
+
+          const apiText = clean(review.text);
+          const savedText = clean(item.content);
+
+          return (
+            apiText &&
+            savedText &&
+            clean(review.author_name) ===
+              clean(item.author_name) &&
+            (
+              apiText === savedText ||
+              (
+                apiText.length >= 15 &&
+                savedText.length >= 15 &&
+                (
+                  apiText.includes(
+                    savedText.slice(0, 15)
+                  ) ||
+                  savedText.includes(
+                    apiText.slice(0, 15)
+                  )
+                )
+              )
+            )
+          );
+        }
+      );
+
+      if (matchIndex >= 0) {
+        used.add(matchIndex);
+      }
+
+      return {
+        ...review,
+        photos:
+          matchIndex >= 0
+            ? imported[matchIndex].photos
+            : []
+      };
+    });
+
+    // Places API 沒回傳、但有抓到照片的評論也加入輪播
+    imported.forEach((review, index) => {
+      if (!used.has(index)) {
+        slides.push({
+          author_name: review.author_name,
+          rating: review.rating,
+          text: review.content,
+          photos: review.photos || []
+        });
+      }
+    });
+
+    if (score) {
+      score.textContent =
+        data.rating == null
+          ? "尚無評分"
+          : `⭐ ${data.rating}`;
+    }
+
+    if (count) {
+      count.textContent =
+        `${data.totalReviews || 0} 則 Google Maps 評分`;
+    }
 
     if (slides.length === 0) {
+      list.innerHTML = `
+        <div class="google-loading">
+          目前沒有可顯示的評論
+        </div>
+      `;
+
+      googleReviewsLoaded = true;
       return;
     }
 
-    target.innerHTML = `
+    list.innerHTML = `
       <section
         class="review-photo-section"
-        aria-label="帶圖 Google 評論"
+        aria-label="Google 評論輪播"
       >
         <div class="review-photo-heading">
-          <h3>📷 有照片的 Google 評論</h3>
+          <h3>⭐ Google 評論</h3>
 
           <div class="review-carousel-controls">
             <button
               type="button"
               class="review-prev"
-              aria-label="上一頁"
+              aria-label="上一則評論"
             >‹</button>
 
             <span
@@ -2855,7 +3078,7 @@ async function loadImportedReviewPhotos() {
             <button
               type="button"
               class="review-next"
-              aria-label="下一頁"
+              aria-label="下一則評論"
             >›</button>
           </div>
         </div>
@@ -2865,65 +3088,110 @@ async function loadImportedReviewPhotos() {
           tabindex="0"
           aria-label="左右滑動查看評論"
         >
-          ${slides.map(({ review, url }) => `
-            <article class="review-slide">
+          ${slides.map(review => {
+            const photos = (review.photos || [])
+              .filter(url =>
+                /^https:\/\/res\.cloudinary\.com\//.test(url)
+              );
 
-              <img
-                class="review-slide-image"
-                src="${escapeHtml(url)}"
-                alt="評論者分享的照片"
-                loading="lazy"
-              >
+            return `
+              <article class="review-slide">
 
-              <div class="review-slide-body">
-                <div class="review-slide-author">
-                  👤 ${escapeHtml(
-                    review.author_name || "Google 使用者"
-                  )}
+                ${photos.length ? `
+                  <div class="review-slide-photos
+                    ${photos.length > 1 ? "multiple" : ""}">
+                    ${photos.slice(0, 4)
+                      .map(url => `
+                        <img
+                          src="${escapeHtml(url)}"
+                          alt="評論者分享的照片"
+                          loading="lazy"
+                        >
+                      `)
+                      .join("")}
+                  </div>
+                ` : `
+                  <div
+                    class="review-slide-placeholder"
+                    aria-label="這則評論沒有附照片"
+                  >
+                    💬
+                  </div>
+                `}
+
+                <div class="review-slide-body">
+                  <div class="review-slide-author">
+                    👤 ${escapeHtml(
+                      review.author_name || "Google 使用者"
+                    )}
+                  </div>
+
+                  <div
+                    class="review-slide-stars"
+                    aria-label="${Number(review.rating) || 0} 顆星"
+                  >
+                    ${createGoogleStars(review.rating)}
+                  </div>
+
+                  <p class="review-slide-text">${escapeHtml(
+                    review.text || "此評論沒有文字內容"
+                  )}</p>
+
+                  ${review.google_maps_uri ? `
+                    <a
+                      class="google-review-link"
+                      href="${escapeHtml(
+                        review.google_maps_uri
+                      )}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      在 Google Maps 查看
+                    </a>
+                  ` : ""}
                 </div>
 
-                <div class="review-slide-stars">
-                  ${createGoogleStars(review.rating)}
-                </div>
-
-                <p class="review-slide-text">${escapeHtml(
-                  review.content || "此評論沒有文字內容"
-                )}</p>
-              </div>
-
-            </article>
-          `).join("")}
+              </article>
+            `;
+          }).join("")}
         </div>
       </section>
     `;
 
-    const carousel = target.querySelector(
+    const carousel = list.querySelector(
       ".review-carousel"
     );
 
-    const previous = target.querySelector(
+    const previous = list.querySelector(
       ".review-prev"
     );
 
-    const next = target.querySelector(
+    const next = list.querySelector(
       ".review-next"
     );
 
-    const counter = target.querySelector(
+    const counter = list.querySelector(
       ".review-carousel-count"
     );
 
     const update = () => {
-      const index = Math.round(
-        carousel.scrollLeft / carousel.clientWidth
+      const index = Math.max(
+        0,
+        Math.min(
+          slides.length - 1,
+          Math.round(
+            carousel.scrollLeft /
+            carousel.clientWidth
+          )
+        )
       );
 
       counter.textContent =
         `${index + 1} / ${slides.length}`;
 
-      previous.disabled = index <= 0;
+      previous.disabled = index === 0;
       next.disabled =
-        index >= slides.length - 1;
+        index === slides.length - 1;
     };
 
     previous.addEventListener("click", () => {
@@ -2946,408 +3214,31 @@ async function loadImportedReviewPhotos() {
       { passive: true }
     );
 
+    carousel.addEventListener(
+      "touchmove",
+      event => event.stopPropagation(),
+      { passive: true }
+    );
+
     update();
+    googleReviewsLoaded = true;
   } catch (error) {
     console.error(
-      "載入帶圖評論失敗：",
+      "Google 評論載入失敗：",
       error
     );
+
+    list.innerHTML = `
+      <div class="google-loading">
+        ${escapeHtml(
+          error.message || "載入失敗"
+        )}
+      </div>
+    `;
+  } finally {
+    googleReviewsLoading = false;
   }
 }
-    async function loadGoogleReviews() {
-
-      if (
-        googleReviewsLoaded ||
-        googleReviewsLoading
-      ) {
-        return;
-      }
-
-
-      if (!id) {
-        return;
-      }
-      loadImportedReviewPhotos();
-
-
-      const list =
-        document.getElementById(
-          "googleReviewsList"
-        );
-
-
-      const score =
-        document.getElementById(
-          "googleReviewScore"
-        );
-
-
-      const count =
-        document.getElementById(
-          "googleReviewCount"
-        );
-
-
-      if (!list) {
-        return;
-      }
-
-
-      googleReviewsLoading =
-        true;
-
-
-      list.innerHTML = `
-        <div class="google-loading">
-          ⭐ Google 評論載入中...
-        </div>
-      `;
-
-
-      try {
-
-        const response =
-          await fetch(
-            `/api/restaurants/${encodeURIComponent(id)}/google-reviews`
-          );
-
-
-        const data =
-          await response.json();
-
-
-        if (
-          !response.ok ||
-          !data.ok
-        ) {
-
-          throw new Error(
-            data.googleError ||
-            data.error ||
-            "Google 評論取得失敗"
-          );
-        }
-
-
-        if (score) {
-
-          score.textContent =
-            data.rating !== null &&
-            data.rating !== undefined
-
-              ? `⭐ ${data.rating}`
-
-              : "尚無評分";
-
-        }
-
-
-        if (count) {
-
-          count.textContent =
-            `${
-              data.totalReviews ||
-              0
-            } 則 Google Maps 評分`;
-
-        }
-
-
-        if (
-          !Array.isArray(
-            data.reviews
-          ) ||
-          data.reviews.length ===
-            0
-        ) {
-
-          list.innerHTML = `
-            <div class="google-loading">
-
-              目前 Google 沒有提供可顯示的評論。
-
-              ${
-                data.googleMapsUri
-
-                  ? `
-                    <br><br>
-
-                    <a
-                      class="google-review-link"
-                      href="${escapeHtml(data.googleMapsUri)}"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      在 Google Maps 查看
-                    </a>
-                  `
-
-                  : ""
-              }
-
-            </div>
-          `;
-
-
-          googleReviewsLoaded =
-            true;
-
-
-          return;
-        }
-
-
-        list.innerHTML =
-          data.reviews
-
-            .map(
-              review => {
-
-
-                const authorName =
-                  escapeHtml(
-                    review.author_name ||
-                    "Google 使用者"
-                  );
-
-
-                const reviewText =
-                  escapeHtml(
-                    review.text ||
-                    ""
-                  );
-
-
-                const relativeTime =
-                  escapeHtml(
-                    review.relative_time ||
-                    ""
-                  );
-
-
-                const photo =
-                  review.author_photo_uri
-
-                    ? escapeHtml(
-                        review.author_photo_uri
-                      )
-
-                    : "";
-
-
-                const authorUri =
-                  review.author_uri
-
-                    ? escapeHtml(
-                        review.author_uri
-                      )
-
-                    : "";
-
-
-                const googleUri =
-                  review.google_maps_uri
-
-                    ? escapeHtml(
-                        review.google_maps_uri
-                      )
-
-                    : "";
-
-
-                return `
-                  <article
-                    class="google-review-card"
-                  >
-
-                    <div
-                      class="google-review-author"
-                    >
-
-                      ${
-                        photo
-
-                          ? `
-                            <img
-                              class="google-review-avatar"
-                              src="${photo}"
-                              alt="${authorName}"
-                              loading="lazy"
-                            >
-                          `
-
-                          : `
-                            <div
-                              class="google-review-avatar"
-                              style="
-                                display:flex;
-                                align-items:center;
-                                justify-content:center;
-                                font-size:20px;
-                              "
-                            >
-                              👤
-                            </div>
-                          `
-                      }
-
-
-                      <div
-                        class="google-review-author-info"
-                      >
-
-                        ${
-                          authorUri
-
-                            ? `
-                              <a
-                                class="google-review-author-name"
-                                href="${authorUri}"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                ${authorName}
-                              </a>
-                            `
-
-                            : `
-                              <div
-                                class="google-review-author-name"
-                              >
-                                ${authorName}
-                              </div>
-                            `
-                        }
-
-
-                        ${
-                          relativeTime
-
-                            ? `
-                              <div
-                                class="google-review-time"
-                              >
-                                ${relativeTime}
-                              </div>
-                            `
-
-                            : ""
-                        }
-
-                      </div>
-
-                    </div>
-
-
-                    <div
-                      class="google-review-stars"
-                    >
-                      ${createGoogleStars(
-                        review.rating
-                      )}
-                    </div>
-
-
-                    ${
-                      reviewText
-
-                        ? `
-                          <div
-                            class="google-review-text"
-                          >
-                            ${reviewText}
-                          </div>
-                        `
-
-                        : `
-                          <div
-                            class="google-review-text"
-                            style="color:#999;"
-                          >
-                            此評論沒有文字內容
-                          </div>
-                        `
-                    }
-
-
-                    ${
-                      googleUri
-
-                        ? `
-                          <a
-                            class="google-review-link"
-                            href="${googleUri}"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            在 Google Maps 查看
-                          </a>
-                        `
-
-                        : ""
-                    }
-
-                  </article>
-                `;
-              }
-            )
-
-            .join("");
-
-
-        googleReviewsLoaded =
-          true;
-
-
-      } catch (error) {
-
-        console.error(
-          "Google 評論載入失敗：",
-          error
-        );
-
-
-        list.innerHTML = `
-          <div class="google-loading">
-
-            <div
-              style="
-                font-size:30px;
-                margin-bottom:10px;
-              "
-            >
-              😢
-            </div>
-
-            <strong>
-              Google 評論載入失敗
-            </strong>
-
-            <div
-              style="
-                margin-top:8px;
-                font-size:0.85rem;
-                color:#999;
-              "
-            >
-              ${escapeHtml(
-                error.message
-              )}
-            </div>
-
-          </div>
-        `;
-
-
-      } finally {
-
-        googleReviewsLoading =
-          false;
-
-      }
-    }
-
-
 
     /* ============================================================
        第三頁：匿名留言
@@ -3955,4 +3846,3 @@ slider.addEventListener(
   </script>
 
 </body>
-</html>
