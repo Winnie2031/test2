@@ -17,7 +17,7 @@
       overflow: hidden !important;
       touch-action: none;
     }
-
+    
     #friendsModal {
       position: fixed;
       top: 0;
@@ -291,7 +291,6 @@
 
     .distance-badge {
       position: absolute;
-      padding-right: 12px;
       bottom: 12px;
       padding: 6px 10px;
       border-radius: 999px;
@@ -351,7 +350,6 @@
       cursor: pointer;
       box-shadow: 0 4px 10px rgba(0,0,0,0.2);
       z-index: 999;
-      
       transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
                   box-shadow 0.25s ease, 
                   background-color 0.25s ease;
@@ -578,11 +576,6 @@
       }
     }
 
-    /* 選單內的按鈕選項 */
-    /* ===========================================================
-    👥 好友社群彈窗 (Friends Modal) 全套優化樣式
-    ============================================================ */
-
     .dropdown-item {
       width: 100%;
       padding: 10px 16px;
@@ -757,7 +750,7 @@
       display: block;
     }
 
-    /* 🎯 搜尋列美化（包含學號搜尋） */
+    /* 🎯 搜尋列美化 */
     .friends-search-bar, 
     .add-friend-search-box,
     .search-box {
@@ -854,7 +847,7 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      min-width: 0; /* 防止文字溢出 */
+      min-width: 0;
     }
 
     .friend-name {
@@ -868,7 +861,7 @@
       color: #888888;
     }
 
-    /* 🎯 操作按鈕與「取消申請」補強 */
+    /* 🎯 操作按鈕 */
     .action-btn {
       padding: 6px 14px;
       border-radius: 16px;
@@ -889,7 +882,6 @@
     .action-btn.success { background: #34c759; color: #ffffff; }
     .action-btn.danger { background: #ff3b30; color: #ffffff; }
 
-    /* 💡 新增：取消/撤回申請專用按鈕 */
     .action-btn.cancel,
     .action-btn.warning {
       background: #edf2f7;
@@ -985,7 +977,6 @@
       line-height: 1.4 !important;
       height: auto !important;
       padding-right: 36px;
-      
       word-break: break-word;
       overflow-wrap: break-word;
     }
@@ -1406,7 +1397,6 @@
       text-align: left;
     }
 
-    /* 編輯使用者：取消與儲存變更按鈕平分寬度與高度 */
     .edit-user-actions {
       display: flex !important;
       justify-content: space-between !important;
@@ -1418,9 +1408,9 @@
 
     .edit-user-actions .btn-secondary,
     .edit-user-actions .edit-user-save-btn {
-      flex: 1 !important;           /* 兩按鈕平分 1:1 寬度 */
+      flex: 1 !important;
       width: 50% !important;
-      height: 44px !important;       /* 固定統一高度 */
+      height: 44px !important;
       padding: 0 !important;
       margin: 0 !important;
       display: inline-flex !important;
@@ -1428,7 +1418,7 @@
       justify-content: center !important;
       font-size: 14px !important;
       font-weight: 700 !important;
-      border-radius: 22px !important; /* 統一圓角弧度 */
+      border-radius: 22px !important;
       box-sizing: border-box !important;
     }
 
@@ -1893,125 +1883,124 @@
       }
     }
 
-@media (min-width: 769px) {
-  body {
-    min-height: 100vh;
-    color: #3f2b20;
-    background:
-      radial-gradient(circle at 12% 7%, rgba(255, 190, 133, 0.28), transparent 27%),
-      radial-gradient(circle at 89% 16%, rgba(255, 222, 180, 0.34), transparent 30%),
-      linear-gradient(180deg, #fffdf9 0%, #fff3e6 52%, #fffaf4 100%);
-  }
+    @media (min-width: 769px) {
+      body {
+        min-height: 100vh;
+        color: #3f2b20;
+        background:
+          radial-gradient(circle at 12% 7%, rgba(255, 190, 133, 0.28), transparent 27%),
+          radial-gradient(circle at 89% 16%, rgba(255, 222, 180, 0.34), transparent 30%),
+          linear-gradient(180deg, #fffdf9 0%, #fff3e6 52%, #fffaf4 100%);
+      }
 
-  body > h1 {
-    margin: 64px auto 10px;
-    color: #ff5a24;
-    font-size: clamp(3rem, 4vw, 4.3rem);
-    letter-spacing: 0.05em;
-    text-shadow: 0 4px 0 rgba(255, 199, 158, 0.28);
-  }
+      body > h1 {
+        margin: 64px auto 10px;
+        color: #ff5a24;
+        font-size: clamp(3rem, 4vw, 4.3rem);
+        letter-spacing: 0.05em;
+        text-shadow: 0 4px 0 rgba(255, 199, 158, 0.28);
+      }
 
-  .home-subtitle {
-    display: block;
-    margin: 0 auto 28px;
-    color: #96502c;
-    font-size: 1.05rem;
-    font-weight: 600;
-  }
+      .home-subtitle {
+        display: block;
+        margin: 0 auto 28px;
+        color: #96502c;
+        font-size: 1.05rem;
+        font-weight: 600;
+      }
 
-  .search-container {
-    width: min(560px, calc(100% - 48px));
-    margin: 0 auto 26px;
-    padding: 6px 7px 6px 20px;
-    box-sizing: border-box;
-    gap: 10px;
-    background: rgba(255, 255, 255, 0.96);
-    border: 2px solid #ffd1b8;
-    border-radius: 999px;
-    box-shadow: 0 10px 28px rgba(227, 123, 62, 0.14);
-  }
+      .search-container {
+        width: min(560px, calc(100% - 48px));
+        margin: 0 auto 26px;
+        padding: 6px 7px 6px 20px;
+        box-sizing: border-box;
+        gap: 10px;
+        background: rgba(255, 255, 255, 0.96);
+        border: 2px solid #ffd1b8;
+        border-radius: 999px;
+        box-shadow: 0 10px 28px rgba(227, 123, 62, 0.14);
+      }
 
-  .search-input {
-    flex: 1;
-    min-width: 0;
-    width: auto;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: #5e4638;
-  }
+      .search-input {
+        flex: 1;
+        min-width: 0;
+        width: auto;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: #5e4638;
+      }
 
-  .random-btn {
-    flex: 0 0 46px;
-    color: #8c4825;
-    background: #fff9f5;
-    border: 1.5px solid #ffad82;
-    box-shadow: none;
-  }
+      .random-btn {
+        flex: 0 0 46px;
+        color: #8c4825;
+        background: #fff9f5;
+        border: 1.5px solid #ffad82;
+        box-shadow: none;
+      }
 
-  .category-container,
-  .price-container {
-    max-width: 1260px;
-    margin-left: auto;
-    margin-right: auto;
-    padding: 0 24px;
-    box-sizing: border-box;
-  }
+      .category-container,
+      .price-container {
+        max-width: 1260px;
+        margin-left: auto;
+        margin-right: auto;
+        padding: 0 24px;
+        box-sizing: border-box;
+      }
 
-  .category-btn,
-  .price-btn {
-    min-height: 42px;
-    padding: 9px 17px;
-    color: #8c4825;
-    background: rgba(255, 255, 255, 0.86);
-    border: 1.5px solid #ffb38d;
-    border-radius: 999px;
-    font-weight: 700;
-    box-shadow: 0 5px 13px rgba(187, 105, 55, 0.08);
-  }
+      .category-btn,
+      .price-btn {
+        min-height: 42px;
+        padding: 9px 17px;
+        color: #8c4825;
+        background: rgba(255, 255, 255, 0.86);
+        border: 1.5px solid #ffb38d;
+        border-radius: 999px;
+        font-weight: 700;
+        box-shadow: 0 5px 13px rgba(187, 105, 55, 0.08);
+      }
 
-  .category-btn:hover,
-  .category-btn.active,
-  .price-btn:hover,
-  .price-btn.active {
-    color: #fff;
-    background: linear-gradient(135deg, #ff7a38, #ff4f1e);
-    border-color: transparent;
-  }
+      .category-btn:hover,
+      .category-btn.active,
+      .price-btn:hover,
+      .price-btn.active {
+        color: #fff;
+        background: linear-gradient(135deg, #ff7a38, #ff4f1e);
+        border-color: transparent;
+      }
 
-  .divider {
-    max-width: 1400px;
-    height: 1px;
-    margin: 24px auto 0;
-    background: #f4d6c3;
-  }
+      .divider {
+        max-width: 1400px;
+        height: 1px;
+        margin: 24px auto 0;
+        background: #f4d6c3;
+      }
 
-  .restaurant-section-title {
-    display: block;
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 22px 16px 0;
-    box-sizing: border-box;
-    color: #653e2b;
-    font-size: 1.4rem;
-    text-align: left;
-  }
+      .restaurant-section-title {
+        display: block;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 22px 16px 0;
+        box-sizing: border-box;
+        color: #653e2b;
+        font-size: 1.4rem;
+        text-align: left;
+      }
 
-  .card {
-    border: 1px solid rgba(255, 199, 158, 0.42);
-    box-shadow: 0 7px 20px rgba(118, 69, 37, 0.1);
-  }
+      .card {
+        border: 1px solid rgba(255, 199, 158, 0.42);
+        box-shadow: 0 7px 20px rgba(118, 69, 37, 0.1);
+      }
 
-  .card:hover {
-    box-shadow: 0 12px 26px rgba(118, 69, 37, 0.16);
-  }
-}
+      .card:hover {
+        box-shadow: 0 12px 26px rgba(118, 69, 37, 0.16);
+      }
+    }
 
     @media (max-width: 390px) {
       .category-container {
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
-
     }
 
     .btn-icon-text {
@@ -2048,42 +2037,6 @@
       align-items: center;
       gap: 12px;
     }
-
-    .btn-icon-text {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background-color: #f0f0f0;
-      color: #ff5722;
-      font-size: 0.9rem;
-      font-weight: 700;
-      line-height: 1;
-      transition: background-color 0.2s ease, color 0.2s ease;
-    }
-
-    .btn-icon-text:hover {
-      background-color: #ff5722;
-      color: #ffffff;
-    }
-
-    .btn-icon-emoji {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.1rem;
-      line-height: 1;
-      vertical-align: middle;
-    }
-
-    .top-right-tools {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
 
     .scroll-hint-right {
       display: none;
@@ -2093,529 +2046,512 @@
       display: none;
     }
 
-  @media (min-width: 769px) {
+    @media (min-width: 769px) {
+      .ai-container,
+      #aiCard, 
+      .ai-section {
+        width: 80% !important;
+        max-width: 800px !important;
+        height: 1800px !important; 
+        min-height: 1600px !important;
+        max-height: none !important; 
+        margin: 40px auto 40px 5% !important;
+        padding: 0 !important;
+        background: #ffffff;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+        border: 1px solid #eaeaea;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+      }
 
-    .ai-container,
-    #aiCard, 
-    .ai-section {
-      width: 80% !important;
-      max-width: 800px !important;
-      
-      height: 1800px !important; 
-      min-height: 1600px !important;
-      max-height: none !important; 
-      
-      margin: 40px auto 40px 5% !important;
-      padding: 0 !important;
+      .ai-header {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 16px 20px !important;
+        background: #ffffff;
+        border-bottom: 1px solid #f0f0f0;
+        flex-shrink: 0 !important;
+        white-space: nowrap;
+        box-sizing: border-box !important;
+      }
 
-      background: #ffffff;
-      border-radius: 20px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
-      border: 1px solid #eaeaea;
+      .ai-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #222222;
+        margin: 0;
+        margin-right: auto !important;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .ai-tools {
+        display: flex;
+        align-items: center;
+        gap: 8px !important;
+        flex-shrink: 0;
+        margin-left: 10px !important;
+      }
+
+      .ai-favorite-btn {
+        background-color: #fff4e6;
+        color: #ff9800;
+        border: 1px solid #ffe0b2;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .ai-history-btn {
+        background-color: #f5f5f5;
+        color: #555555;
+        border: 1px solid #e0e0e0;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+
+      #aiOutput {
+        flex: 1 1 auto !important;
+        height: 100% !important;
+        overflow-y: auto !important;
+        padding: 24px 28px;
+        background-color: #fcfcfc;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        font-size: 1rem;
+        line-height: 1.6;
+      }
+
+      .ai-input-area {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 20px;
+        background-color: #ffffff;
+        border-top: 1px solid #f0f0f0;
+        flex-shrink: 0 !important;
+        box-sizing: border-box !important;
+      }
+
+      #aiInput {
+        flex: 1;
+        height: 44px; 
+        min-height: 44px;
+        max-height: 100px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 22px;
+        padding: 10px 16px;
+        font-size: 0.95rem;
+        color: #333333;
+        background-color: #f8fafc;
+        resize: none;
+        outline: none;
+        box-sizing: border-box !important;
+      }
+
+      #aiSend {
+        background: linear-gradient(135deg, #ff7043 0%, #ff5722 100%);
+        color: #ffffff;
+        border: none;
+        padding: 0 22px;
+        height: 44px;
+        border-radius: 22px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        white-space: nowrap;
+        box-shadow: 0 3px 10px rgba(255, 87, 34, 0.25);
+        flex-shrink: 0;
+      }
+    }
+
+    /* 📸 動態相片輪播修正（解開滑動限制） */
+    .feed-carousel {
+      position: relative;
+      width: 100%;
+      margin-top: 8px;
+      border-radius: 12px;
+      overflow: hidden;
+      background-color: #f8f8f8;
+    }
+
+    .feed-carousel-track {
       display: flex !important;
-      flex-direction: column !important;
-      overflow: hidden !important;
-      box-sizing: border-box !important;
+      flex-direction: row !important;
+      width: 100%;
+      overflow-x: auto !important;    
+      overflow-y: hidden;
+      scroll-snap-type: x mandatory;     
+      -webkit-overflow-scrolling: touch;  
+      scrollbar-width: none;
+      touch-action: pan-x !important; /* 👈 允許橫向滑動手勢 */
     }
 
-    .ai-header {
+    .feed-carousel-track::-webkit-scrollbar {
+      display: none !important;
+    }
+
+    .feed-carousel-slide {
+      flex: 0 0 100% !important;       
+      width: 100% !important;
+      scroll-snap-align: start;           
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #f8f8f8;          
+    }
+
+    .feed-carousel-image {
+      width: 100% !important;
+      height: 300px !important;          
+      object-fit: cover !important;         
+      border-radius: 8px;
+      display: block;
+      margin: 0 auto;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .feed-carousel-count {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      color: #ffffff;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: bold;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .feed-carousel-dots {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 6px;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .feed-carousel-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.5);
+      transition: all 0.2s ease;
+    }
+
+    .feed-carousel-dot.active {
+      background-color: #ffffff;
+      transform: scale(1.3);
+    }
+
+    /* 類別橫向選單 */
+    .category-wrapper {
+      position: relative;
+      max-width: 1000px;
+      margin: 15px auto;
+      padding: 0 55px !important;
+      box-sizing: border-box;
+    }
+
+    .category-container {
       display: flex !important;
-      align-items: center !important;
-      justify-content: space-between !important;
-      padding: 16px 20px !important;
-      background: #ffffff;
-      border-bottom: 1px solid #f0f0f0;
-      flex-shrink: 0 !important;
-      white-space: nowrap;
-      box-sizing: border-box !important;
+      flex-wrap: nowrap !important;
+      justify-content: flex-start !important;
+      gap: 10px;
+      overflow-x: auto;
+      scroll-behavior: smooth;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      padding: 8px 10px !important;
+      box-sizing: border-box;
     }
 
-    .ai-title {
-      font-size: 1.2rem;
-      font-weight: 700;
-      color: #222222;
-      margin: 0;
-      margin-right: auto !important;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .category-container::-webkit-scrollbar {
+      display: none;
     }
 
-    .ai-tools {
-      display: flex;
-      align-items: center;
-      gap: 8px !important;
-      flex-shrink: 0;
-      margin-left: 10px !important;
-    }
-
-    .ai-favorite-btn {
-      background-color: #fff4e6;
-      color: #ff9800;
-      border: 1px solid #ffe0b2;
-      padding: 6px 14px;
+    .category-btn {
+      flex: 0 0 100px !important; 
+      width: 100px !important;
+      height: 42px;
+      box-sizing: border-box;
+      padding: 8px 0;
       border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: 600;
+      border: 1px solid #ff5722;
+      background-color: white;
+      color: #ff5722;
       cursor: pointer;
+      transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;  
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
     }
 
-    .ai-history-btn {
-      background-color: #f5f5f5;
-      color: #555555;
-      border: 1px solid #e0e0e0;
+    .category-btn:hover, .category-btn.active {
+      background-color: #ff5722;
+      color: white;
+    }
+
+    .scroll-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
       width: 36px;
       height: 36px;
       border-radius: 50%;
+      border: 1px solid #ffd1b8;
+      background: #ffffff;
+      color: #ff5722;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1rem;
-      cursor: pointer;
-      flex-shrink: 0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      z-index: 10;
+      transition: all 0.2s ease;
     }
 
-    #aiOutput {
-      flex: 1 1 auto !important;
-      height: 100% !important;
-      overflow-y: auto !important;
-      padding: 24px 28px;
-      background-color: #fcfcfc;
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-      font-size: 1rem;
-      line-height: 1.6;
-    }
-
-    .ai-input-area {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 14px 20px;
-      background-color: #ffffff;
-      border-top: 1px solid #f0f0f0;
-      flex-shrink: 0 !important;
-      box-sizing: border-box !important;
-    }
-
-    #aiInput {
-      flex: 1;
-      height: 44px; 
-      min-height: 44px;
-      max-height: 100px;
-      border: 1.5px solid #e2e8f0;
-      border-radius: 22px;
-      padding: 10px 16px;
-      font-size: 0.95rem;
-      color: #333333;
-      background-color: #f8fafc;
-      resize: none;
-      outline: none;
-      box-sizing: border-box !important;
-    }
-
-    #aiSend {
-      background: linear-gradient(135deg, #ff7043 0%, #ff5722 100%);
+    .scroll-btn:hover {
+      background: #ff5722;
       color: #ffffff;
-      border: none;
-      padding: 0 22px;
-      height: 44px;
-      border-radius: 22px;
-      font-weight: 600;
-      font-size: 0.95rem;
-      cursor: pointer;
-      white-space: nowrap;
-      box-shadow: 0 3px 10px rgba(255, 87, 34, 0.25);
-      flex-shrink: 0;
+      border-color: #ff5722;
     }
-  }
 
+    .scroll-left { left: 0; }
+    .scroll-right { right: 0; }
 
-.feed-carousel {
-  position: relative;
-  width: 100%;
-  margin-top: 8px;
-  border-radius: 12px;
-  overflow: hidden;
-  background-color: #f8f8f8;
-}
+    @media (max-width: 768px) {
+      .category-wrapper {
+        position: relative;
+        width: 100%;
+      }
 
-.feed-carousel-track {
-  display: flex !important;
-  flex-direction: row !important;
-  width: 100%;
-  overflow-x: auto !important;    
-  overflow-y: hidden;
-  scroll-snap-type: x mandatory;     
-  -webkit-overflow-scrolling: touch;  
-  scrollbar-width: none;             
-}
+      .category-container {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        gap: 8px;
+        overflow-x: auto;
+        white-space: nowrap;
+        padding: 6px 40px 6px 4px;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
 
-.feed-carousel-track::-webkit-scrollbar {
-  display: none !important;
-}
+      .category-container::-webkit-scrollbar {
+        display: none;
+      }
 
-/* 3. 單張照片外框容器 */
-.feed-carousel-slide {
-  flex: 0 0 100% !important;       
-  width: 100% !important;
-  scroll-snap-align: start;           
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #f8f8f8;          
-}
+      .category-btn.hidden-tag {
+        display: inline-block !important;
+      }
+      
+      #moreBtn {
+        display: none !important;
+      }
 
-/* 4. 照片本體樣式 */
-.feed-carousel-image {
-  width: 100% !important;
-  height: 300px !important;          
-  object-fit: cover !important;         
-  border-radius: 8px;
-  display: block;
-  margin: 0 auto;
-}
+      .category-btn {
+        flex: 0 0 auto !important;
+      }
 
-.feed-carousel-count {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #ffffff;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: bold;
-  pointer-events: none;
-  z-index: 5;
-}
+      .scroll-hint-right {
+        display: flex;
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 40px;
+        background: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.95) 60%);
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 6px;
+        color: #ff5722;
+        font-weight: bold;
+        font-size: 1.2rem;
+        cursor: pointer;
+        pointer-events: auto;
+        z-index: 5;
+        animation: pulseArrow 1.5s infinite ease-in-out;
+      }
 
-.feed-carousel-dots {
-  position: absolute;
-  bottom: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 6px;
-  z-index: 5;
-  pointer-events: none;
-}
+      .price-container {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+        width: 100%;
+      }
 
-.feed-carousel-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.5);
-  transition: all 0.2s ease;
-}
+      .price-btn {
+        width: 100%;
+        padding: 8px 2px;
+        font-size: 0.78rem;
+        text-align: center;
+        white-space: nowrap;
+      }
 
-.feed-carousel-dot.active {
-  background-color: #ffffff;
-  transform: scale(1.3);
-}
+      .ai-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 14px;
+        background: linear-gradient(135deg, #ffffff 0%, #fffbf8 100%);
+        border-bottom: 1px solid #f0f0f0;
+        border-radius: 16px 16px 0 0;
+      }
 
+      .ai-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #222222;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
 
-/* 電腦：固定標籤寬度 */
+      .ai-tools {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
 
-/* 1. 外層包覆容器 (相對定位，放左右箭頭) */
-.category-wrapper {
-  position: relative;
-  max-width: 1000px;
-  margin: 15px auto;
-  padding: 0 55px !important;
-  box-sizing: border-box;
-}
+      .ai-favorite-btn {
+        background-color: #fff4e6;
+        color: #ff9800;
+        border: 1px solid #ffe0b2;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+      }
 
-/* 2. 水平滾動容器 */
-.category-container {
-  display: flex !important;
-  flex-wrap: nowrap !important;
-  justify-content: flex-start !important;
-  gap: 10px;
-  overflow-x: auto;
-  scroll-behavior: smooth;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  padding: 8px 10px !important;
-  box-sizing: border-box;
-  -webkit-overflow-scrolling: touch;
-}
+      .ai-favorite-btn:active {
+        transform: scale(0.95);
+        background-color: #ffe0b2;
+      }
 
-.category-container::-webkit-scrollbar {
-  display: none;
-}
+      .ai-history-btn {
+        background-color: #f5f5f5;
+        color: #666666;
+        border: 1px solid #e0e0e0;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        cursor: pointer;
+        padding: 0;
+      }
 
-/* 3. 固定標籤寬度 (核心需求) */
-.category-btn {
-  flex: 0 0 100px !important; 
-  width: 100px !important;
-  height: 42px;
-  box-sizing: border-box;
-  padding: 8px 0;
-  border-radius: 20px;
-  border: 1px solid #ff5722;
-  background-color: white;
-  color: #ff5722;
-  cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;  
-  /* 文字過長時的排版防護 */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: center;
-}
+      .ai-history-btn:active {
+        background-color: #e0e0e0;
+      }
 
-.category-btn:hover, .category-btn.active {
-  background-color: #ff5722;
-  color: white;
-}
+      #aiOutput {
+        max-height: 380px;
+        min-height: 180px;
+        overflow-y: auto;
+        padding: 14px;
+        background-color: #fafafa;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        font-size: 0.92rem;
+        line-height: 1.5;
+      }
 
-/* 4. 左右箭頭按鈕樣式 */
-.scroll-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 1px solid #ffd1b8;
-  background: #ffffff;
-  color: #ff5722;
-  font-size: 1.1rem;
-  font-weight: bold;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
-  z-index: 10;
-  transition: all 0.2s ease;
-}
+      .ai-input-area {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        background-color: #ffffff;
+        border-top: 1px solid #eeeeee;
+        border-radius: 0 0 16px 16px;
+      }
 
-.scroll-btn:hover {
-  background: #ff5722;
-  color: #ffffff;
-  border-color: #ff5722;
-}
+      #aiInput {
+        flex: 1;
+        height: 42px;
+        min-height: 42px;
+        max-height: 80px;
+        border: 1px solid #e0e0e0;
+        border-radius: 22px;
+        padding: 10px 16px;
+        font-size: 0.9rem;
+        color: #333333;
+        background-color: #f9f9f9;
+        resize: none;
+        outline: none;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
+        transition: border-color 0.2s, background-color 0.2s;
+      }
 
-.scroll-left {
-  left: 0;
-}
+      #aiInput:focus {
+        border-color: #ff5722;
+        background-color: #ffffff;
+      }
 
-.scroll-right {
-  right: 0;
-}
+      #aiSend {
+        background: linear-gradient(135deg, #ff7043 0%, #ff5722 100%);
+        color: #ffffff;
+        border: none;
+        padding: 0 18px;
+        height: 42px;
+        border-radius: 22px;
+        font-weight: 600;
+        font-size: 0.88rem;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(255, 87, 34, 0.3);
+        white-space: nowrap;
+        transition: transform 0.15s ease;
+      }
 
+      #aiSend:active {
+        transform: scale(0.95);
+      }
 
-@media (max-width: 768px) {
-  .category-wrapper {
-    position: relative;
-    width: 100%;
-  }
+      #aiHistoryModal .modal-content {
+        width: 90% !important;
+        max-width: 360px !important;
+        border-radius: 16px !important;
+        padding: 20px 16px !important;
+      }
 
-  .category-container {
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    gap: 8px;
-    overflow-x: auto;
-    white-space: nowrap;
-    padding: 6px 40px 6px 4px;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-
-  .category-container::-webkit-scrollbar {
-    display: none;
-  }
-
-  .category-btn.hidden-tag {
-    display: inline-block !important;
-  }
-  
-  #moreBtn {
-    display: none !important;
-  }
-
-  .category-btn {
-    flex: 0 0 auto !important;
-  }
-
-  .scroll-hint-right {
-    display: flex;
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: 40px;
-    background: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.95) 60%);
-    align-items: center;
-    justify-content: flex-end;
-    padding-right: 6px;
-    color: #ff5722;
-    font-weight: bold;
-    font-size: 1.2rem;
-    cursor: pointer;
-    pointer-events: auto;
-    z-index: 5;
-    animation: pulseArrow 1.5s infinite ease-in-out;
-  }
-
-  .price-container {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-    width: 100%;
-  }
-
-  .price-btn {
-    width: 100%;
-    padding: 8px 2px;
-    font-size: 0.78rem;
-    text-align: center;
-    white-space: nowrap;
-  }
-
-  .ai-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 14px;
-    background: linear-gradient(135deg, #ffffff 0%, #fffbf8 100%);
-    border-bottom: 1px solid #f0f0f0;
-    border-radius: 16px 16px 0 0;
-  }
-
-  .ai-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: #222222;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .ai-tools {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .ai-favorite-btn {
-    background-color: #fff4e6;
-    color: #ff9800;
-    border: 1px solid #ffe0b2;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    white-space: nowrap;
-  }
-
-  .ai-favorite-btn:active {
-    transform: scale(0.95);
-    background-color: #ffe0b2;
-  }
-
-  .ai-history-btn {
-    background-color: #f5f5f5;
-    color: #666666;
-    border: 1px solid #e0e0e0;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.9rem;
-    cursor: pointer;
-    padding: 0;
-  }
-
-  .ai-history-btn:active {
-    background-color: #e0e0e0;
-  }
-
-  #aiOutput {
-    max-height: 380px;
-    min-height: 180px;
-    overflow-y: auto;
-    padding: 14px;
-    background-color: #fafafa;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    font-size: 0.92rem;
-    line-height: 1.5;
-  }
-
-  .ai-input-area {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
-    background-color: #ffffff;
-    border-top: 1px solid #eeeeee;
-    border-radius: 0 0 16px 16px;
-  }
-
-  #aiInput {
-    flex: 1;
-    height: 42px;
-    min-height: 42px;
-    max-height: 80px;
-    border: 1px solid #e0e0e0;
-    border-radius: 22px;
-    padding: 10px 16px;
-    font-size: 0.9rem;
-    color: #333333;
-    background-color: #f9f9f9;
-    resize: none;
-    outline: none;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
-    transition: border-color 0.2s, background-color 0.2s;
-  }
-
-  #aiInput:focus {
-    border-color: #ff5722;
-    background-color: #ffffff;
-  }
-
-  #aiSend {
-    background: linear-gradient(135deg, #ff7043 0%, #ff5722 100%);
-    color: #ffffff;
-    border: none;
-    padding: 0 18px;
-    height: 42px;
-    border-radius: 22px;
-    font-weight: 600;
-    font-size: 0.88rem;
-    cursor: pointer;
-    box-shadow: 0 2px 8px rgba(255, 87, 34, 0.3);
-    white-space: nowrap;
-    transition: transform 0.15s ease;
-  }
-
-  #aiSend:active {
-    transform: scale(0.95);
-  }
-
-  #aiHistoryModal .modal-content {
-    width: 90% !important;
-    max-width: 360px !important;
-    border-radius: 16px !important;
-    padding: 20px 16px !important;
-  }
-
-  #aiHistoryList {
-    max-height: 280px !important;
-  }
-}
+      #aiHistoryList {
+        max-height: 280px !important;
+      }
+    }
 
     .restaurant-card, 
     .card-item, 
@@ -2631,7 +2567,6 @@
       width: 100%;
     }
 
-    /* 卡片內的圖片容器 */
     .restaurant-image-container, 
     .card-img-wrapper {
       width: 100px !important;
@@ -2642,7 +2577,6 @@
       flex-shrink: 0 !important;
     }
 
-    /* 卡片內的文字資訊區域 */
     .restaurant-info, 
     .card-details-wrapper {
       flex: 1 1 auto !important; 
@@ -2653,21 +2587,17 @@
       box-sizing: border-box !important;
     }
 
-    /* 🏆 核心修正：餐廳名稱 */
     .restaurant-name, 
     .post-restaurant-name, 
     .card-title {
       font-size: 1.1rem !important;
       font-weight: 700 !important;
       color: #222222 !important;
-      
       word-break: break-word !important; 
       overflow-wrap: break-word !important; 
       line-height: 1.4 !important;
       height: auto !important;
-      
       margin: 0 0 4px 0 !important;
-
       display: -webkit-box !important;
       -webkit-line-clamp: 2 !important;
       -webkit-box-orient: vertical !important;
@@ -2709,114 +2639,102 @@
       width: 60px;
     }
 
-    /* ==================== 💬 留言區塊現代化美化 ==================== */
+    /* 💬 留言樣式 */
+    .view-comments-btn {
+      background: none;
+      border: none;
+      padding: 4px 0;
+      margin-bottom: 8px;
+      color: #8e8e8e;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      transition: color 0.2s ease;
+    }
 
-/* 1. 查看更多留言按鈕 */
-.view-comments-btn {
-  background: none;
-  border: none;
-  padding: 4px 0;
-  margin-bottom: 8px;
-  color: #8e8e8e;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: left;
-  transition: color 0.2s ease;
-}
+    .view-comments-btn:hover {
+      color: #262626;
+    }
 
-.view-comments-btn:hover {
-  color: #262626;
-}
+    .post-comments-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
 
-/* 2. 留言列表容器 (移除邊框與背景，保持簡潔) */
-.post-comments-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 8px;
-}
+    .post-comment-item {
+      font-size: 0.88rem;
+      line-height: 1.45;
+      color: #262626;
+      word-break: break-word;
+      text-align: left;
+    }
 
-/* 3. 單條留言樣式 */
-.post-comment-item {
-  font-size: 0.88rem;
-  line-height: 1.45;
-  color: #262626;
-  word-break: break-word;
-  text-align: left;
-}
+    .post-comment-author {
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-right: 6px;
+    }
 
-/* 發言者暱稱加粗 */
-.post-comment-author {
-  font-weight: 700;
-  color: #1a1a1a;
-  margin-right: 6px;
-}
+    .post-comment-text {
+      color: #333333;
+    }
 
-/* 留言內文 */
-.post-comment-text {
-  color: #333333;
-}
+    .no-comments {
+      font-size: 0.82rem;
+      color: #a8a8a8;
+      padding: 4px 0;
+      text-align: left;
+    }
 
-/* 無留言時的提示 */
-.no-comments {
-  font-size: 0.82rem;
-  color: #a8a8a8;
-  padding: 4px 0;
-  text-align: left;
-}
+    .post-comment-form {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #f0f0f0;
+    }
 
-/* 4. 底下新增留言表單 */
-.post-comment-form {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #f0f0f0; /* 簡約極細分隔線 */
-}
+    .post-comment-input {
+      flex: 1;
+      min-width: 0;
+      padding: 8px 14px;
+      border: 1px solid #e0e0e0;
+      border-radius: 20px;
+      background-color: #f8f9fa;
+      font-size: 0.85rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
 
-/* 輸入框美化 (圓角扁平風格) */
-.post-comment-input {
-  flex: 1;
-  min-width: 0;
-  padding: 8px 14px;
-  border: 1px solid #e0e0e0;
-  border-radius: 20px;
-  background-color: #f8f9fa;
-  font-size: 0.85rem;
-  outline: none;
-  transition: all 0.2s ease;
-}
+    .post-comment-input:focus {
+      background-color: #ffffff;
+      border-color: #ff5722;
+      box-shadow: 0 0 0 2px rgba(255, 87, 34, 0.1);
+    }
 
-.post-comment-input:focus {
-  background-color: #ffffff;
-  border-color: #ff5722;
-  box-shadow: 0 0 0 2px rgba(255, 87, 34, 0.1);
-}
+    .post-comment-submit {
+      border: none;
+      background: transparent;
+      color: #ff5722;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 4px 8px;
+      transition: opacity 0.2s ease;
+    }
 
-/* 發布按鈕美化 */
-.post-comment-submit {
-  border: none;
-  background: transparent;
-  color: #ff5722;
-  font-size: 0.88rem;
-  font-weight: 700;
-  cursor: pointer;
-  padding: 4px 8px;
-  transition: opacity 0.2s ease;
-}
-
-.post-comment-submit:hover {
-  opacity: 0.75;
-}
-
+    .post-comment-submit:hover {
+      opacity: 0.75;
+    }
   </style>
 </head>
 
 <body>
   <div class="top-right-tools">
-
     <button
       id="helpIcon"
       class="icon-btn btn-icon-text"
@@ -2828,7 +2746,6 @@
     </button>
 
     <div class="user-dropdown-container">
-
       <button
         id="userIcon"
         class="icon-btn welcome-login-btn"
@@ -2840,7 +2757,6 @@
       </button>
 
       <div class="user-dropdown-menu">
-
         <button
           id="loginItemBtn"
           class="dropdown-item"
@@ -2881,10 +2797,8 @@
         >
           🚪 登出
         </button>
-
       </div>
     </div>
-
   </div>
 
   <h1>食在中原</h1>
@@ -2919,7 +2833,6 @@
     <!-- 右滾動箭頭 -->
     <button type="button" class="scroll-btn scroll-right" onclick="scrollCategories(200)" aria-label="向右滾動">❯</button>
   </div>
-</div>
 
   <div class="price-container">
     <button class="price-btn" onclick="filterByPrice(1)">NT$100~200</button>
@@ -2937,20 +2850,15 @@
   <button id="aiBtn">🤖</button>
 
   <div id="aiChat" style="display: none;">
-
     <!-- AI 標題列 -->
     <div class="ai-header">
-      <h3 class="ai-title">
-        🤖 AI 美食助理
-      </h3>
+      <h3 class="ai-title">🤖 AI 美食助理</h3>
       <div class="ai-tools">
-        <!-- 收藏庫 -->
         <button
           class="ai-favorite-btn"
           onclick="document.getElementById('aiHistoryModal').style.display='flex'; loadAiHistories('favorites');">
           ⭐ 收藏庫
         </button>
-        <!-- 歷史紀錄 -->
         <button
           id="aiHistoryBtn"
           class="ai-history-btn"
@@ -2964,9 +2872,7 @@
 
     <div class="ai-input-area">
       <textarea id="aiInput" placeholder="想吃什麼？"></textarea>
-      <button id="aiSend">
-        送出
-      </button>
+      <button id="aiSend">送出</button>
     </div>
   </div>
 
@@ -2979,7 +2885,6 @@
       </div>
     </div>
   </div>
-
 
   <div id="loginModal" class="modal-overlay" style="display: none;">
     <div class="login-container">
@@ -3050,7 +2955,6 @@
     </div>
   </div>
 
-
   <div id="forgotPasswordModal" class="modal-overlay" style="display: none;">
     <div class="login-container">
       <span class="close-btn" onclick="closeModals()">&times;</span>
@@ -3083,7 +2987,6 @@
     </div>
   </div>
 
-
   <div id="noteModal" class="modal-overlay" style="display: none;">
     <div class="modal-content" style="max-width: 400px;">
       <span class="close-btn" onclick="closeNoteModal()">&times;</span>
@@ -3102,7 +3005,6 @@
       </div>
     </div>
   </div>
-
 
   <div id="welcomeModal" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle" style="display: none;">
     <div class="welcome-card">
@@ -3127,47 +3029,41 @@
     </div>
   </div>
 
-
+  <!-- 編輯使用者 Modal -->
+  <div id="editUserModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 450px; padding: 24px;">
+      <span class="close-btn" onclick="closeEditUserModal()">&times;</span>
       
-
-      <!-- 編輯使用者 Modal -->
-      <div id="editUserModal" class="modal-overlay" style="display: none;">
-        <div class="modal-content" style="max-width: 450px; padding: 24px;">
-          <span class="close-btn" onclick="closeEditUserModal()">&times;</span>
-          
-          <div class="edit-user-avatar">
-            <div id="editUserAvatarCircle">👤</div>
-            <div>
-              <strong id="editUserDisplayName" style="font-size: 1.1rem; color: #333;">使用者</strong>
-              <div class="edit-user-account">個人資料</div>
-            </div>
-          </div>
-
-          <div class="input-group">
-            <label class="edit-user-label">暱稱</label>
-            <input type="text" id="editUserNickname" class="edit-user-input" placeholder="輸入新的暱稱" maxlength="20">
-          </div>
-
-          <div class="input-group">
-            <label class="edit-user-label">帳號 / 學號</label>
-            <input type="text" id="editUserUsername" class="edit-user-input" disabled>
-          </div>
-
-          <div class="input-group">
-            <label class="edit-user-label">手機號碼</label>
-            <input type="tel" id="editUserPhone" class="edit-user-input" placeholder="例如：0912345678" maxlength="10" inputmode="numeric">
-          </div>
-
-          <div class="edit-user-hint">忘記密碼時會使用此手機號碼驗證身分</div>
-          <div class="edit-user-hint">帳號 / 學號目前不可修改</div>
-
-          <div class="edit-user-actions">
-            <button type="button" class="btn-secondary" onclick="closeEditUserModal()">取消</button>
-            <button type="button" class="edit-user-save-btn" onclick="saveUserProfile()">儲存變更</button>
-          </div>
+      <div class="edit-user-avatar">
+        <div id="editUserAvatarCircle">👤</div>
+        <div>
+          <strong id="editUserDisplayName" style="font-size: 1.1rem; color: #333;">使用者</strong>
+          <div class="edit-user-account">個人資料</div>
         </div>
       </div>
 
+      <div class="input-group">
+        <label class="edit-user-label">暱稱</label>
+        <input type="text" id="editUserNickname" class="edit-user-input" placeholder="輸入新的暱稱" maxlength="20">
+      </div>
+
+      <div class="input-group">
+        <label class="edit-user-label">帳號 / 學號</label>
+        <input type="text" id="editUserUsername" class="edit-user-input" disabled>
+      </div>
+
+      <div class="input-group">
+        <label class="edit-user-label">手機號碼</label>
+        <input type="tel" id="editUserPhone" class="edit-user-input" placeholder="例如：0912345678" maxlength="10" inputmode="numeric">
+      </div>
+
+      <div class="edit-user-hint">忘記密碼時會使用此手機號碼驗證身分</div>
+      <div class="edit-user-hint">帳號 / 學號目前不可修改</div>
+
+      <div class="edit-user-actions">
+        <button type="button" class="btn-secondary" onclick="closeEditUserModal()">取消</button>
+        <button type="button" class="edit-user-save-btn" onclick="saveUserProfile()">儲存變更</button>
+      </div>
     </div>
   </div>
 
@@ -3178,10 +3074,8 @@
       <h3 style="margin-top: 0; color: #ff5722;">發布美食動態</h3>
       
       <div class="create-post-box">
-        <!-- 貼文內文 -->
         <textarea id="postContent" class="post-textarea" placeholder="分享今天的美味體驗吧..." style="width: 100%; height: 90px; padding: 10px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box;"></textarea>
 
-        <!-- Tag 餐廳搜尋列 -->
         <div class="post-restaurant-area" style="margin-top: 10px; position: relative;">
           <input type="text" id="postRestaurantSearch" placeholder="🔍 搜尋並標記餐廳（選填）" oninput="searchPostRestaurants()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
           <div id="postRestaurantResults" class="post-restaurant-results" style="display: none; position: absolute; background: white; border: 1px solid #eee; width: 100%; max-height: 150px; overflow-y: auto; z-index: 10;"></div>
@@ -3192,28 +3086,22 @@
           </div>
         </div>
 
-        <!-- 圖片上傳區塊 -->
         <div class="post-image-area" style="margin-top: 15px;">
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <!-- 1. 從相冊選擇照片 -->
             <label for="postImageInput" style="cursor: pointer; background: #f0f0f0; padding: 6px 14px; border-radius: 20px; display: inline-block; font-size: 14px; color: #333; font-weight: 500;">
               🖼️ 選擇相片 (最多5張)
             </label>
             <input type="file" id="postImageInput" accept="image/*" multiple style="display: none;" onchange="handlePostImageSelect(event)">
 
-            <!-- 2. 直接打開相機拍照 -->
             <label for="postCameraInput" style="cursor: pointer; background: #ffe8e0; color: #ff5722; padding: 6px 14px; border-radius: 20px; display: inline-block; font-size: 14px; font-weight: 500;">
               📸 拍照
             </label>
-            <!-- capture="environment" 會直接叫起後鏡頭拍照 -->
             <input type="file" id="postCameraInput" accept="image/*" capture="environment" style="display: none;" onchange="handlePostImageSelect(event)">
           </div>
 
-          <!-- 圖片預覽區 -->
           <div id="postImagePreviewBox" style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;"></div>
         </div>
 
-        <!-- 操作按鈕 -->
         <div class="create-post-actions" style="margin-top: 15px; text-align: right;">
           <button type="button" onclick="closeCreatePostModal()" style="padding: 8px 16px; border: 1px solid #ccc; background: white; border-radius: 20px; cursor: pointer; margin-right: 8px;">取消</button>
           <button type="button" onclick="submitPost()" style="background: #ff5722; color: white; border: none; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-weight: bold;">發布貼文</button>
@@ -3222,61 +3110,61 @@
     </div>
   </div>
 
+  <!-- 好友社群 Modal -->
   <div id="friendsModal" class="modal-overlay" style="display: none;">
     <div class="modal-content friends-modal-content">
-      <div class="modal-header">
-        <h3>👥 好友社群</h3>
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px;">
+        <h3 style="margin: 0; color: #333;">👥 好友社群</h3>
         <span class="close-btn" onclick="closeFriendsModal()">&times;</span>
       </div>
        
-      <!-- 分頁按鈕 -->
       <div class="friends-tabs">
         <button class="tab-btn active" onclick="switchFriendTab('feed')">好友動態</button>
         <button class="tab-btn" onclick="switchFriendTab('list')">我的好友</button>
         <button class="tab-btn" onclick="switchFriendTab('requests')">好友申請/搜尋</button>
       </div>
 
-      <!-- 分頁內容 -->
       <div class="friends-modal-body">
-         <!-- 好友動態 -->
-         <div id="tab-feed" class="tab-content active">
-         <!-- 好友動態標籤與發布按鈕 -->
-            <div id="feedFriendAvatars" class="feed-avatars-container">
-            <!-- 1. 發布動態按鈕 (固定留在最左側，不會被 JS 抹掉) -->
-              <div class="avatar-item" onclick="openCreatePostModal()">
-                <div class="avatar-circle create-btn">➕</div>
-                <span class="avatar-label">發布</span>
+        <!-- 好友動態 -->
+        <div id="tab-feed" class="tab-content active">
+          <div id="feedFriendAvatars" class="feed-avatars-container">
+            <div class="avatar-item" onclick="openCreatePostModal()">
+              <div class="avatar-circle create-btn">➕</div>
+              <span class="avatar-label">發布</span>
             </div>
 
-                <div class="avatar-item active" onclick="showAllFriendFeeds(this)">
-                  <div class="avatar-circle">👥</div>
-                  <span class="avatar-label">全部</span>
-                </div>
-
-                <div id="dynamicFriendAvatarsList" style="display: flex; gap: inherit;"></div>
-              </div>
-
-              <div id="friendFeedList"></div>
+            <div class="avatar-item active" onclick="showAllFriendFeeds(this)">
+              <div class="avatar-circle">👥</div>
+              <span class="avatar-label">全部</span>
             </div>
-            <!-- 我的好友 -->
-            <div id="tab-list" class="tab-content">
-              <div id="myFriendsList"></div>
-            </div>
-            <!-- 好友申請與搜尋 -->
+
+            <div id="dynamicFriendAvatarsList" style="display: flex; gap: inherit;"></div>
+          </div>
+
+          <div id="friendFeedList"></div>
+        </div>
+
+        <!-- 我的好友 -->
+        <div id="tab-list" class="tab-content">
+          <div id="myFriendsList"></div>
+        </div>
+
+        <!-- 好友申請與搜尋 -->
         <div id="tab-requests" class="tab-content">
           <div class="search-box">
             <input type="text" id="friendSearchInput" placeholder="輸入學號搜尋 (8位數字)">
             <button onclick="searchUsers()">搜尋</button>
           </div>
           <div id="friendSearchResults"></div>
-          <hr>
-          <h4>收到的申請</h4>
+          <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+          <h4 style="text-align: left; margin: 10px 0; color: #555;">收到的申請</h4>
           <div id="requestsList"></div>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- 💬 貼文留言 Modal -->
   <div id="postCommentModal" class="modal-overlay" style="display: none; z-index: 200010;">
     <div class="modal-content" style="max-width: 480px; padding: 20px;">
       <span class="close-btn" onclick="closePostCommentModal()">&times;</span>
@@ -3284,12 +3172,10 @@
       
       <input type="hidden" id="modalCurrentPostId">
 
-      <!-- 留言列表顯示區 -->
       <div id="modalCommentsList" style="max-height: 320px; overflow-y: auto; text-align: left; margin: 15px 0; border-top: 1px solid #f0f0f0; border-bottom: 1px solid #f0f0f0; padding: 10px 0;">
         <div class="no-comments">載入留言中...</div>
       </div>
 
-      <!-- 留言輸入發布區 -->
       <div class="post-comment-form" style="display: flex; gap: 8px; margin-top: 10px;">
         <input type="text" id="modalCommentInput" class="post-comment-input" maxlength="300" placeholder="寫下你的留言……" onkeydown="if(event.key === 'Enter') submitModalComment();">
         <button type="button" class="post-comment-submit" onclick="submitModalComment()">發布</button>
