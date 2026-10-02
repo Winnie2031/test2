@@ -3566,76 +3566,45 @@ document
        發送匿名留言
     ============================================================ */
 
-    async function submitComment() {
+  document.addEventListener("DOMContentLoaded", () => {
+    const commentInput = document.getElementById("commentInput");
 
-      const restaurantId =
-        getRestaurantIdFromUrl();
+    if (commentInput) {
+      commentInput.addEventListener("keydown", (e) => {
+        // 判斷按鍵為 Enter 且未按住 Shift（允許使用 Shift + Enter 進行換行）
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault(); // 阻止預設的 Enter 換行行為
+          submitComment();    // 觸發發表留言函式
+        }
+      });
+    }
+  });  
 
+  async function submitComment() {
 
-      const commentInput =
-        document.getElementById(
-          "commentInput"
-        );
-
-
-      const submitButton =
-        document.getElementById(
-          "submitCommentBtn"
-        );
-
-
-      const token =
-        localStorage.getItem(
-          "token"
-        );
-
-
-      if (!token) {
-
-        alert(
-          "🔒 請先登入才能發表匿名評論喔！"
-        );
-
-        return;
-      }
+    const restaurantId = getRestaurantIdFromUrl();
+    const commentInput = document.getElementById( "commentInput" );
+    const submitButton = document.getElementById( "submitCommentBtn" );
+    const token = localStorage.getItem( "token" );
+    if (!token) {
+      alert( "🔒 請先登入才能發表匿名評論喔！");
+      return;
+    }
+    const content = commentInput ? commentInput.value.trim() : "";
+    if ( !content || content.length < 3 ) {
+      alert( "⚠️ 留言內容至少需要 3 個字喔！" );
+      return;
+    }
 
 
-      const content =
-        commentInput
-
-          ? commentInput.value.trim()
-
-          : "";
+    if ( content.length > 300 ) {
+      alert( "⚠️ 留言最多 300 個字" );
+      return;
+    }
 
 
-      if (
-        !content ||
-        content.length < 3
-      ) {
-
-        alert(
-          "⚠️ 留言內容至少需要 3 個字喔！"
-        );
-
-        return;
-      }
-
-
-      if (
-        content.length > 300
-      ) {
-
-        alert(
-          "⚠️ 留言最多 300 個字"
-        );
-
-        return;
-      }
-
-
-      if (!restaurantId) {
-
-        alert(
+    if (!restaurantId) {
+      alert(
           "找不到餐廳 ID"
         );
 
@@ -3758,17 +3727,11 @@ document
        手機左右滑時，自動切換上方頁籤
     ============================================================ */
 
-    document.addEventListener(
-      "DOMContentLoaded",
-      () => {
-
-        const slider =
-          document.getElementById(
-            "detailSlider"
-          );
+    document.addEventListener( "DOMContentLoaded", () => {
+      const slider = document.getElementById( "detailSlider" );
 
 
-        if (!slider) {
+        if (!slider) { 
           return;
         }
 
