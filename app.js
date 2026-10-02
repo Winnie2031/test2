@@ -551,7 +551,6 @@ const searchInput = document.getElementById("search");
 const resetRandomBtn = document.getElementById("resetRandomBtn"); 
 
 // ==================== 🎲 骰子：隨機推薦功能 ====================
-// ==================== 🎲 骰子：隨機推薦功能 ====================
 if (randomBtn) {
   randomBtn.addEventListener("click", () => {
     randomStores = [];
@@ -635,6 +634,49 @@ if (aiBtn && aiChat) {
       aiChat.style.display === "none" || aiChat.style.display === "" ? "flex" : "none";
   };
 }
+
+// ==================== AI 視窗左上角手動拉伸邏輯 ====================
+document.addEventListener("DOMContentLoaded", () => {
+  const aiChat = document.getElementById("aiChat");
+  const resizeHandle = document.getElementById("aiResizeHandle");
+
+  if (!aiChat || !resizeHandle) return;
+
+  let startX, startY, startWidth, startHeight;
+
+  resizeHandle.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    startX = e.clientX;
+    startY = e.clientY;
+    startWidth = aiChat.offsetWidth;
+    startHeight = aiChat.offsetHeight;
+
+    document.addEventListener("mousemove", doDrag);
+    document.addEventListener("mouseup", stopDrag);
+  });
+
+  function doDrag(e) {
+    // 因為視窗貼在右下角 (bottom/right)，向左/向上拉（clientX/Y 變小）時，寬高要變大
+    const newWidth = startWidth + (startX - e.clientX);
+    const newHeight = startHeight + (startY - e.clientY);
+
+    // 限制最小與最大尺寸
+    const minW = 280, maxW = window.innerWidth * 0.9;
+    const minH = 350, maxH = window.innerHeight * 0.8;
+
+    if (newWidth >= minW && newWidth <= maxW) {
+      aiChat.style.width = `${newWidth}px`;
+    }
+    if (newHeight >= minH && newHeight <= maxH) {
+      aiChat.style.height = `${newHeight}px`;
+    }
+  }
+
+  function stopDrag() {
+    document.removeEventListener("mousemove", doDrag);
+    document.removeEventListener("mouseup", stopDrag);
+  }
+});
 
 async function sendAiMessage() {
   if (isSending) return;

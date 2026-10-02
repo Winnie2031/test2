@@ -370,23 +370,52 @@
       bottom: 90px;
       right: 20px;
       
+      /* 預設初始大小 */
       width: 320px;
       height: 480px;
       
-      resize: both;          
-      overflow: hidden;      
-      min-width: 280px;       
-      min-height: 350px;        
-      max-width: 90vw;          
-      max-height: 80vh;     
+      /* 尺寸限制 */
+      min-width: 280px;
+      min-height: 350px;
+      max-width: 90vw;
+      max-height: 80vh;
       
-      display: none;          
+      /* 關閉原生 resize，改由自訂 handle 控制 */
+      resize: none;
+      
+      /* 容器排版 */
+      display: none; /* 由 JS 切換 flex / none */
       flex-direction: column;
       background: #fff;
       border-radius: 16px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.2);
       padding: 0;
       z-index: 999;
+    }
+
+    /* 👈 新增：左上角自訂拖曳角規 */
+    .resize-handle-tl {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 16px;
+      height: 16px;
+      cursor: nwse-resize; /* 顯示雙向箭頭游標 */
+      z-index: 1000;
+      user-select: none;
+    }
+
+    /* 繪製左上角三角形點綴 (可選美化) */
+    .resize-handle-tl::before {
+      content: "";
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 8px;
+      height: 8px;
+      border-top: 2px solid #ccc;
+      border-left: 2px solid #ccc;
+      border-top-left-radius: 3px;
     }
 
     #aiChat textarea {
@@ -2854,6 +2883,7 @@
   <button id="aiBtn">🤖</button>
 
   <div id="aiChat" style="display: none;">
+    <div class="resize-handle-tl" id="aiResizeHandle"></div>
     <!-- AI 標題列 -->
     <div class="ai-header">
       <h3 class="ai-title">🤖 AI 美食助理</h3>
