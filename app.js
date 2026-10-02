@@ -919,8 +919,18 @@ async function sendAiMessage() {
 
         render();
 
-        const displayNames = targetNames.join("、");
-        replyContainer.innerHTML += `<p style="color: #1f9d55; font-size: 0.85rem; margin-top: 6px; margin-bottom: 0;">✅ 已在主畫面為您列出：<strong>${escapeHtml(displayNames)}</strong></p>`;
+        // 1. 去掉過長的分店後綴（如 -內壢莊敬店、中壢中原店、第一味 中壢興農店 等）
+        const shortNames = targetNames.map(name => {
+          return name
+            .split("-")[0]               // 移除 '-' 後面的分店名
+            .replace(/中壢.*店/g, "")     // 移除 '中壢XX店'
+            .replace(/第.味/g, "")       // 移除 '第一味' 等贅字
+            .trim();
+        });
+
+        // 2. 使用極簡的提示文字
+        const displayNames = shortNames.join("、");
+        replyContainer.innerHTML += `<p style="color: #1f9d55; font-size: 0.82rem; margin-top: 4px; margin-bottom: 0;">✅ 已主畫面列出：<strong>${escapeHtml(displayNames)}</strong></p>`;
 
         const resetRandomBtn = document.getElementById("resetRandomBtn");
         if (resetRandomBtn) {
