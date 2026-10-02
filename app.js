@@ -632,21 +632,17 @@ const aiOutput = document.getElementById("aiOutput");
 if (aiBtn && aiChat) {
   aiBtn.onclick = () => {
     aiChat.style.display =
-      aiChat.style.display === "none" ? "block" : "none";
+      aiChat.style.display === "none" || aiChat.style.display === "" ? "flex" : "none";
   };
 }
 
 async function sendAiMessage() {
-  // 防呆機制：避免重複發送
   if (isSending) return;
   if (!aiInput || !aiSend || !aiOutput) return;
 
   const question = aiInput.value.trim();
   if (!question) return;
 
-  // ==========================================
-  // 1. 關鍵字分類陣列 (支援內用、外帶、外送)
-  // ==========================================
   const foodTypes = [
     "飲料", "早餐", "午餐", "晚餐", "宵夜", "早午餐", "咖啡", "茶",
     "火鍋", "拉麵", "燒肉", "便當", "義大利麵", "牛排", "壽司", "韓式", 
@@ -667,7 +663,6 @@ async function sendAiMessage() {
     "位置", "交通", "方便", "舒適"
   ];
 
-  // 合併陣列作初步攔截
   const allKeywords = [
     ...foodTypes, ...timeKeywords, ...dineInKeywords, 
     ...takeoutKeywords, ...deliveryKeywords, ...otherKeywords
@@ -692,27 +687,20 @@ async function sendAiMessage() {
     return;
   }
 
-  // ==========================================
-  // 2. 更新 UI 狀態為發送中 
-  // ==========================================
   isSending = true;
   aiSend.disabled = true;
   aiSend.textContent = "思考中...";
 
-  // 🌟 強制重置對話 ID 與星星狀態，確保在資料庫中存為獨立新紀錄
   currentConversationId = null;
   currentConversationIsFavorite = false;
 
-  // 隱藏頂部原本的舊星星 (如果有殘留的話)
   const topStar = document.getElementById('aiActiveStarBtn');
   if (topStar) {
     topStar.style.display = 'none'; 
   }
 
-  // 產生一個暫時的 ID 來定位這組對話
   const msgId = "msg_" + Date.now(); 
   
-  // 🌟 重新排版：將使用者的提問放在左邊，預留右邊放星星的空間
   aiOutput.innerHTML += `
     <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #eee;">
       <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
@@ -725,7 +713,6 @@ async function sendAiMessage() {
 
   aiInput.value = "";
 
-  // 3. 前端預篩選邏輯 (節省 Token)
   const requiresOpen = timeKeywords.some(keyword => question.includes(keyword));
   const requiresDineIn = dineInKeywords.some(keyword => question.includes(keyword)); 
   const requiresTakeout = takeoutKeywords.some(keyword => question.includes(keyword)); 
@@ -745,16 +732,12 @@ async function sendAiMessage() {
       if (requiresTakeout && !s.takeout) return false;
       if (requiresDelivery && !s.delivery) return false;
       
-      // 檢查店名、檢查標籤、檢查分類關聯
       if (matchedFoods.length > 0) {
         const hasFoodKeyword = matchedFoods.some(food => {
-          // 1. 檢查店名是否包含
           const inName = (s.name || "").includes(food);
           
-          // 2. 檢查資料庫標籤 (tags) 是否包含
           const inTags = Array.isArray(s.tags) ? s.tags.includes(food) : String(s.tags || "").includes(food);
           
-          // 3. 透過你寫好的 categoryMap 進行深度比對 (例如打'飲料'，會自動比對'茶'、'50嵐'等)
           let inCategory = false;
           if (categoryMap[food]) {
             inCategory = categoryMap[food].some(kw => 
@@ -772,13 +755,11 @@ async function sendAiMessage() {
       return true;
     });
 
-    // 改為：超過 15 家則隨機取 15 家，讓 AI 有足夠的選項推薦 3~5 家
     if (candidateStores.length > 15) {
       candidateStores = candidateStores.sort(() => 0.5 - Math.random()).slice(0, 15);
     }
   }
 
-  // 如果找不到餐廳，直接回復並恢復 UI 狀態 (不打 API)
   if (candidateStores.length === 0) {
     const replyContainer = document.getElementById(`reply_${msgId}`);
     if (replyContainer) {
@@ -791,20 +772,17 @@ async function sendAiMessage() {
     return; 
   }
 
-// 4. 打包資料與請求後端 AI
   const contextStores = candidateStores.map(s => {
-    const isOp = isOpenNow(s.opening_hours_json);
-    const openStr = isOp === true ? "是" : (isOp === false ? "否" : "未知");
-    const dineInStr = s.dine_in ? "可" : "不可";
-    const takeoutStr = s.takeout ? "可" : "不可";
-    const deliveryStr = s.delivery ? "可" : "不可";
+  const isOp = isOpenNow(s.opening_hours_json);
+  const openStr = isOp === true ? "是" : (isOp === false ? "否" : "未知");
+  const dineInStr = s.dine_in ? "可" : "不可";
+  const takeoutStr = s.takeout ? "可" : "不可";
+  const deliveryStr = s.delivery ? "可" : "不可";
     
-    const tagStr = Array.isArray(s.tags) && s.tags.length > 0 ? s.tags.join("、") : "無";
+  const tagStr = Array.isArray(s.tags) && s.tags.length > 0 ? s.tags.join("、") : "無";
 
-    return `名稱:${s.name},標籤:${tagStr},評分:${s.rating || '無'},內用:${dineInStr},外帶:${takeoutStr},外送:${deliveryStr},營業中:${openStr}`;
-  }).join(" | ");
-
-  // 🗑️ (這裡原本組裝 enhancedPrompt 的地方已經被刪除了)
+  return `名稱:${s.name},標籤:${tagStr},評分:${s.rating || '無'},內用:${dineInStr},外帶:${takeoutStr},外送:${deliveryStr},營業中:${openStr}`;
+}).join(" | ");
 
   try {
     const token = getToken();
@@ -817,8 +795,8 @@ async function sendAiMessage() {
       method: "POST",
       headers: headers,
       body: JSON.stringify({
-        question: question,            // ✨ 只傳送乾淨的使用者提問
-        contextStores: contextStores,  // ✨ 傳送過濾後的餐廳資料給後端當參考
+        question: question,           
+        contextStores: contextStores, 
         conversationId: currentConversationId 
       }),
     });
@@ -836,42 +814,32 @@ async function sendAiMessage() {
       replyText = replyText.replace(searchCommandRegex, "").trim();
     }
 
-    // 🌟 1. 將專屬的星星按鈕填入剛剛預留的空間 (帶入後端產生的 conversationId)
     const starContainer = document.getElementById(`star_${msgId}`);
     if (starContainer && data.conversationId) {
       starContainer.innerHTML = `<button onclick="toggleAiFavorite(${data.conversationId}, false, this)" style="background:none; border:none; font-size: 1.3rem; cursor: pointer; color: #ccc;" title="加入收藏">☆</button>`;
     }
 
-    // 🌟 2. 將 AI 的回答填入剛剛顯示「思考中...」的空間
     const replyContainer = document.getElementById(`reply_${msgId}`);
     if (replyContainer) {
       replyContainer.innerHTML = `<p style="margin: 0; color: #333;"><strong>🤖 AI：</strong>${escapeHtml(replyText)}</p>`;
       
-      // 填入搜尋欄並觸發畫面渲染
-      // 擷取並觸發主畫面渲染
       if (recommendedName) {
-        // 1. 將 AI 輸出的「餐廳A|餐廳B|餐廳C」切分成陣列
         const targetNames = recommendedName.split("|").map(n => n.trim()).filter(Boolean);
 
-        // 2. 利用 randomStores 作為暫存容器，強制主畫面過濾出這幾家店
         randomStores = stores.filter(store =>
           targetNames.some(name => (store.name || "").includes(name))
         );
 
-        // 3. 清空原本的搜尋框，避免上方文字干擾卡片顯示條件
         const searchInput = document.getElementById("search");
         if (searchInput) {
           searchInput.value = "";
         }
 
-        // 4. 重新渲染主畫面卡片
         render();
 
-        // 5. 在聊天室印出綠色的成功提示字樣
         const displayNames = targetNames.join("、");
         replyContainer.innerHTML += `<p style="color: #1f9d55; font-size: 0.85rem; margin-top: 6px; margin-bottom: 0;">✅ 已在主畫面為您列出：<strong>${escapeHtml(displayNames)}</strong></p>`;
 
-        // 🌟 貼心加碼：讓原本隱藏的「🗑️ 復原按鈕」顯示出來！
         const resetRandomBtn = document.getElementById("resetRandomBtn");
         if (resetRandomBtn) {
           resetRandomBtn.style.display = "flex";
@@ -887,7 +855,6 @@ async function sendAiMessage() {
     }
   }
 
-  // 5. 恢復 UI 狀態並捲動到底部
   aiSend.disabled = false;
   aiSend.textContent = "送出";
   isSending = false;
