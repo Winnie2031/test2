@@ -689,7 +689,8 @@ async function sendAiMessage() {
     "飲料", "早餐", "午餐", "晚餐", "宵夜", "早午餐", "咖啡", "茶",
     "火鍋", "拉麵", "燒肉", "便當", "義大利麵", "牛排", "壽司", "韓式", 
     "日式", "中式", "甜點", "蛋糕", "炸雞", "漢堡", "披薩", 
-    "小吃", "滷味", "麵", "飯", "水餃"
+    "小吃", "滷味", "麵", "飯", "水餃",
+    "速食", "麥當勞", "肯德基", "摩斯", "摩斯漢堡", "必勝客", "達美樂", "Subway" // 👈 新增常見連鎖店名稱
   ];
 
   const timeKeywords = ["營業", "開嗎", "幾點", "關門", "現在"];
@@ -697,12 +698,32 @@ async function sendAiMessage() {
   const takeoutKeywords = ["外帶", "帶走", "自取"];
   const deliveryKeywords = ["外送", "送到", "外賣", "叫車"];
 
+  // ----------------【新增：價格關聯詞彙與價位 mapping】----------------
+  const priceKeywords = ["100", "200", "300", "400", "500", "600", "元", "塊", "價格", "價位", "預算", "平價", "便宜", "貴", "CP額", "cp值"];
+  
+  // 判斷用戶輸入包含哪些價位等級 (對應資料庫 price_level: 1, 2, 3, 4)
+  const targetPriceLevels = [];
+  if (question.includes("100") || question.includes("200") || question.includes("平價") || question.includes("便宜")) {
+    targetPriceLevels.push(1); // NT$100~200
+  }
+  if (question.includes("200") || question.includes("300") || question.includes("400")) {
+    targetPriceLevels.push(2); // NT$200~400
+  }
+  if (question.includes("400") || question.includes("500") || question.includes("600")) {
+    targetPriceLevels.push(3); // NT$400~600
+  }
+  if (question.includes("600") || question.includes("貴") || question.includes("高級")) {
+    targetPriceLevels.push(4); // NT$600以上
+  }
+  // ----------------------------------------------------------------------
+
   const otherKeywords = [
     "餐廳", "美食", "推薦", "吃", "早餐", "午餐", "晚餐", "宵夜", "飲料", "咖啡",
     "中原", "夜市", "附近", "哪裡", "價格", "價位", "多少", "便宜", "貴", "平價", 
     "預算", "cp值", "划算", "停車", "冷氣", "安靜", "環境", "素食", "辣", "不辣", 
     "健康", "其他", "特色", "口味", "評價", "人氣", "熱門", "排隊", "座位", 
-    "位置", "交通", "方便", "舒適"
+    "位置", "交通", "方便", "舒適",
+    ...priceKeywords // 👈 將價格關鍵字整合進去
   ];
 
   const allKeywords = [
@@ -773,6 +794,20 @@ async function sendAiMessage() {
       if (requiresDineIn && !s.dine_in) return false;
       if (requiresTakeout && !s.takeout) return false;
       if (requiresDelivery && !s.delivery) return false;
+
+      // ----------------【新增：嚴格價格過濾】----------------
+      // 如果使用者有提及價格相關需求，且有解析出目標價格等級
+      if (targetPriceLevels.length > 0) {
+        // 1. 如果店家價格未抓到 (null/undefined/空)，直接過濾掉不顯示
+        if (s.price_level == null || s.price_level === undefined || s.price_level === "") {
+          return false;
+        }
+        // 2. 如果店家的價位等級不在搜尋範圍內，也過濾掉
+        if (!targetPriceLevels.includes(Number(s.price_level))) {
+          return false;
+        }
+      }
+      // ----------------------------------------------------
       
       if (matchedFoods.length > 0) {
         const hasFoodKeyword = matchedFoods.some(food => {
@@ -815,16 +850,21 @@ async function sendAiMessage() {
   }
 
   const contextStores = candidateStores.map(s => {
-  const isOp = isOpenNow(s.opening_hours_json);
-  const openStr = isOp === true ? "是" : (isOp === false ? "否" : "未知");
-  const dineInStr = s.dine_in ? "可" : "不可";
-  const takeoutStr = s.takeout ? "可" : "不可";
-  const deliveryStr = s.delivery ? "可" : "不可";
-    
-  const tagStr = Array.isArray(s.tags) && s.tags.length > 0 ? s.tags.join("、") : "無";
+    const isOp = isOpenNow(s.opening_hours_json);
+    const openStr = isOp === true ? "是" : (isOp === false ? "否" : "未知");
+    const dineInStr = s.dine_in ? "可" : "不可";
+    const takeoutStr = s.takeout ? "可" : "不可";
+    const deliveryStr = s.delivery ? "可" : "不可";
+      
+    const tagStr = Array.isArray(s.tags) && s.tags.length > 0 ? s.tags.join("、") : "無";
 
-  return `名稱:${s.name},標籤:${tagStr},評分:${s.rating || '無'},內用:${dineInStr},外帶:${takeoutStr},外送:${deliveryStr},營業中:${openStr}`;
-}).join(" | ");
+    // ----------------【新增：將價格資訊格式化帶入 Context】----------------
+    const priceStr = (s.price_level != null && priceMap[s.price_level]) 
+      ? priceMap[s.price_level] 
+      : "未知";
+
+    return `名稱:${s.name},價位:${priceStr},標籤:${tagStr},評分:${s.rating || '無'},內用:${dineInStr},外帶:${takeoutStr},外送:${deliveryStr},營業中:${openStr}`;
+  }).join(" | ");
 
   try {
     const token = getToken();
