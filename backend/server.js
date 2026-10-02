@@ -1066,173 +1066,91 @@ app.get(
   }
 );
 
-// ============================================================
-// 👤 修改目前登入使用者資料
-// ============================================================
 
 // ============================================================
 // 👤 修改目前登入使用者資料
 // ============================================================
 
-app.put(
-  "/api/users/me",
-  authMiddleware,
-  async (req, res) => {
+app.put("/api/users/me", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
 
-    try {
+    // 先查詢使用者目前的舊資料
+    const currentUserRes = await pg.query(
+      "SELECT nickname, phone FROM users WHERE id = $1",
+      [userId]
+    );
 
-      const userId =
-        req.user.userId;
+    if (currentUserRes.rows.length === 0) {
+      return res.status(404).json({ ok: false, error: "找不到使用者" });
+    }
 
+    const currentUser = currentUserRes.rows[0];
 
-      const nickname =
-        String(
-          req.body.nickname || ""
-        ).trim();
+    // 如果前端傳空字串，就維持原本資料庫的值；若有填寫則取新值
+    const newNickname = req.body.nickname !== undefined && req.body.nickname.trim() !== ""
+      ? req.body.nickname.trim()
+      : currentUser.nickname;
 
+    const newPhone = req.body.phone !== undefined && req.body.phone.trim() !== ""
+      ? req.body.phone.trim()
+      : currentUser.phone;
 
-      const phone =
-        String(
-          req.body.phone || ""
-        ).trim();
+    // 格式驗證：如果有填寫暱稱才驗證長度
+    if (newNickname && (newNickname.length < 1 || newNickname.length > 20)) {
+      return res.status(400).json({ ok: false, error: "暱稱必須為 1～20 個字" });
+    }
 
-
-      // ==============================
-      // 暱稱
-      // ==============================
-
-      if (!nickname) {
-
+    // 格式驗證：如果有填寫手機才驗證格式與重複
+    if (newPhone) {
+      if (!/^09\d{8}$/.test(newPhone)) {
         return res.status(400).json({
           ok: false,
-          error: "暱稱不能為空白"
+          error: "手機號碼必須為 09 開頭的 10 位數字"
         });
       }
 
-
-      if (
-        nickname.length < 1 ||
-        nickname.length > 20
-      ) {
-
-        return res.status(400).json({
-          ok: false,
-          error: "暱稱必須為 1～20 個字"
-        });
-      }
-
-
-      // ==============================
-      // 手機號碼
-      // ==============================
-
-      if (!/^09\d{8}$/.test(phone)) {
-
-        return res.status(400).json({
-          ok: false,
-          error:
-            "手機號碼必須為 09 開頭的 10 位數字"
-        });
-      }
-
-
-      // ==============================
-      // 確認電話沒有被別人使用
-      // ==============================
-
-      const phoneExists =
-        await pg.query(
-          `
-          SELECT id
-
-          FROM users
-
-          WHERE phone = $1
-            AND id != $2
-
-          LIMIT 1
-          `,
-          [
-            phone,
-            userId
-          ]
-        );
-
-
-      if (
-        phoneExists.rows.length > 0
-      ) {
-
-        return res.status(409).json({
-          ok: false,
-          error:
-            "這個手機號碼已經被其他帳號使用"
-        });
-      }
-
-
-      // ==============================
-      // 更新
-      // ==============================
-
-      const result =
-        await pg.query(
-          `
-          UPDATE users
-
-          SET
-            nickname = $1,
-            phone = $2
-
-          WHERE id = $3
-
-          RETURNING
-            id,
-            username,
-            nickname,
-            phone
-          `,
-          [
-            nickname,
-            phone,
-            userId
-          ]
-        );
-
-
-      if (
-        result.rows.length === 0
-      ) {
-
-        return res.status(404).json({
-          ok: false,
-          error: "找不到使用者"
-        });
-      }
-
-
-      return res.json({
-        ok: true,
-        message: "個人資料更新成功",
-        user: result.rows[0]
-      });
-
-
-    } catch (error) {
-
-      console.error(
-        "更新使用者資料失敗:",
-        error
+      // 確認該手機號碼沒有被其他人使用
+      const phoneExists = await pg.query(
+        `SELECT id FROM users WHERE phone = $1 AND id != $2 LIMIT 1`,
+        [newPhone, userId]
       );
 
-
-      return res.status(500).json({
-        ok: false,
-        error: "更新使用者資料失敗"
-      });
+      if (phoneExists.rows.length > 0) {
+        return res.status(409).json({
+          ok: false,
+          error: "這個手機號碼已經被其他帳號使用"
+        });
+      }
     }
+
+    // 更新資料庫
+    const result = await pg.query(
+      `
+      UPDATE users
+      SET
+        nickname = $1,
+        phone = $2
+      WHERE id = $3
+      RETURNING id, username, nickname, phone
+      `,
+      [newNickname, newPhone, userId]
+    );
+
+    return res.json({
+      ok: true,
+      message: "個人資料更新成功",
+      user: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error("更新使用者資料失敗:", error);
+    return res.status(500).json({
+      ok: false,
+      error: "更新使用者資料失敗"
+    });
   }
-);
+});
 
 // ==========================================
 // 🎯 餐廳備忘錄功能 (Memos API)

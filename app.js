@@ -4863,7 +4863,6 @@ function openUserPanel(tab) {
 // ============================================================
 
 async function saveUserProfile() {
-
   const token = getToken();
 
   if (!token) {
@@ -4872,144 +4871,74 @@ async function saveUserProfile() {
     return;
   }
 
+  const nicknameInput = document.getElementById("editUserNickname");
+  const phoneInput = document.getElementById("editUserPhone");
 
-  const nicknameInput =
-    document.getElementById("editUserNickname");
+  const nickname = nicknameInput?.value.trim() || "";
+  const phone = phoneInput?.value.trim() || "";
 
-  const phoneInput =
-    document.getElementById("editUserPhone");
-
-
-  const nickname =
-    nicknameInput?.value.trim() || "";
-
-  const phone =
-    phoneInput?.value.trim() || "";
-
-
-  // ==============================
-  // 暱稱檢查
-  // ==============================
-
-  if (!nickname) {
-    alert("請輸入暱稱");
-    nicknameInput?.focus();
+  // 1. 檢查是否兩個欄位都沒填
+  if (!nickname && !phone) {
+    alert("請至少填寫「暱稱」或「手機號碼」其中一項！");
     return;
   }
 
-
-  if (
-    nickname.length < 1 ||
-    nickname.length > 20
-  ) {
+  // 2. 有填暱稱時才檢查長度
+  if (nickname && (nickname.length < 1 || nickname.length > 20)) {
     alert("暱稱必須為 1～20 個字");
     nicknameInput?.focus();
     return;
   }
 
-
-  // ==============================
-  // 手機號碼檢查
-  // ==============================
-
-  if (!/^09\d{8}$/.test(phone)) {
+  // 3. 有填手機時才檢查格式
+  if (phone && !/^09\d{8}$/.test(phone)) {
     alert("手機號碼必須為 09 開頭的 10 位數字");
     phoneInput?.focus();
     return;
   }
 
-
   try {
-
-    const res = await fetch(
-      "/api/users/me",
-      {
-        method: "PUT",
-
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-
-        body: JSON.stringify({
-          nickname,
-          phone
-        })
-      }
-    );
-
+    const res = await fetch("/api/users/me", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        nickname,
+        phone
+      })
+    });
 
     const data = await res.json();
 
-
     if (!res.ok || !data.ok) {
-      throw new Error(
-        data.error ||
-        "儲存失敗"
-      );
+      throw new Error(data.error || "儲存失敗");
     }
 
+    // 更新 localStorage 快取
+    if (data.user?.nickname) {
+      localStorage.setItem("nickname", data.user.nickname);
+    }
 
-    // 更新 localStorage
-    localStorage.setItem(
-      "nickname",
-      data.user?.nickname || nickname
-    );
-
-
-    // 更新畫面
-    const displayName =
-      document.getElementById(
-        "editUserDisplayName"
-      );
-
+    // 更新畫面顯示
+    const displayName = document.getElementById("editUserDisplayName");
     if (displayName) {
-      displayName.textContent =
-        data.user?.nickname || nickname;
+      displayName.textContent = data.user?.nickname || data.user?.username || "使用者";
     }
 
-
-    const avatar =
-      document.getElementById(
-        "editUserAvatarCircle"
-      );
-
+    const avatar = document.getElementById("editUserAvatarCircle");
     if (avatar) {
-      avatar.textContent =
-        (
-          data.user?.nickname ||
-          nickname ||
-          "使"
-        ).charAt(0);
+      avatar.textContent = (data.user?.nickname || data.user?.username || "使").charAt(0);
     }
 
-
-    // 更新右上角使用者顯示
     setupUserIcon();
-
-
     alert("✅ 使用者資料已儲存");
-
-
-    // 再從資料庫讀一次
-    await loadCurrentUserProfile();
-
+    closeEditUserModal();
 
   } catch (error) {
-
-    console.error(
-      "儲存使用者資料失敗：",
-      error
-    );
-
-
-    alert(
-      "❌ " +
-      (
-        error.message ||
-        "儲存失敗"
-      )
-    );
+    console.error("儲存使用者資料失敗：", error);
+    alert("❌ " + (error.message || "儲存失敗"));
   }
 }
 
