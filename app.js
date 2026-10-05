@@ -3479,74 +3479,116 @@ async function openUserProfile(userId, nickname) {
       </div>
 
       ${
-        data.posts.map(post => `
+        data.posts.map(post => {
 
-          <div class="feed-card">
+          // 🎯 1. 處理圖片陣列解析相容性
+          let imagesList = post.images;
+          if (typeof imagesList === "string") {
+            try { imagesList = JSON.parse(imagesList); } catch (e) { imagesList = []; }
+          }
+          // 如果沒有多圖陣列，但有舊版的單圖 image_url，自動轉為陣列
+          if (!Array.isArray(imagesList) || imagesList.length === 0) {
+            imagesList = post.image_url ? [post.image_url] : [];
+          }
 
-            <div class="feed-header">
+          return `
+            <div class="feed-card">
 
-              <div class="feed-avatar">
-                ${
-                  escapeHtml(
-                    nickname.charAt(0)
-                  )
-                }
-              </div>
+              <div class="feed-header">
 
-              <div class="feed-user-info">
-
-                <span class="feed-author">
-                  ${escapeHtml(nickname)}
-                </span>
-
-                <span class="feed-time">
+                <div class="feed-avatar">
                   ${
-                    new Date(
-                      post.created_at
-                    ).toLocaleString()
+                    escapeHtml(
+                      nickname.charAt(0)
+                    )
                   }
-                </span>
+                </div>
+
+                <div class="feed-user-info">
+
+                  <span class="feed-author">
+                    ${escapeHtml(nickname)}
+                  </span>
+
+                  <span class="feed-time">
+                    ${
+                      new Date(
+                        post.created_at
+                      ).toLocaleString()
+                    }
+                  </span>
+
+                </div>
 
               </div>
+
+              ${
+                post.restaurant_name
+                  ? `
+                    <span class="feed-tag">
+                      📍 ${escapeHtml(post.restaurant_name)}
+                    </span>
+                  `
+                  : ""
+              }
+
+              ${
+                post.content
+                  ? `
+                    <p class="feed-text">
+                      ${escapeHtml(post.content)}
+                    </p>
+                  `
+                  : ""
+              }
+
+              <!-- 🎯 2. 多圖輪播區塊渲染 -->
+              ${
+                imagesList.length > 0
+                  ? `
+                    <div class="feed-carousel">
+
+                      <div
+                        class="feed-carousel-track"
+                        onscroll="updateCarouselDots(this)"
+                      >
+                        ${imagesList.map((imageUrl, index) => `
+                          <div class="feed-carousel-slide">
+                            <img
+                              src="${imageUrl}"
+                              class="feed-carousel-image"
+                              alt="美食照片 ${index + 1}"
+                              loading="lazy"
+                              onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'220\' height=\'150\' viewBox=\'0 0 220 150\'><rect width=\'100%\' height=\'100%\' fill=\'%23f0f0f0\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' font-family=\'sans-serif\' font-size=\'16\' fill=\'%23999999\'>無照片</text></svg>'"
+                            >
+                          </div>
+                        `).join("")}
+                      </div>
+
+                      ${
+                        imagesList.length > 1
+                          ? `
+                            <div class="feed-carousel-count">
+                              1 / ${imagesList.length}
+                            </div>
+                            <div class="feed-carousel-dots">
+                              ${imagesList.map((_, index) => `
+                                <span class="feed-carousel-dot ${index === 0 ? "active" : ""}"></span>
+                              `).join("")}
+                            </div>
+                          `
+                          : ""
+                      }
+
+                    </div>
+                  `
+                  : ""
+              }
 
             </div>
+          `;
 
-            ${
-              post.restaurant_name
-                ? `
-                  <span class="feed-tag">
-                    📍 ${escapeHtml(post.restaurant_name)}
-                  </span>
-                `
-                : ""
-            }
-
-            ${
-              post.content
-                ? `
-                  <p class="feed-text">
-                    ${escapeHtml(post.content)}
-                  </p>
-                `
-                : ""
-            }
-
-            ${
-              post.image_url
-                ? `
-                  <img
-                    src="${post.image_url}"
-                    class="feed-image"
-                    alt="美食照片"
-                    loading="lazy"
-                  >
-                `
-                : ""
-            }
-
-          </div>
-
-        `).join("")
+        }).join("")
       }
     `;
 
