@@ -2938,97 +2938,25 @@ async function loadGoogleReviews() {
     '<div class="google-loading">⭐ Google 評論載入中...</div>';
 
   try {
-    const [reviewResponse, photoResponse] = await Promise.all([
-      fetch(
-        `/api/restaurants/${encodeURIComponent(id)}/google-reviews`
-      ),
-      fetch(
-        `/api/restaurants/${encodeURIComponent(id)}/google-review-photos`
-      ).catch(() => null)
-    ]);
-
-    const data = await reviewResponse.json();
-
-    if (!reviewResponse.ok || !data.ok) {
-      throw new Error(data.error || "Google 評論取得失敗");
-    }
-
-    const photoData = photoResponse?.ok
-      ? await photoResponse.json()
-      : null;
-
-    const imported = Array.isArray(photoData?.reviews)
-      ? photoData.reviews
-      : [];
-
-    const reviews = Array.isArray(data.reviews)
-      ? data.reviews
-      : [];
-
-    const clean = value =>
-      String(value || "")
-        .replace(/\s+/g, "")
-        .toLowerCase();
-
-    const used = new Set();
-
-    // 將抓取的照片配回相同作者、相同內容的評論
-    const slides = reviews.map(review => {
-      const matchIndex = imported.findIndex(
-        (item, index) => {
-          if (used.has(index)) return false;
-
-          const apiText = clean(review.text);
-          const savedText = clean(item.content);
-
-          return (
-            apiText &&
-            savedText &&
-            clean(review.author_name) ===
-              clean(item.author_name) &&
-            (
-              apiText === savedText ||
-              (
-                apiText.length >= 15 &&
-                savedText.length >= 15 &&
-                (
-                  apiText.includes(
-                    savedText.slice(0, 15)
-                  ) ||
-                  savedText.includes(
-                    apiText.slice(0, 15)
-                  )
-                )
-              )
-            )
-          );
-        }
-      );
-
-      if (matchIndex >= 0) {
-        used.add(matchIndex);
+    const response = await fetch(
+      `/api/restaurants/${encodeURIComponent(id)}/google-review-photos`
+    );
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "Google 評論取得失敗");
+    // 爬蟲已依 Google「最新」排序選出有照片的前五則。
+    const slides = (Array.isArray(data.reviews) ? data.reviews : [])
+      .filter(review => Array.isArray(review.photos) && review.photos.some(url =>
+        /^https:\/\/res\.cloudinary\.com\//.test(url)))
+      .slice(0, 5)
+      .map(review => ({ ...review, text: review.content }));
+    const formatReviewDate = review => {
+      if (review.published_text) return review.published_text;
+      if (review.published_at) {
+        const date = new Date(review.published_at);
+        if (!Number.isNaN(date.getTime())) return date.toLocaleDateString("zh-TW");
       }
-
-      return {
-        ...review,
-        photos:
-          matchIndex >= 0
-            ? imported[matchIndex].photos
-            : []
-      };
-    });
-
-    // Places API 沒回傳、但有抓到照片的評論也加入輪播
-    imported.forEach((review, index) => {
-      if (!used.has(index)) {
-        slides.push({
-          author_name: review.author_name,
-          rating: review.rating,
-          text: review.content,
-          photos: review.photos || []
-        });
-      }
-    });
+      return "未提供日期";
+    };
 
     if (score) {
       score.textContent =
@@ -3045,7 +2973,7 @@ async function loadGoogleReviews() {
     if (slides.length === 0) {
       list.innerHTML = `
         <div class="google-loading">
-          目前沒有可顯示的評論
+          尚未匯入有照片的評論，請先執行評論爬蟲
         </div>
       `;
 
@@ -3124,6 +3052,10 @@ async function loadGoogleReviews() {
                     👤 ${escapeHtml(
                       review.author_name || "Google 使用者"
                     )}
+                  </div>
+
+                  <div class="google-review-time">
+                    發布：${escapeHtml(formatReviewDate(review))}
                   </div>
 
                   <div

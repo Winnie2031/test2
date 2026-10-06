@@ -282,59 +282,34 @@ app.get("/api/restaurants/:id", async (req, res) => {
 // 4. 將最新結果寫回 PostgreSQL
 // ============================================================
 
-app.get(
-  "/api/restaurants/:id/google-review-photos",
-  async (req, res) => {
-    const restaurantId = Number(req.params.id);
-
-    if (
-      !Number.isSafeInteger(restaurantId) ||
-      restaurantId <= 0
-    ) {
-      return res.status(400).json({
-        ok: false,
-        error: "餐廳編號格式錯誤"
-      });
-    }
-
-    try {
-      const result = await pg.query(
-        `
-        SELECT
-          google_review_id,
-          author_name,
-          rating,
-          content,
-          ARRAY_AGG(
-            cloudinary_url ORDER BY photo_index
-          ) AS photos
-        FROM google_review_photo_imports
-        WHERE restaurant_id = $1
-        GROUP BY
-          google_review_id,
-          author_name,
-          rating,
-          content
-        ORDER BY google_review_id
-        LIMIT 5
-        `,
-        [restaurantId]
-      );
-
-      return res.json({
-        ok: true,
-        reviews: result.rows
-      });
-    } catch (error) {
-      console.error("讀取帶圖評論失敗：", error);
-
-      return res.status(500).json({
-        ok: false,
-        error: "讀取帶圖評論失敗"
-      });
-    }
+app.get("/api/restaurants/:id/google-review-photos", async (req, res) => {
+  const restaurantId = Number(req.params.id);
+  if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0) {
+    return res.status(400).json({ ok: false, error: "餐廳編號格式錯誤" });
   }
-);
+  try {
+    const restaurantResult = await pg.query(
+      "SELECT rating,user_ratings_total,google_place_id FROM restaurants WHERE id=$1", [restaurantId]
+    );
+    if (!restaurantResult.rows.length) return res.status(404).json({ ok: false, error: "找不到餐廳" });
+    const result = await pg.query(`
+      SELECT google_review_id, author_name, rating, content,
+        published_text, published_at, review_rank,
+        MAX(fetched_at) AS fetched_at,
+        ARRAY_AGG(cloudinary_url ORDER BY photo_index) AS photos
+      FROM google_review_photo_imports
+      WHERE restaurant_id=$1 AND review_rank IS NOT NULL
+      GROUP BY google_review_id,author_name,rating,content,published_text,published_at,review_rank
+      ORDER BY review_rank ASC
+      LIMIT 5`, [restaurantId]);
+    const restaurant = restaurantResult.rows[0];
+    return res.json({ ok: true, reviews: result.rows, rating: restaurant.rating,
+      totalReviews: restaurant.user_ratings_total || 0 });
+  } catch (error) {
+    console.error("讀取帶圖評論失敗：", error);
+    return res.status(500).json({ ok: false, error: "讀取帶圖評論失敗；請確認已執行評論爬蟲初始化" });
+  }
+});
 
 app.get(
   "/api/restaurants/:id/google-reviews",
