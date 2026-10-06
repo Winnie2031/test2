@@ -2763,6 +2763,42 @@
     .post-comment-submit:hover {
       opacity: 0.75;
     }
+
+body > h1.site-title {
+  margin: 64px auto 12px;
+  padding: 0;
+  line-height: 1;
+  text-align: center;
+  text-shadow: none;
+  letter-spacing: normal;
+}
+
+body > h1.site-title::after {
+  content: none;
+}
+
+.site-logo {
+  display: block;
+  width: 320px;
+  max-width: calc(100vw - 48px);
+  height: auto;
+  margin: 0 auto;
+}
+
+@media (max-width: 650px) {
+  body > h1.site-title {
+    margin: 80px auto 12px;
+  }
+
+  .site-logo {
+    width: 260px;
+  }
+
+  .home-subtitle {
+    margin-top: 0;
+    margin-bottom: 24px;
+  }
+}
   </style>
 </head>
 
@@ -2834,7 +2870,13 @@
     </div>
   </div>
 
-  <h1>食在中原</h1>
+  <h1 class="site-title">
+  <img
+    src="./images/food-logo.png"
+    alt="食在中原"
+    class="site-logo"
+  >
+</h1>
   <p class="home-subtitle"> 探索中原大學周邊美食，找到你的口袋名單！</p>
 
   <div class="search-container">
@@ -3042,8 +3084,11 @@
 
   <div id="welcomeModal" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle" style="display: none;">
     <div class="welcome-card">
-      <img class="welcome-hero" src="welcome-food-girl.png" alt="開心享用美食的小女孩">
-      <h2 id="welcomeTitle" class="welcome-title">歡迎使用食在中原！</h2>
+<img
+  class="welcome-hero"
+  src="./images/welcome-food-girl.png"
+  alt="開心享用美食的小女孩"
+>      <h2 id="welcomeTitle" class="welcome-title">歡迎使用食在中原！</h2>
       <p class="welcome-description">
         這是中原大學周邊美食導航！在這裡，你可以輕鬆搜尋附近的餐廳、查看營業狀態及距離，還能 <b>收藏口袋名單</b> 與 <b>撰寫專屬的備忘錄</b> 📝。
       </p>
