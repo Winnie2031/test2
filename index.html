@@ -2778,11 +2778,9 @@ body > h1.site-title::after {
 }
 
 .site-logo {
-  display: block;
-  width: 320px;
-  max-width: calc(100vw - 48px);
+  width: 400px;
+  max-width: calc(100vw - 40px);
   height: auto;
-  margin: 0 auto;
 }
 
 @media (max-width: 650px) {
@@ -2791,7 +2789,7 @@ body > h1.site-title::after {
   }
 
   .site-logo {
-    width: 260px;
+    width: 300px;
   }
 
   .home-subtitle {
@@ -2799,6 +2797,44 @@ body > h1.site-title::after {
     margin-bottom: 24px;
   }
 }
+
+#aiBtn {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: 60px;
+  height: 60px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+#aiBtn:hover {
+  background: transparent;
+  box-shadow: none;
+}
+
+#aiRobot {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+@media (max-width: 650px) {
+  #aiBtn {
+    width: 52px;
+    height: 52px;
+    right: 12px;
+    bottom: 12px;
+  }
+}
+
+
+
   </style>
 </head>
 
@@ -2922,7 +2958,9 @@ body > h1.site-title::after {
 
   <div id="cards" class="card-container"></div>
   
-  <button id="aiBtn">🤖</button>
+  <button id="aiBtn" type="button" aria-label="開啟 AI 美食助理">
+  <img id="aiRobot" src="./images/robot-idle.png" alt="">
+</button>
 
   <div id="aiChat" style="display: none;">
     <div class="resize-handle-tl" id="aiResizeHandle"></div>
@@ -3263,5 +3301,49 @@ body > h1.site-title::after {
   </div>
 
   <script src="app.js"></script>
+
+<script>
+(() => {
+  const button = document.getElementById("aiBtn");
+  const robot = document.getElementById("aiRobot");
+  const idle = "./images/robot-idle.png";
+  const wave = "./images/robot-wave.png";
+
+  // 預先載入打招呼圖片
+  const preload = new Image();
+  preload.src = wave;
+
+  let hovering = false;
+  let greeting = false;
+  let timer;
+
+  function updatePose() {
+    robot.src = hovering || greeting ? wave : idle;
+  }
+
+  button.addEventListener("pointerenter", event => {
+    if (event.pointerType === "touch") return;
+    hovering = true;
+    updatePose();
+  });
+
+  button.addEventListener("pointerleave", () => {
+    hovering = false;
+    updatePose();
+  });
+
+  button.addEventListener("click", () => {
+    clearTimeout(timer);
+    greeting = true;
+    updatePose();
+
+    timer = setTimeout(() => {
+      greeting = false;
+      updatePose();
+    }, 1200);
+  });
+})();
+</script>
+
 </body>
 </html>
