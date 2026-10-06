@@ -2948,7 +2948,12 @@ async function loadGoogleReviews() {
       .filter(review => Array.isArray(review.photos) && review.photos.some(url =>
         /^https:\/\/res\.cloudinary\.com\//.test(url)))
       .slice(0, 5)
-      .map(review => ({ ...review, text: review.content }));
+      .map(review => ({
+        ...review,
+        text: review.content,
+        google_maps_uri:
+          review.google_maps_uri || data.google_maps_uri
+      }));
     const formatReviewDate = review => {
       if (review.published_text) return review.published_text;
       if (review.published_at) {

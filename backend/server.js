@@ -303,8 +303,19 @@ app.get("/api/restaurants/:id/google-review-photos", async (req, res) => {
       ORDER BY review_rank ASC
       LIMIT 5`, [restaurantId]);
     const restaurant = restaurantResult.rows[0];
-    return res.json({ ok: true, reviews: result.rows, rating: restaurant.rating,
-      totalReviews: restaurant.user_ratings_total || 0 });
+    const googleMapsUrl =
+      'https://www.google.com/maps/search/?api=1&query=' +
+      encodeURIComponent(restaurant.google_place_id) +
+      '&query_place_id=' +
+      encodeURIComponent(restaurant.google_place_id);
+
+    return res.json({
+      ok: true,
+      reviews: result.rows,
+      rating: restaurant.rating,
+      totalReviews: restaurant.user_ratings_total || 0,
+      google_maps_uri: googleMapsUrl
+    });
   } catch (error) {
     console.error("讀取帶圖評論失敗：", error);
     return res.status(500).json({ ok: false, error: "讀取帶圖評論失敗；請確認已執行評論爬蟲初始化" });
