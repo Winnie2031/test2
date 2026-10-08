@@ -3084,6 +3084,23 @@ body > .home-subtitle {
   }
 }
 
+/* 三個浮動按鈕使用相同圖層 */
+#helpIcon,
+.user-dropdown-container,
+#aiBtn {
+  z-index: 300000 !important;
+}
+
+/* 視窗放在按鈕下方，仍能點其他按鈕切換 */
+#welcomeModal,
+#aiChat {
+  z-index: 299999 !important;
+}
+
+.user-dropdown-menu {
+  z-index: 300000 !important;
+}
+
   </style>
 </head>
 
@@ -3154,6 +3171,58 @@ body > .home-subtitle {
       </div>
     </div>
   </div>
+
+  <script>
+(() => {
+  const helpBtn = document.getElementById("helpIcon");
+  const userBtn = document.getElementById("userIcon");
+  const aiBtn = document.getElementById("aiBtn");
+
+  const userMenu = document.querySelector(".user-dropdown-container");
+  const welcome = document.getElementById("welcomeModal");
+  const aiChat = document.getElementById("aiChat");
+
+  function closeOtherPanels(selected) {
+    // 關閉帳號選單
+    if (selected !== "user") {
+      userMenu?.classList.remove("active");
+      userBtn?.setAttribute("aria-expanded", "false");
+    }
+
+    // 關閉使用說明，沿用原本函式解除背景鎖定
+    if (
+      selected !== "help" &&
+      welcome &&
+      getComputedStyle(welcome).display !== "none"
+    ) {
+      if (typeof window.closeWelcomeModal === "function") {
+        window.closeWelcomeModal();
+      } else {
+        welcome.style.display = "none";
+      }
+    }
+
+    // 關閉 AI 聊天視窗
+    if (selected !== "ai" && aiChat) {
+      aiChat.style.display = "none";
+      aiBtn?.setAttribute("aria-expanded", "false");
+    }
+  }
+
+  // 先關閉其他視窗，再執行按鈕原本的開關功能
+  helpBtn?.addEventListener(
+    "click", () => closeOtherPanels("help"), true
+  );
+
+  userBtn?.addEventListener(
+    "click", () => closeOtherPanels("user"), true
+  );
+
+  aiBtn?.addEventListener(
+    "click", () => closeOtherPanels("ai"), true
+  );
+})();
+</script>
 
   <h1 class="site-title">
   <img
