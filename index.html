@@ -2432,20 +2432,27 @@
         animation: pulseArrow 1.5s infinite ease-in-out;
       }
 
-      .price-container {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 6px;
-        width: 100%;
-      }
+  .price-container {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px;
+    width: calc(100% - 24px);
+    margin: 12px auto;
+    padding: 0;
+    box-sizing: border-box;
+  }
 
-      .price-btn {
-        width: 100%;
-        padding: 8px 2px;
-        font-size: 0.78rem;
-        text-align: center;
-        white-space: nowrap;
-      }
+  .price-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+    min-height: 36px;
+    padding: 6px 0;
+    font-size: clamp(10px, 2.8vw, 12px);
+    letter-spacing: -0.3px;
+    white-space: nowrap;
+    box-sizing: border-box;
+  }
 
       .ai-header {
         display: flex;
