@@ -833,6 +833,24 @@
   background: #fff1eb;
 }
 
+.detail-swipe-hints {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin: 24px 0;
+  padding: 0 10px;
+  color: #9b8b7e;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .detail-swipe-hints {
+    padding: 0 4px;
+    font-size: 11px;
+  }
+}
+
 @media (max-width: 600px) {
   .anonymous-comment-top {
     flex-wrap: wrap;
@@ -1286,7 +1304,8 @@ body {
 
 
         <div class="swipe-tip">
-          往左滑查看匿名留言 →
+          <span>← 往右滑查看餐廳資訊</span>
+          <span>往左滑查看匿名留言 →</span>
         </div>
 
       </div>
