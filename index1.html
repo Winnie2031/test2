@@ -3,11 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-
-  <meta name="google-site-verification" content="US7P8Zdzo98qIR27Lm2G2An7RrK_DxgE4eYuW3CoiIw" />
-
-  <title>食在中原｜中原大學周邊美食搜尋</title>
-  <meta name="description" content="食在中原整合中原大學周邊餐廳，提供美食搜尋、營業時間、餐廳評論與收藏功能，幫你找到今天想吃的美食。" />
+  <title>食在中原</title>
 
   <style>
     body {
@@ -3105,11 +3101,6 @@ body > .home-subtitle {
   z-index: 300000 !important;
 }
 
-/* 說明視窗與黑色遮罩蓋住三個浮動按鈕 */
-#welcomeModal {
-  z-index: 300001 !important;
-}
-
   </style>
 </head>
 
@@ -3181,7 +3172,58 @@ body > .home-subtitle {
     </div>
   </div>
 
+  <script>
+(() => {
+  const helpBtn = document.getElementById("helpIcon");
+  const userBtn = document.getElementById("userIcon");
+  const aiBtn = document.getElementById("aiBtn");
+
+  const userMenu = document.querySelector(".user-dropdown-container");
+  const welcome = document.getElementById("welcomeModal");
+  const aiChat = document.getElementById("aiChat");
+
+  function closeOtherPanels(selected) {
+    // 關閉帳號選單
+    if (selected !== "user") {
+      userMenu?.classList.remove("active");
+      userBtn?.setAttribute("aria-expanded", "false");
+    }
+
+    // 關閉使用說明，沿用原本函式解除背景鎖定
+    if (
+      selected !== "help" &&
+      welcome &&
+      getComputedStyle(welcome).display !== "none"
+    ) {
+      if (typeof window.closeWelcomeModal === "function") {
+        window.closeWelcomeModal();
+      } else {
+        welcome.style.display = "none";
+      }
+    }
+
+    // 關閉 AI 聊天視窗
+    if (selected !== "ai" && aiChat) {
+      aiChat.style.display = "none";
+      aiBtn?.setAttribute("aria-expanded", "false");
+    }
+  }
+
   
+  // 先關閉其他視窗，再執行按鈕原本的開關功能
+  helpBtn?.addEventListener(
+    "click", () => closeOtherPanels("help"), true
+  );
+
+  userBtn?.addEventListener(
+    "click", () => closeOtherPanels("user"), true
+  );
+
+  aiBtn?.addEventListener(
+    "click", () => closeOtherPanels("ai"), true
+  );
+})();
+</script>
 
   <h1 class="site-title">
   <img
@@ -3675,57 +3717,7 @@ body > .home-subtitle {
 })();
 </script>
 
-<script>
-(() => {
-  const helpBtn = document.getElementById("helpIcon");
-  const userBtn = document.getElementById("userIcon");
-  const aiBtn = document.getElementById("aiBtn");
 
-  const userMenu = document.querySelector(".user-dropdown-container");
-  const welcome = document.getElementById("welcomeModal");
-  const aiChat = document.getElementById("aiChat");
-
-  function closeOtherPanels(selected) {
-    // 關閉帳號選單
-    if (selected !== "user") {
-      userMenu?.classList.remove("active");
-      userBtn?.setAttribute("aria-expanded", "false");
-    }
-
-    // 關閉使用說明，沿用原本函式解除背景鎖定
-    if (
-      selected !== "help" &&
-      welcome &&
-      getComputedStyle(welcome).display !== "none"
-    ) {
-      if (typeof window.closeWelcomeModal === "function") {
-        window.closeWelcomeModal();
-      } else {
-        welcome.style.display = "none";
-      }
-    }
-
-    // 關閉 AI 聊天視窗
-    if (selected !== "ai" && aiChat) {
-      aiChat.style.display = "none";
-      aiBtn?.setAttribute("aria-expanded", "false");
-    }
-  }
-
-  // 先關閉其他視窗，再執行按鈕原本的開關功能
-  helpBtn?.addEventListener(
-    "click", () => closeOtherPanels("help"), true
-  );
-
-  userBtn?.addEventListener(
-    "click", () => closeOtherPanels("user"), true
-  );
-
-  aiBtn?.addEventListener(
-    "click", () => closeOtherPanels("ai"), true
-  );
-})();
-</script>
 
 </body>
 </html>

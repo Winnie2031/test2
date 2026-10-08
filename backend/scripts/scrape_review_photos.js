@@ -284,15 +284,20 @@ async function main() {
     throw new Error('--offset 必須是非負整數');
   }
 
-  const { rows } = await pool.query(`
-    SELECT id, name, google_place_id
-    FROM restaurants
-    WHERE google_place_id IS NOT NULL
-      AND google_place_id <> ''
-      AND ($1::integer = 0 OR id = $1)
-    ORDER BY id
-    LIMIT $2 OFFSET $3
-  `, [id, all ? null : limit, offset]);
+const { rows } = await pool.query(`
+  SELECT r.id, r.name, r.google_place_id
+  FROM restaurants AS r
+  WHERE r.google_place_id IS NOT NULL
+    AND r.google_place_id <> ''
+    AND ($1::integer = 0 OR r.id = $1)
+    AND NOT EXISTS (
+      SELECT 1
+      FROM google_review_photo_imports AS existing
+      WHERE existing.restaurant_id = r.id
+    )
+  ORDER BY r.id
+  LIMIT $2
+`, [id, all ? null : limit]);
   const browser = await chromium.launchPersistentContext(path.join(__dirname, '.google-review-profile'),
     { headless: false, locale: 'zh-TW', viewport: { width: 1400, height: 900 } });
   let failures = 0;
