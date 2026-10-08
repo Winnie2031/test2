@@ -3065,6 +3065,25 @@ body > .home-subtitle {
   }
 }
 
+/* 觸控裝置：取消選取後恢復白色 */
+@media (hover: none) {
+  #categoryContainer .category-btn:not(.active),
+  .price-container .price-btn:not(.active) {
+    background: #fff !important;
+    color: #8c4825 !important;
+    border: 1.5px solid #ffb38d !important;
+    transform: none !important;
+  }
+
+  #categoryContainer .category-btn.active,
+  .price-container .price-btn.active {
+    background: #ff5722 !important;
+    color: #fff !important;
+    border-color: #ff5722 !important;
+    transform: none !important;
+  }
+}
+
   </style>
 </head>
 
