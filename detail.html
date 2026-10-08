@@ -834,19 +834,31 @@
 }
 
 .detail-swipe-hints {
-  display: flex;
-  justify-content: space-between;
+  display: flex !important;
+  justify-content: space-between !important;
   align-items: center;
-  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
   margin: 24px 0;
   padding: 0 10px;
+  gap: 12px;
   color: #9b8b7e;
   font-size: 14px;
+}
+
+.detail-swipe-hints span:first-child {
+  text-align: left;
+}
+
+.detail-swipe-hints span:last-child {
+  margin-left: auto;
+  text-align: right;
 }
 
 @media (max-width: 768px) {
   .detail-swipe-hints {
     padding: 0 4px;
+    gap: 6px;
     font-size: 11px;
   }
 }
