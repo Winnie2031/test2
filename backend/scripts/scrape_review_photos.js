@@ -11,8 +11,20 @@ const id = Number(option('id', 0));
 const maxScrolls = Number(option('max-scrolls', 300));
 const all = args.includes('--all');
 if (![limit, id, maxScrolls].every(Number.isSafeInteger) || limit < 1 || id < 0 || maxScrolls < 1) throw new Error('參數需為有效正整數');
-const pool = new Pool({ connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('render.com') ? { rejectUnauthorized: false } : false });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes('render.com')
+    ? { rejectUnauthorized: false }
+    : false,
+  keepAlive: true,
+  connectionTimeoutMillis: 20000,
+  idleTimeoutMillis: 10000
+});
+
+// 避免閒置連線斷線時整支程式退出。
+pool.on('error', error => {
+  console.warn('資料庫閒置連線中斷：', error.message);
+});
 cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET });
 const pause = ms => new Promise(r => setTimeout(r, ms));
@@ -102,31 +114,106 @@ async function openLatest(page, restaurant) {
 
 
 async function extract(card) {
-  const more = card.getByRole('button', { name: /^(全文|更多|More)$/i }).first();
-  if (await more.count()) await more.click().catch(() => {});
+  const more = card
+    .getByRole('button', {
+      name: /^(全文|更多|More)$/i
+    })
+    .first();
+
+  if (await more.count()) {
+    await more.click().catch(() => {});
+  }
+
   return card.evaluate(el => {
+    const author =
+      el.querySelector('.d4r55')
+        ?.textContent?.trim() || 'Google 使用者';
+
+    const ratingLabel = el.querySelector(
+      '[role="img"][aria-label*="星"], ' +
+      '[role="img"][aria-label*="star"]'
+    )?.getAttribute('aria-label') || '';
+
     const dateNode = el.querySelector('time');
-    const raw = dateNode?.getAttribute('datetime');
-    const date = raw && !Number.isNaN(Date.parse(raw)) ? new Date(raw).toISOString() : null;
-    // 只讀取評論本身的日期，避免讀到店家回覆日期。
-    const publishedText = el.querySelector('.rsqaWe')?.textContent?.trim() || dateNode?.textContent?.trim() || '';
-    const ratingLabel = el.querySelector('[role="img"][aria-label*="星"], [role="img"][aria-label*="star"]')?.getAttribute('aria-label') || '';
-    const urls = [];
-    // Google 評論照片按鈕；不把作者頭像當照片。
-    for (const node of el.querySelectorAll('button[data-photo-index], button[aria-label*="相片"], button[aria-label*="照片"], button[aria-label*="Photo"], .Tya61d')) {
-      for (const item of [node, ...node.querySelectorAll('img, [style*="background-image"]')]) {
-        const style = item.getAttribute('style') || '';
-        const src = item.currentSrc || item.getAttribute('src') || style.match(/background-image:\s*url\(["']?([^"')]+)/)?.[1];
-        if (src && /^https:\/\/(?:[\w-]+\.)*(?:googleusercontent\.com|ggpht\.com)\//i.test(src)) urls.push(src);
+    const rawDate = dateNode?.getAttribute('datetime');
+
+    const publishedAt =
+      rawDate && !Number.isNaN(Date.parse(rawDate))
+        ? new Date(rawDate).toISOString()
+        : null;
+
+    const publishedText =
+      el.querySelector('.rsqaWe')
+        ?.textContent?.trim() ||
+      dateNode?.textContent?.trim() ||
+      '';
+
+    const photoUrls = [];
+
+    // 只抓帶照片索引的評論照片，不抓作者頭像。
+    const photoButtons = el.querySelectorAll(
+      'button[data-photo-index]'
+    );
+
+    for (const button of photoButtons) {
+      const nodes = [
+        button,
+        ...button.querySelectorAll(
+          'img, [style*="background-image"]'
+        )
+      ];
+
+      for (const node of nodes) {
+        const style = node.getAttribute('style') || '';
+
+        const src =
+          node.currentSrc ||
+          node.getAttribute('src') ||
+          style.match(
+            /background-image:\s*url\(["']?([^"')]+)/
+          )?.[1];
+
+        if (!src) continue;
+
+        try {
+          const url = new URL(src);
+
+          if (url.protocol !== 'https:') continue;
+
+          if (!/(^|\.)(googleusercontent\.com|ggpht\.com)$/i
+              .test(url.hostname)) {
+            continue;
+          }
+
+          // 排除常見 Google 帳號頭像網址。
+          if (/^\/(?:a|a-)\//i.test(url.pathname)) {
+            continue;
+          }
+
+          photoUrls.push(src);
+        } catch {
+          continue;
+        }
       }
     }
-    return { reviewId: el.getAttribute('data-review-id'),
-      author: el.querySelector('.d4r55')?.textContent?.trim() || 'Google 使用者',
-      rating: Number(ratingLabel.match(/\d(?:\.\d)?/)?.[0]) || null,
-      content: el.querySelector('.wiI7pd')?.textContent?.trim() || '',
-      publishedText, publishedAt: date, photoUrls: [...new Set(urls)].slice(0, 4) };
+
+    return {
+      reviewId: el.getAttribute('data-review-id'),
+      author,
+      rating:
+        Number(ratingLabel.match(/\d(?:\.\d)?/)?.[0]) ||
+        null,
+      content:
+        el.querySelector('.wiI7pd')
+          ?.textContent?.trim() || '',
+      publishedText,
+      publishedAt,
+      photoUrls: [...new Set(photoUrls)].slice(0, 4)
+    };
   });
 }
+
+
 async function collect(page) {
   const seen = new Set();
   const reviews = [];
@@ -191,9 +278,21 @@ async function main() {
   }
   await ensureTable();
   if (args.includes('--init-only')) { console.log('評論資料表已準備完成'); return; }
-  const { rows } = await pool.query(`SELECT id,name,google_place_id FROM restaurants
-    WHERE google_place_id IS NOT NULL AND google_place_id <> '' AND ($1::integer=0 OR id=$1)
-    ORDER BY id LIMIT $2`, [id, all ? null : limit]);
+    const offset = Number(option('offset', 0));
+
+  if (!Number.isSafeInteger(offset) || offset < 0) {
+    throw new Error('--offset 必須是非負整數');
+  }
+
+  const { rows } = await pool.query(`
+    SELECT id, name, google_place_id
+    FROM restaurants
+    WHERE google_place_id IS NOT NULL
+      AND google_place_id <> ''
+      AND ($1::integer = 0 OR id = $1)
+    ORDER BY id
+    LIMIT $2 OFFSET $3
+  `, [id, all ? null : limit, offset]);
   const browser = await chromium.launchPersistentContext(path.join(__dirname, '.google-review-profile'),
     { headless: false, locale: 'zh-TW', viewport: { width: 1400, height: 900 } });
   let failures = 0;

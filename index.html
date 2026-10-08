@@ -2833,7 +2833,24 @@ body > h1.site-title::after {
   }
 }
 
+/* 標籤寬度依文字調整，維持橫向滑動 */
+#categoryContainer .category-btn {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  min-width: 76px;
+  padding: 8px 14px;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
 
+@media (max-width: 768px) {
+  #categoryContainer .category-btn {
+    min-width: 68px;
+    padding: 7px 12px;
+    font-size: 13px;
+  }
+}
 
   </style>
 </head>
@@ -2924,22 +2941,75 @@ body > h1.site-title::after {
   <div class="category-wrapper">
     <!-- 左滾動箭頭 -->
     <button type="button" class="scroll-btn scroll-left" onclick="scrollCategories(-200)" aria-label="向左滾動">❮</button>
+<div class="category-container" id="categoryContainer">
+  <button class="category-btn active" data-category="all" onclick="filterByTag('全部', this)">🌟 全部</button>
 
-    <div class="category-container" id="categoryContainer">
-      <button class="category-btn active" data-category="all" onclick="filterByTag('全部', this)">🌟 全部</button>
-      <button class="category-btn" onclick="filterByTag('麵食', this)">🍜 麵食</button>
-      <button class="category-btn" onclick="filterByTag('飲料', this)">🧋 飲料</button>
-      <button class="category-btn" onclick="filterByTag('早餐', this)">🍳 早餐</button>
-      <button class="category-btn" onclick="filterByTag('韓式', this)">🇰🇷 韓式</button>
-      <button class="category-btn" onclick="filterByTag('火鍋', this)">🍲 火鍋</button>
-      <button class="category-btn" onclick="filterByTag('日式', this)">🍣 日式</button>
-      <button class="category-btn" onclick="filterByTag('義式', this)">🍝 義式</button>
-      <button class="category-btn" onclick="filterByTag('美式', this)">🍔 美式</button>
-      <button class="category-btn" onclick="filterByTag('燒烤', this)">🥩 燒烤</button>
-      <button class="category-btn" onclick="filterByTag('甜點', this)">🍰 甜點</button>
-      <button class="category-btn" onclick="filterByTag('咖啡', this)">☕ 咖啡</button>
-      <button class="category-btn" onclick="filterByTag('小吃', this)">🥟 小吃</button>
-    </div>
+  <button class="category-btn" onclick="filterByTag('飯類', this)">🍚 飯類</button>
+  <button class="category-btn" onclick="filterByTag('麵食', this)">🍜 麵食</button>
+  <button class="category-btn" onclick="filterByTag('飲料', this)">🧋 飲料</button>
+  <button class="category-btn" onclick="filterByTag('早餐', this)">🍳 早餐</button>
+  <button class="category-btn" onclick="filterByTag('早午餐', this)">🍳 早午餐</button>
+  <button class="category-btn" onclick="filterByTag('韓式', this)">🇰🇷 韓式</button>
+  <button class="category-btn" onclick="filterByTag('火鍋', this)">🍲 火鍋</button>
+  <button class="category-btn" onclick="filterByTag('日式', this)">🍣 日式</button>
+  <button class="category-btn" onclick="filterByTag('義式', this)">🍝 義式</button>
+  <button class="category-btn" onclick="filterByTag('美式', this)">🍔 美式</button>
+  <button class="category-btn" onclick="filterByTag('港式', this)">🥟 港式</button>
+  <button class="category-btn" onclick="filterByTag('泰式', this)">🇹🇭 泰式</button>
+  <button class="category-btn" onclick="filterByTag('越南料理', this)">🇻🇳 越南料理</button>
+  <button class="category-btn" onclick="filterByTag('印度料理', this)">🇮🇳 印度料理</button>
+  <button class="category-btn" onclick="filterByTag('客家料理', this)">🥢 客家料理</button>
+  <button class="category-btn" onclick="filterByTag('美墨料理', this)">🌮 美墨料理</button>
+
+  <button class="category-btn" onclick="filterByTag('便當', this)">🍱 便當</button>
+  <button class="category-btn" onclick="filterByTag('丼飯', this)">🍚 丼飯</button>
+  <button class="category-btn" onclick="filterByTag('咖哩', this)">🍛 咖哩</button>
+  <button class="category-btn" onclick="filterByTag('滷肉飯', this)">🍚 滷肉飯</button>
+  <button class="category-btn" onclick="filterByTag('雞肉飯', this)">🍗 雞肉飯</button>
+  <button class="category-btn" onclick="filterByTag('燒臘', this)">🍖 燒臘</button>
+
+  <button class="category-btn" onclick="filterByTag('牛肉麵', this)">🍜 牛肉麵</button>
+  <button class="category-btn" onclick="filterByTag('拉麵', this)">🍜 拉麵</button>
+  <button class="category-btn" onclick="filterByTag('烏龍麵', this)">🍜 烏龍麵</button>
+  <button class="category-btn" onclick="filterByTag('義大利麵', this)">🍝 義大利麵</button>
+  <button class="category-btn" onclick="filterByTag('涼麵', this)">🥢 涼麵</button>
+  <button class="category-btn" onclick="filterByTag('米干／米線', this)">🍜 米干／米線</button>
+
+  <button class="category-btn" onclick="filterByTag('漢堡', this)">🍔 漢堡</button>
+  <button class="category-btn" onclick="filterByTag('三明治／吐司', this)">🥪 三明治／吐司</button>
+  <button class="category-btn" onclick="filterByTag('輕食', this)">🥗 輕食</button>
+  <button class="category-btn" onclick="filterByTag('小吃', this)">🥟 小吃</button>
+  <button class="category-btn" onclick="filterByTag('水餃', this)">🥟 水餃</button>
+  <button class="category-btn" onclick="filterByTag('炸物', this)">🍟 炸物</button>
+  <button class="category-btn" onclick="filterByTag('雞排', this)">🍗 雞排</button>
+  <button class="category-btn" onclick="filterByTag('臭豆腐', this)">🥢 臭豆腐</button>
+  <button class="category-btn" onclick="filterByTag('粥', this)">🥣 粥</button>
+  <button class="category-btn" onclick="filterByTag('饅頭／包子', this)">🥯 饅頭／包子</button>
+
+  <button class="category-btn" onclick="filterByTag('麻辣鍋', this)">🌶️ 麻辣鍋</button>
+  <button class="category-btn" onclick="filterByTag('燒烤', this)">🥩 燒烤</button>
+  <button class="category-btn" onclick="filterByTag('串燒', this)">🍢 串燒</button>
+  <button class="category-btn" onclick="filterByTag('牛排', this)">🥩 牛排</button>
+  <button class="category-btn" onclick="filterByTag('鐵板燒', this)">🔥 鐵板燒</button>
+  <button class="category-btn" onclick="filterByTag('海鮮', this)">🦐 海鮮</button>
+  <button class="category-btn" onclick="filterByTag('壽司', this)">🍣 壽司</button>
+  <button class="category-btn" onclick="filterByTag('披薩', this)">🍕 披薩</button>
+  <button class="category-btn" onclick="filterByTag('素食', this)">🥬 素食</button>
+  <button class="category-btn" onclick="filterByTag('速食', this)">🍟 速食</button>
+  <button class="category-btn" onclick="filterByTag('居酒屋', this)">🍶 居酒屋</button>
+  <button class="category-btn" onclick="filterByTag('餐酒館', this)">🍷 餐酒館</button>
+
+  <button class="category-btn" onclick="filterByTag('咖啡', this)">☕ 咖啡</button>
+  <button class="category-btn" onclick="filterByTag('手搖飲', this)">🧋 手搖飲</button>
+  <button class="category-btn" onclick="filterByTag('泰式奶茶', this)">🧋 泰式奶茶</button>
+  <button class="category-btn" onclick="filterByTag('甜點', this)">🍰 甜點</button>
+  <button class="category-btn" onclick="filterByTag('冰品', this)">🍧 冰品</button>
+  <button class="category-btn" onclick="filterByTag('豆花', this)">🥣 豆花</button>
+  <button class="category-btn" onclick="filterByTag('仙草／芋圓', this)">🍨 仙草／芋圓</button>
+  <button class="category-btn" onclick="filterByTag('蛋糕', this)">🍰 蛋糕</button>
+  <button class="category-btn" onclick="filterByTag('鬆餅', this)">🧇 鬆餅</button>
+  <button class="category-btn" onclick="filterByTag('麵包／烘焙', this)">🥐 麵包／烘焙</button>
+</div>
 
     <!-- 右滾動箭頭 -->
     <button type="button" class="scroll-btn scroll-right" onclick="scrollCategories(200)" aria-label="向右滾動">❯</button>

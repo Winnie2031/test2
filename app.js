@@ -448,71 +448,46 @@ async function loadFavorites() {
 
 
 
-document
-  .querySelectorAll(".category-btn:not(#moreBtn)")
-  .forEach(btn => {
+// 分類標籤：支援複選
+function filterByTag(tag, btn) {
+  randomStores = [];
 
-    btn.addEventListener("click", () => {
+  const container = document.getElementById("categoryContainer");
+  if (!container || !btn) return;
 
-      let tag = btn.textContent
-        .replace(/[^\u4e00-\u9fa5]/g,"")
-        .trim();
+  const allBtn = container.querySelector('[data-category="all"]');
 
-      randomStores = [];
+  // 點「全部」：清除所有分類
+  if (tag === "全部") {
+    currentCategories = [];
 
-      // 全部
-      if(tag==="全部"){
-
-        currentCategories=[];
-
-        document
-          .querySelectorAll(".category-btn")
-          .forEach(b=>b.classList.remove("active"));
-
-        btn.classList.add("active");
-
-        render();
-        return;
-      }
-
-      // 全部取消
-      document
-        .querySelectorAll(".category-btn")
-        .forEach(b=>{
-          if(b.dataset.category==="all"){
-            b.classList.remove("active");
-          }
-        });
-
-      if(currentCategories.includes(tag)){
-
-        currentCategories =
-          currentCategories.filter(t=>t!==tag);
-
-        btn.classList.remove("active");
-
-      }else{
-
-        currentCategories.push(tag);
-
-        btn.classList.add("active");
-
-      }
-
-      // 如果沒有任何標籤，自動回到全部
-      if(currentCategories.length===0){
-
-        document
-          .querySelector('[data-category="all"]')
-          ?.classList.add("active");
-
-      }
-
-      render();
-
+    container.querySelectorAll(".category-btn").forEach(button => {
+      button.classList.remove("active");
     });
 
-});
+    allBtn?.classList.add("active");
+
+    render();
+    return;
+  }
+
+  // 再點一次已選標籤，就取消選取
+  if (currentCategories.includes(tag)) {
+    currentCategories = currentCategories.filter(
+      selectedTag => selectedTag !== tag
+    );
+
+    btn.classList.remove("active");
+  } else {
+    currentCategories.push(tag);
+    btn.classList.add("active");
+  }
+
+  // 沒有選任何分類時，恢復「全部」
+  allBtn?.classList.toggle("active", currentCategories.length === 0);
+
+  render();
+}
 
 function filterByPrice(level) {
   level = Number(level);
