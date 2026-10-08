@@ -2967,6 +2967,104 @@ body > .home-subtitle {
   margin-top: 4px !important;
 }
 
+/* 手機版歡迎視窗：縮小並完整顯示 */
+@media (max-width: 768px) {
+  #welcomeModal {
+    padding: 12px !important;
+    overflow: hidden !important;
+    align-items: center;
+  }
+
+  #welcomeModal .welcome-card {
+    width: 100% !important;
+    max-width: 360px;
+    margin-top: 0 !important;
+    padding: 12px !important;
+    max-height: none !important;
+    overflow: visible !important;
+    justify-content: flex-start;
+    border-radius: 20px;
+  }
+
+  #welcomeModal .welcome-hero {
+    position: static !important;
+    transform: none !important;
+    width: 75%;
+    height: auto;
+    max-height: min(95px, 14dvh);
+    object-fit: contain;
+    margin: 0 auto 6px;
+    flex-shrink: 0;
+  }
+
+  #welcomeModal .welcome-title {
+    margin: 0 0 6px;
+    font-size: 18px;
+    line-height: 1.3;
+  }
+
+  #welcomeModal .welcome-description {
+    margin: 0 0 8px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  #welcomeModal .welcome-features {
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    font-size: 11px;
+    border-radius: 12px;
+  }
+
+  #welcomeModal .welcome-features p {
+    margin: 4px 0;
+    line-height: 1.4;
+  }
+
+  #welcomeModal .welcome-start-btn {
+    padding: 10px 8px;
+    font-size: 13px;
+    min-height: 40px;
+    flex-shrink: 0;
+  }
+}
+
+/* 手機橫放或畫面高度較小：再縮小間距 */
+@media (max-width: 768px) and (max-height: 500px) {
+  #welcomeModal .welcome-hero {
+    max-height: 45px;
+    margin-bottom: 3px;
+  }
+
+  #welcomeModal .welcome-card {
+    max-width: 460px;
+    padding: 8px 12px !important;
+  }
+
+  #welcomeModal .welcome-title {
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
+
+  #welcomeModal .welcome-description,
+  #welcomeModal .welcome-features {
+    font-size: 10px;
+    line-height: 1.3;
+    margin-bottom: 5px;
+  }
+
+  #welcomeModal .welcome-features p {
+    margin: 2px 0;
+    line-height: 1.3;
+  }
+
+  #welcomeModal .welcome-start-btn {
+    padding: 7px;
+    min-height: 34px;
+    font-size: 12px;
+  }
+}
+
   </style>
 </head>
 
