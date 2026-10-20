@@ -2174,23 +2174,21 @@ function switchFriendTab(tabName) {
 // 👥 載入好友動態上方頭像
 // ============================================================
 
+
 // ============================================================
-// 🎯 通用貼文卡片 HTML 生成器 (確保全站貼文版型 100% 一致)
-// ============================================================
+// 🎯 貼文卡片渲染函式
 function renderPostCardHtml(post, nicknameOverride = null) {
-  const displayName =
-    nicknameOverride ||
-    post.nickname ||
-    post.username ||
-    "使用者";
-
+  const displayName = nicknameOverride || post.nickname || post.username || "使用者";
   const avatarText = displayName.charAt(0).toUpperCase();
+  const timeText = post.created_at ? new Date(post.created_at).toLocaleString("zh-TW") : "";
 
-  const timeText = post.created_at
-    ? new Date(post.created_at).toLocaleString("zh-TW")
-    : "";
+  // 取得目前登入者的 ID（從 JWT token 或 localStorage 中解析）
+  const currentUserId = getCurrentUserId(); 
+  
+  // 判斷是否為貼文擁有者（後端如果有回傳 post.is_owner，也可直接使用 post.is_owner）
+  const isOwner = post.is_owner || (currentUserId && Number(currentUserId) === Number(post.user_id));
 
-  // 1. 安全解析圖片陣列
+  // 安全解析圖片陣列
   let imagesList = post.images;
   if (typeof imagesList === "string") {
     try { imagesList = JSON.parse(imagesList); } catch (e) { imagesList = []; }
@@ -2202,7 +2200,7 @@ function renderPostCardHtml(post, nicknameOverride = null) {
   return `
     <div class="feed-card" id="post-${post.post_id || post.id}">
 
-      <!-- 1. 頭貼 + 名稱 + 刪除按鈕 -->
+      <!-- 1. 頭貼 + 名稱 + 刪除按鈕 (只有發布者看得見) -->
       <div class="feed-header">
         <div class="feed-avatar">
           ${escapeHtml(avatarText)}
@@ -2215,7 +2213,7 @@ function renderPostCardHtml(post, nicknameOverride = null) {
         </div>
 
         ${
-          post.is_owner
+          isOwner
             ? `
               <button
                 type="button"
@@ -2232,146 +2230,98 @@ function renderPostCardHtml(post, nicknameOverride = null) {
 
       <!-- 2. 貼文內容主體 -->
       <div class="feed-body">
-
-        <!-- 文字 -->
-        ${
-          post.content
-            ? `
-              <p class="feed-caption">
-                ${escapeHtml(post.content)}
-              </p>
-            `
-            : ""
-        }
+        ${post.content ? `<p class="feed-caption">${escapeHtml(post.content)}</p>` : ""}
 
         <!-- 🖼️ 照片輪播區 -->
         ${
           imagesList.length > 0
             ? `
               <div class="feed-carousel">
-                <div
-                  class="feed-carousel-track"
-                  onscroll="updateCarouselDots(this)"
-                >
+                <div class="feed-carousel-track" onscroll="updateCarouselDots(this)">
                   ${imagesList.map((imageUrl, index) => `
                     <div class="feed-carousel-slide">
-                      <img
-                        src="${imageUrl}"
-                        class="feed-carousel-image"
-                        alt="貼文照片 ${index + 1}"
-                        loading="lazy"
-                        onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'220\' height=\'150\' viewBox=\'0 0 220 150\'><rect width=\'100%\' height=\'100%\' fill=\'%23f0f0f0\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' font-family=\'sans-serif\' font-size=\'16\' fill=\'%23999999\'>無照片</text></svg>'"
-                      >
+                      <img src="${imageUrl}" class="feed-carousel-image" alt="貼文照片 ${index + 1}" loading="lazy">
                     </div>
                   `).join("")}
                 </div>
-
-                ${
-                  imagesList.length > 1
-                    ? `
-                      <div class="feed-carousel-count">
-                        1 / ${imagesList.length}
-                      </div>
-                      <div class="feed-carousel-dots">
-                        ${imagesList.map((_, index) => `
-                          <span class="feed-carousel-dot ${index === 0 ? "active" : ""}"></span>
-                        `).join("")}
-                      </div>
-                    `
-                    : ""
-                }
               </div>
             `
             : ""
         }
 
-        <!-- 📍 橘色醒目餐廳標籤 (點擊直達詳細頁) -->
+        <!-- 📍 餐廳地點 -->
         ${
           post.restaurant_id && post.restaurant_name
             ? `
-              <div
-                class="feed-restaurant"
-                onclick="window.location.href='detail.html?id=${post.restaurant_id}'"
-              >
+              <div class="feed-restaurant" onclick="window.location.href='detail.html?id=${post.restaurant_id}'">
                 📍 ${escapeHtml(post.restaurant_name)}
               </div>
             `
             : ""
         }
 
-        <!-- ❤️ 按讚 + 💬 留言 -->
-        <div class="feed-actions">
-          <button
-            type="button"
-            class="feed-like-btn ${post.liked_by_me ? "liked" : ""}"
-            onclick="togglePostLike(${post.post_id || post.id}, this)"
-            title="按讚"
-          >
-            <span class="heart-icon">
-              ${post.liked_by_me ? "♥" : "♡"}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            class="feed-comment-btn"
-            onclick="openPostCommentModal(${post.post_id || post.id})"
-            title="留言"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9 L3 21l1.9-5.7 a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9 h.5 a8.5 8.5 0 0 1 8 8 v.5z"></path>
-            </svg>
-          </button>
-        </div>
-
-        <!-- 讚數 -->
-        <div
-          class="feed-like-count"
-          id="likeCount-${post.post_id || post.id}"
-        >
-          ${
-            Number(post.like_count || 0) > 0
-              ? `${Number(post.like_count)} 個讚`
-              : ""
-          }
-        </div>
-
-        <!-- 留言區 -->
-        <div class="post-comments-area" id="commentsArea-${post.post_id || post.id}">
-          ${
-            Number(post.comment_count || 0) > 0
-              ? `
-                <button
-                  type="button"
-                  class="view-comments-btn"
-                  onclick="openPostCommentModal(${post.post_id || post.id})"
-                >
-                  查看全部 ${Number(post.comment_count)} 則留言
-                </button>
-              `
-              : `
-                <button
-                  type="button"
-                  class="view-comments-btn"
-                  style="color: #bbb;"
-                  onclick="openPostCommentModal(${post.post_id || post.id})"
-                >
-                  新增留言...
-                </button>
-              `
-          }
-        </div>
-
         <!-- 時間 -->
-        <div class="feed-bottom-time">
-          ${escapeHtml(timeText)}
-        </div>
-
+        <div class="feed-bottom-time">${escapeHtml(timeText)}</div>
       </div>
     </div>
   `;
 }
 
+// ============================================================
+// 🗑️ 刪除貼文功能 (全域函數)
+// ============================================================
+
+async function deletePost(postId) {
+  if (!postId) {
+    alert("無效的貼文 ID");
+    return;
+  }
+
+  // 1. 跳出二次確認彈窗
+  if (!confirm("確定要刪除這篇貼文嗎？刪除後將無法復原。")) {
+    return;
+  }
+
+  const token = getToken();
+  if (!token) {
+    alert("請先登入！");
+    return;
+  }
+
+  try {
+    // 2. 向後端發送 DELETE 請求
+    const res = await fetch(`/api/posts/${postId}`, {
+      method: "DELETE",
+      headers: getAuthHeaders()
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || data.message || "刪除貼文失敗");
+    }
+
+    // 3. 從前端 DOM 畫面移除該貼文卡片
+    const postElement = document.getElementById(`post-${postId}`);
+    if (postElement) {
+      postElement.style.transition = "all 0.3s ease";
+      postElement.style.opacity = "0";
+      postElement.style.transform = "scale(0.95)";
+      setTimeout(() => {
+        postElement.remove();
+      }, 300);
+    } else {
+      // 備用機制：若找不到卡片 DOM 元素則重新載入動態牆
+      if (typeof loadFriendFeeds === "function") {
+        await loadFriendFeeds();
+      }
+    }
+
+  } catch (err) {
+    console.error("刪除貼文失敗:", err);
+    alert(err.message || "刪除貼文失敗");
+  }
+}
 
 // ============================================================
 // 👥 載入好友動態上方頭像
