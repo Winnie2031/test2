@@ -2911,10 +2911,7 @@ function cancelFriendLongPress() {
 
 
 // 一般點一下
-function handleFriendClick(
-  userId,
-  nickname
-) {
+function handleFriendClick(userId, nickname, element) { // 🎯 加上 element 參數
   if (friendLongPressTriggered) {
     friendLongPressTriggered = false;
     return;
