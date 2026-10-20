@@ -653,19 +653,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// ----------------【59 個網頁分類標籤與大分類對應映射】----------------
-const categoryMap = {
-  "飯類": ["飯類", "便當", "丼飯", "咖哩", "滷肉飯", "雞肉飯", "燒臘"],
-  "麵類": ["麵食", "牛肉麵", "拉麵", "烏龍麵", "義大利麵", "涼麵", "米干／米線"],
-  "早餐與輕食": ["早餐", "早午餐", "漢堡", "三明治／吐司", "輕食"],
-  "小吃": ["小吃", "水餃", "炸物", "雞排", "臭豆腐", "粥", "饅頭／包子"],
-  "鍋物與肉類": ["火鍋", "麻辣鍋", "燒烤", "串燒", "牛排", "鐵板燒", "海鮮"],
-  "料理風格": ["日式", "韓式", "港式", "泰式", "越南料理", "印度料理", "客家料理", "義式", "美式", "美墨料理"],
-  "特色餐飲": ["素食", "速食", "壽司", "披薩", "居酒屋", "餐酒館"],
-  "飲品": ["飲料", "手搖飲", "咖啡", "泰式奶茶"],
-  "甜點與烘焙": ["甜點", "冰品", "豆花", "仙草／芋圓", "蛋糕", "鬆餅", "麵包／烘焙"]
-};
-
 async function sendAiMessage() {
   if (isSending) return;
   if (!aiInput || !aiSend || !aiOutput) return;
@@ -673,29 +660,18 @@ async function sendAiMessage() {
   const question = aiInput.value.trim();
   if (!question) return;
 
-  // ----------------【修正：精準帶入 59 個分類標籤】----------------
   const foodTypes = [
-    // 飯類 (7)
+    // 59 個網頁標準標籤
     "飯類", "便當", "丼飯", "咖哩", "滷肉飯", "雞肉飯", "燒臘",
-    // 麵類 (7)
-    "麵食", "牛肉麵", "拉麵", "烏龍麵", "義大利麵", "涼麵", "米干／米線",
-    // 早餐與輕食 (5)
-    "早餐", "早午餐", "漢堡", "三明治／吐司", "輕食",
-    // 小吃 (7)
-    "小吃", "水餃", "炸物", "雞排", "臭豆腐", "粥", "饅頭／包子",
-    // 鍋物與肉類 (7)
+    "麵食", "牛肉麵", "拉麵", "烏龍麵", "義大利麵", "涼麵", "米干／米線", "米干", "米線",
+    "早餐", "早午餐", "漢堡", "三明治／吐司", "三明治", "吐司", "輕食",
+    "小吃", "水餃", "炸物", "雞排", "臭豆腐", "粥", "饅頭／包子", "饅頭", "包子",
     "火鍋", "麻辣鍋", "燒烤", "串燒", "牛排", "鐵板燒", "海鮮",
-    // 料理風格 (10)
     "日式", "韓式", "港式", "泰式", "越南料理", "印度料理", "客家料理", "義式", "美式", "美墨料理",
-    // 特色餐飲 (6)
     "素食", "速食", "壽司", "披薩", "居酒屋", "餐酒館",
-    // 飲品 (4)
     "飲料", "手搖飲", "咖啡", "泰式奶茶",
-    // 甜點與烘焙 (6)
-    "甜點", "冰品", "豆花", "仙草／芋圓", "蛋糕", "鬆餅", "麵包／烘焙",
-    // 9 個大分類名稱（供匹配使用者直接輸入大類別名稱）
-    "飯類", "麵類", "早餐與輕食", "小吃", "鍋物與肉類", "料理風格", "特色餐飲", "飲品", "甜點與烘焙",
-    // 連鎖店常見關鍵字
+    "甜點", "冰品", "豆花", "仙草／芋圓", "仙草", "芋圓", "蛋糕", "鬆餅", "麵包／烘焙", "麵包", "烘焙",
+    "飯", "麵", "燒肉", "滷味", "炸雞", "午餐", "晚餐", "宵夜", "茶",
     "麥當勞", "肯德基", "摩斯", "摩斯漢堡", "必勝客", "達美樂", "Subway"
   ];
 
@@ -704,9 +680,10 @@ async function sendAiMessage() {
   const takeoutKeywords = ["外帶", "帶走", "自取"];
   const deliveryKeywords = ["外送", "送到", "外賣", "叫車"];
 
-  // ----------------【價格關聯詞彙與價位 mapping】----------------
-  const priceKeywords = ["100", "200", "300", "400", "500", "600", "元", "塊", "價格", "價位", "預算", "平價", "便宜", "貴", "CP值", "cp值"];
+  // ----------------【新增：價格關聯詞彙與價位 mapping】----------------
+  const priceKeywords = ["100", "200", "300", "400", "500", "600", "元", "塊", "價格", "價位", "預算", "平價", "便宜", "貴", "CP額", "cp值"];
   
+  // 判斷用戶輸入包含哪些價位等級 (對應資料庫 price_level: 1, 2, 3, 4)
   const targetPriceLevels = [];
   if (question.includes("100") || question.includes("200") || question.includes("平價") || question.includes("便宜")) {
     targetPriceLevels.push(1); // NT$100~200
@@ -720,14 +697,15 @@ async function sendAiMessage() {
   if (question.includes("600") || question.includes("貴") || question.includes("高級")) {
     targetPriceLevels.push(4); // NT$600以上
   }
+  // ----------------------------------------------------------------------
 
   const otherKeywords = [
-    "餐廳", "美食", "推薦", "吃", "午餐", "晚餐", "宵夜",
-    "中原", "夜市", "附近", "哪裡", "多少", "划算", "停車", 
-    "冷氣", "安靜", "環境", "辣", "不辣", "健康", "其他", "特色", 
-    "口味", "評價", "人氣", "熱門", "排隊", "座位", "位置", "交通", 
-    "方便", "舒適",
-    ...priceKeywords
+    "餐廳", "美食", "推薦", "吃", "早餐", "午餐", "晚餐", "宵夜", "飲料", "咖啡",
+    "中原", "夜市", "附近", "哪裡", "價格", "價位", "多少", "便宜", "貴", "平價", 
+    "預算", "cp值", "划算", "停車", "冷氣", "安靜", "環境", "素食", "辣", "不辣", 
+    "健康", "其他", "特色", "口味", "評價", "人氣", "熱門", "排隊", "座位", 
+    "位置", "交通", "方便", "舒適",
+    ...priceKeywords // 👈 將價格關鍵字整合進去
   ];
 
   const allKeywords = [
@@ -799,20 +777,24 @@ async function sendAiMessage() {
       if (requiresTakeout && !s.takeout) return false;
       if (requiresDelivery && !s.delivery) return false;
 
-      // 嚴格價格過濾
+      // ----------------【新增：嚴格價格過濾】----------------
+      // 如果使用者有提及價格相關需求，且有解析出目標價格等級
       if (targetPriceLevels.length > 0) {
+        // 1. 如果店家價格未抓到 (null/undefined/空)，直接過濾掉不顯示
         if (s.price_level == null || s.price_level === undefined || s.price_level === "") {
           return false;
         }
+        // 2. 如果店家的價位等級不在搜尋範圍內，也過濾掉
         if (!targetPriceLevels.includes(Number(s.price_level))) {
           return false;
         }
       }
+      // ----------------------------------------------------
       
-      // 標籤與關鍵字比對（含 categoryMap 展開查詢）
       if (matchedFoods.length > 0) {
         const hasFoodKeyword = matchedFoods.some(food => {
           const inName = (s.name || "").includes(food);
+          
           const inTags = Array.isArray(s.tags) ? s.tags.includes(food) : String(s.tags || "").includes(food);
           
           let inCategory = false;
@@ -857,9 +839,10 @@ async function sendAiMessage() {
     const deliveryStr = s.delivery ? "可" : "不可";
       
     const tagStr = Array.isArray(s.tags)
-      ? s.tags.join("、")
-      : String(s.tags || "無");
+    ? s.tags.join("、")
+    : String(s.tags || "無");
     
+    // ----------------【新增：將價格資訊格式化帶入 Context】----------------
     const priceStr = (s.price_level != null && priceMap[s.price_level]) 
       ? priceMap[s.price_level] 
       : "未知";
@@ -878,7 +861,7 @@ async function sendAiMessage() {
       method: "POST",
       headers: headers,
       body: JSON.stringify({
-        question: question,          
+        question: question,           
         contextStores: contextStores, 
         conversationId: currentConversationId 
       }),
@@ -920,14 +903,16 @@ async function sendAiMessage() {
 
         render();
 
+        // 1. 去掉過長的分店後綴（如 -內壢莊敬店、中壢中原店、第一味 中壢興農店 等）
         const shortNames = targetNames.map(name => {
           return name
-            .split("-")[0]
-            .replace(/中壢.*店/g, "")
-            .replace(/第.味/g, "")
+            .split("-")[0]               // 移除 '-' 後面的分店名
+            .replace(/中壢.*店/g, "")     // 移除 '中壢XX店'
+            .replace(/第.味/g, "")       // 移除 '第一味' 等贅字
             .trim();
         });
 
+        // 2. 使用極簡的提示文字
         const displayNames = shortNames.join("、");
         replyContainer.innerHTML += `<p style="color: #1f9d55; font-size: 0.82rem; margin-top: 4px; margin-bottom: 0;">✅ 已主畫面列出：<strong>${escapeHtml(displayNames)}</strong></p>`;
 
