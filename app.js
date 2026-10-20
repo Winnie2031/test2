@@ -2174,27 +2174,219 @@ function switchFriendTab(tabName) {
 // 👥 載入好友動態上方頭像
 // ============================================================
 
+// ============================================================
+// 🎯 通用貼文卡片 HTML 生成器 (確保全站貼文版型 100% 一致)
+// ============================================================
+function renderPostCardHtml(post, nicknameOverride = null) {
+  const displayName =
+    nicknameOverride ||
+    post.nickname ||
+    post.username ||
+    "使用者";
+
+  const avatarText = displayName.charAt(0).toUpperCase();
+
+  const timeText = post.created_at
+    ? new Date(post.created_at).toLocaleString("zh-TW")
+    : "";
+
+  // 1. 安全解析圖片陣列
+  let imagesList = post.images;
+  if (typeof imagesList === "string") {
+    try { imagesList = JSON.parse(imagesList); } catch (e) { imagesList = []; }
+  }
+  if (!Array.isArray(imagesList)) {
+    imagesList = post.image_url ? [post.image_url] : [];
+  }
+
+  return `
+    <div class="feed-card" id="post-${post.post_id || post.id}">
+
+      <!-- 1. 頭貼 + 名稱 + 刪除按鈕 -->
+      <div class="feed-header">
+        <div class="feed-avatar">
+          ${escapeHtml(avatarText)}
+        </div>
+
+        <div class="feed-user-info">
+          <div class="feed-author">
+            ${escapeHtml(displayName)}
+          </div>
+        </div>
+
+        ${
+          post.is_owner
+            ? `
+              <button
+                type="button"
+                class="post-delete-btn"
+                onclick="deletePost(${post.post_id || post.id})"
+                title="刪除貼文"
+              >
+                🗑️
+              </button>
+            `
+            : ""
+        }
+      </div>
+
+      <!-- 2. 貼文內容主體 -->
+      <div class="feed-body">
+
+        <!-- 文字 -->
+        ${
+          post.content
+            ? `
+              <p class="feed-caption">
+                ${escapeHtml(post.content)}
+              </p>
+            `
+            : ""
+        }
+
+        <!-- 🖼️ 照片輪播區 -->
+        ${
+          imagesList.length > 0
+            ? `
+              <div class="feed-carousel">
+                <div
+                  class="feed-carousel-track"
+                  onscroll="updateCarouselDots(this)"
+                >
+                  ${imagesList.map((imageUrl, index) => `
+                    <div class="feed-carousel-slide">
+                      <img
+                        src="${imageUrl}"
+                        class="feed-carousel-image"
+                        alt="貼文照片 ${index + 1}"
+                        loading="lazy"
+                        onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'220\' height=\'150\' viewBox=\'0 0 220 150\'><rect width=\'100%\' height=\'100%\' fill=\'%23f0f0f0\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' font-family=\'sans-serif\' font-size=\'16\' fill=\'%23999999\'>無照片</text></svg>'"
+                      >
+                    </div>
+                  `).join("")}
+                </div>
+
+                ${
+                  imagesList.length > 1
+                    ? `
+                      <div class="feed-carousel-count">
+                        1 / ${imagesList.length}
+                      </div>
+                      <div class="feed-carousel-dots">
+                        ${imagesList.map((_, index) => `
+                          <span class="feed-carousel-dot ${index === 0 ? "active" : ""}"></span>
+                        `).join("")}
+                      </div>
+                    `
+                    : ""
+                }
+              </div>
+            `
+            : ""
+        }
+
+        <!-- 📍 橘色醒目餐廳標籤 (點擊直達詳細頁) -->
+        ${
+          post.restaurant_id && post.restaurant_name
+            ? `
+              <div
+                class="feed-restaurant"
+                onclick="window.location.href='detail.html?id=${post.restaurant_id}'"
+              >
+                📍 ${escapeHtml(post.restaurant_name)}
+              </div>
+            `
+            : ""
+        }
+
+        <!-- ❤️ 按讚 + 💬 留言 -->
+        <div class="feed-actions">
+          <button
+            type="button"
+            class="feed-like-btn ${post.liked_by_me ? "liked" : ""}"
+            onclick="togglePostLike(${post.post_id || post.id}, this)"
+            title="按讚"
+          >
+            <span class="heart-icon">
+              ${post.liked_by_me ? "♥" : "♡"}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            class="feed-comment-btn"
+            onclick="openPostCommentModal(${post.post_id || post.id})"
+            title="留言"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9 L3 21l1.9-5.7 a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9 h.5 a8.5 8.5 0 0 1 8 8 v.5z"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- 讚數 -->
+        <div
+          class="feed-like-count"
+          id="likeCount-${post.post_id || post.id}"
+        >
+          ${
+            Number(post.like_count || 0) > 0
+              ? `${Number(post.like_count)} 個讚`
+              : ""
+          }
+        </div>
+
+        <!-- 留言區 -->
+        <div class="post-comments-area" id="commentsArea-${post.post_id || post.id}">
+          ${
+            Number(post.comment_count || 0) > 0
+              ? `
+                <button
+                  type="button"
+                  class="view-comments-btn"
+                  onclick="openPostCommentModal(${post.post_id || post.id})"
+                >
+                  查看全部 ${Number(post.comment_count)} 則留言
+                </button>
+              `
+              : `
+                <button
+                  type="button"
+                  class="view-comments-btn"
+                  style="color: #bbb;"
+                  onclick="openPostCommentModal(${post.post_id || post.id})"
+                >
+                  新增留言...
+                </button>
+              `
+          }
+        </div>
+
+        <!-- 時間 -->
+        <div class="feed-bottom-time">
+          ${escapeHtml(timeText)}
+        </div>
+
+      </div>
+    </div>
+  `;
+}
+
+
+// ============================================================
+// 👥 載入好友動態上方頭像
+// ============================================================
+
 async function loadFeedFriendAvatars() {
-
-  const container =
-    document.getElementById(
-      "feedFriendAvatars"
-    );
-
+  const container = document.getElementById("feedFriendAvatars");
   if (!container) return;
 
   const token = getToken();
 
-  // 🎯 1. 發布動態按鈕 HTML (永遠保留在最左側)
+  // 🎯 1. 發布動態按鈕 HTML
   const createBtnHtml = `
-    <div
-      class="feed-friend-avatar-item"
-      onclick="openCreatePostModal()"
-    >
-      <div
-        class="feed-friend-avatar-circle"
-        style="background: #ff5722; color: #fff; font-weight: bold;"
-      >
+    <div class="feed-friend-avatar-item" onclick="openCreatePostModal()">
+      <div class="feed-friend-avatar-circle" style="background: #ff5722; color: #fff; font-weight: bold;">
         ➕
       </div>
       <div class="feed-friend-avatar-name">
@@ -2203,181 +2395,95 @@ async function loadFeedFriendAvatars() {
     </div>
   `;
 
-  // 未登入時只留發布按鈕（或保留提示）
   if (!token) {
     container.innerHTML = createBtnHtml;
     return;
   }
 
   try {
-
-    const res = await fetch(
-      "/api/friends",
-      {
-        headers: getAuthHeaders()
-      }
-    );
-
+    const res = await fetch("/api/friends", { headers: getAuthHeaders() });
     const data = await res.json();
 
     if (!res.ok || !data.ok) {
-      throw new Error(
-        data.error || "載入好友失敗"
-      );
+      throw new Error(data.error || "載入好友失敗");
     }
 
-    const friends =
-      data.friends || [];
+    const friends = data.friends || [];
 
-
-    // 🎯 2. 第一個放在最左邊的是「➕ 發布」按鈕，第二個是「👥 全部動態」
     let html = `
       ${createBtnHtml}
 
-      <div
-        class="
-          feed-friend-avatar-item
-          active
-        "
-        onclick="
-          showAllFriendFeeds(this)
-        "
-      >
-
-        <div
-          class="
-            feed-friend-avatar-circle
-            feed-all-avatar-circle
-          "
-        >
+      <div class="feed-friend-avatar-item active" onclick="showAllFriendFeeds(this)">
+        <div class="feed-friend-avatar-circle feed-all-avatar-circle">
           👥
         </div>
-
-        <div
-          class="feed-friend-avatar-name"
-        >
+        <div class="feed-friend-avatar-name">
           全部
         </div>
-
       </div>
     `;
 
-
-    // 每個好友
     html += friends.map(friend => {
-
-      const nickname =
-        friend.nickname ||
-        "好友";
-
-      const initial =
-        nickname
-          .charAt(0)
-          .toUpperCase();
+      const nickname = friend.nickname || "好友";
+      const initial = nickname.charAt(0).toUpperCase();
 
       return `
         <div
           class="feed-friend-avatar-item"
-
-          onclick="
-            selectFriendFeed(
-              ${friend.user_id},
-              '${escapeJsString(nickname)}',
-              this
-            )
-          "
+          onclick="selectFriendFeed(${friend.user_id}, '${escapeJsString(nickname)}', this)"
         >
-
-          <div
-            class="feed-friend-avatar-circle"
-          >
+          <div class="feed-friend-avatar-circle">
             ${escapeHtml(initial)}
           </div>
-
-          <div
-            class="feed-friend-avatar-name"
-          >
+          <div class="feed-friend-avatar-name">
             ${escapeHtml(nickname)}
           </div>
-
         </div>
       `;
-
     }).join("");
-
 
     container.innerHTML = html;
 
   } catch (err) {
-
-    console.error(
-      "載入好友頭像失敗:",
-      err
-    );
-
-    // 發生錯誤時依然保留發布按鈕
+    console.error("載入好友頭像失敗:", err);
     container.innerHTML = createBtnHtml;
   }
 }
+
 
 // ============================================================
 // 👤 點好友頭像
 // ============================================================
 
-async function selectFriendFeed(
-  userId,
-  nickname,
-  element
-) {
-
-  // 1. 切換上方頭像選取狀態 (active)
-  document
-    .querySelectorAll(
-      ".feed-friend-avatar-item"
-    )
-    .forEach(item => {
-      item.classList.remove("active");
-    });
-
+async function selectFriendFeed(userId, nickname, element) {
+  document.querySelectorAll(".feed-friend-avatar-item").forEach(item => {
+    item.classList.remove("active");
+  });
   element?.classList.add("active");
 
-  const container =
-    document.getElementById("friendFeedList");
-
+  const container = document.getElementById("friendFeedList");
   if (!container) return;
 
   const token = getToken();
-
   if (!token) {
-    container.innerHTML =
-      '<p class="empty-msg">請先登入才能查看好友動態</p>';
+    container.innerHTML = '<p class="empty-msg">請先登入才能查看好友動態</p>';
     return;
   }
 
-  container.innerHTML =
-    '<p class="empty-msg">動態載入中...</p>';
+  container.innerHTML = '<p class="empty-msg">動態載入中...</p>';
 
   try {
-    // 🎯 呼叫後端專門取得該好友動態的 API
-    const res = await fetch(
-      `/api/friends/posts/user/${userId}`,
-      {
-        headers: getAuthHeaders()
-      }
-    );
+    const res = await fetch(`/api/friends/posts/user/${userId}`, {
+      headers: getAuthHeaders()
+    });
 
     const data = await res.json();
 
     if (!res.ok || !data.ok) {
-      throw new Error(
-        data.error || "無法取得該好友動態"
-      );
+      throw new Error(data.error || "無法取得該好友動態");
     }
 
-    if (
-      !data.posts ||
-      data.posts.length === 0
-    ) {
+    if (!data.posts || data.posts.length === 0) {
       container.innerHTML = `
         <p class="empty-msg">
           ${escapeHtml(nickname)} 目前還沒有發布任何動態喔 📸
@@ -2386,149 +2492,12 @@ async function selectFriendFeed(
       return;
     }
 
-    // 🎯 渲染該好友的貼文列表與圖片輪播
-    container.innerHTML =
-      data.posts.map(post => {
-
-        const displayName =
-          post.nickname ||
-          post.username ||
-          nickname ||
-          "使用者";
-
-        const avatarText =
-          displayName
-            .charAt(0)
-            .toUpperCase();
-
-        const timeText =
-          post.created_at
-            ? new Date(
-                post.created_at
-              ).toLocaleString(
-                "zh-TW"
-              )
-            : "";
-
-        // 安全解析圖片陣列
-        let imagesList = post.images;
-        if (typeof imagesList === "string") {
-          try { imagesList = JSON.parse(imagesList); } catch (e) { imagesList = []; }
-        }
-        if (!Array.isArray(imagesList)) {
-          imagesList = [];
-        }
-
-        return `
-          <div class="feed-card">
-
-            <!-- 頭像 + 名稱 -->
-            <div class="feed-header">
-              <div class="feed-avatar">
-                ${escapeHtml(avatarText)}
-              </div>
-              <div class="feed-user-info">
-                <div class="feed-author">
-                  ${escapeHtml(displayName)}
-                </div>
-              </div>
-            </div>
-
-            <!-- 貼文內容 -->
-            <div class="feed-body">
-
-              <!-- 文字 -->
-              ${
-                post.content
-                  ? `
-                    <p class="feed-caption">
-                      ${escapeHtml(post.content)}
-                    </p>
-                  `
-                  : ""
-              }
-
-              <!-- 🖼️ 照片輪播區 -->
-              ${
-                imagesList.length > 0
-                  ? `
-                    <div class="feed-carousel">
-
-                      <div
-                        class="feed-carousel-track"
-                        onscroll="updateCarouselDots(this)"
-                      >
-                        ${imagesList.map((imageUrl, index) => `
-                          <div class="feed-carousel-slide">
-                            <img
-                              src="${imageUrl}"
-                              class="feed-carousel-image"
-                              alt="貼文照片 ${index + 1}"
-                              loading="lazy"
-                              onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'220\' height=\'150\' viewBox=\'0 0 220 150\'><rect width=\'100%\' height=\'100%\' fill=\'%23f0f0f0\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' font-family=\'sans-serif\' font-size=\'16\' fill=\'%23999999\'>無照片</text></svg>'"
-                            >
-                          </div>
-                        `).join("")}
-                      </div>
-
-                      ${
-                        imagesList.length > 1
-                          ? `
-                            <div class="feed-carousel-count">
-                              1 / ${imagesList.length}
-                            </div>
-                            <div class="feed-carousel-dots">
-                              ${imagesList.map((_, index) => `
-                                <span class="feed-carousel-dot ${index === 0 ? "active" : ""}"></span>
-                              `).join("")}
-                            </div>
-                          `
-                          : ""
-                      }
-
-                    </div>
-                  `
-                  : ""
-              }
-
-              <!-- 地點 -->
-              ${
-                post.restaurant_id && post.restaurant_name
-                  ? `
-                    <div
-                      class="feed-restaurant"
-                      onclick="window.location.href='detail.html?id=${post.restaurant_id}'"
-                    >
-                      📍 ${escapeHtml(post.restaurant_name)}
-                    </div>
-                  `
-                  : ""
-              }
-
-              <!-- 時間 -->
-              <div class="feed-bottom-time">
-                ${escapeHtml(timeText)}
-              </div>
-
-            </div>
-
-          </div>
-        `;
-
-      }).join("");
+    // 🎯 直接使用通用卡片渲染器
+    container.innerHTML = data.posts.map(post => renderPostCardHtml(post, nickname)).join("");
 
   } catch (err) {
-
-    console.error(
-      "載入好友動態失敗:",
-      err
-    );
-
-    container.innerHTML = `
-      <p class="empty-msg" style="color:#e53e3e;">
-        ${escapeHtml(err.message)}
-      </p>
-    `;
+    console.error("載入好友動態失敗:", err);
+    container.innerHTML = `<p class="empty-msg" style="color:#e53e3e;">${escapeHtml(err.message)}</p>`;
   }
 }
 
@@ -2537,328 +2506,49 @@ async function selectFriendFeed(
 // 👥 顯示全部好友動態
 // ============================================================
 
-async function showAllFriendFeeds(
-  element
-) {
-
-  document
-    .querySelectorAll(
-      ".feed-friend-avatar-item"
-    )
-    .forEach(item => {
-      item.classList.remove("active");
-    });
-
+async function showAllFriendFeeds(element) {
+  document.querySelectorAll(".feed-friend-avatar-item").forEach(item => {
+    item.classList.remove("active");
+  });
   element?.classList.add("active");
 
   await loadFriendFeeds();
 }
 
 async function loadFriendFeeds() {
-  const container =
-    document.getElementById("friendFeedList");
-
+  const container = document.getElementById("friendFeedList");
   if (!container) return;
 
   const token = getToken();
-
   if (!token) {
-    container.innerHTML =
-      '<p class="empty-msg">請先登入才能查看好友動態</p>';
+    container.innerHTML = '<p class="empty-msg">請先登入才能查看好友動態</p>';
     return;
   }
 
-  container.innerHTML =
-    '<p class="empty-msg">動態載入中...</p>';
+  container.innerHTML = '<p class="empty-msg">動態載入中...</p>';
 
   try {
-    const res = await fetch(
-      "/api/friends/posts/feed",
-      {
-        headers: getAuthHeaders()
-      }
-    );
+    const res = await fetch("/api/friends/posts/feed", {
+      headers: getAuthHeaders()
+    });
 
     const data = await res.json();
 
-console.log("🔥 好友動態 API 回傳：", data);
-console.log("🔥 第一篇貼文：", data.posts?.[0]);
-console.log("🔥 第一篇圖片陣列：", data.posts?.[0]?.images);
-console.log("🔥 是不是陣列：", Array.isArray(data.posts?.[0]?.images));
-
     if (!res.ok || !data.ok) {
-      throw new Error(
-        data.error || "無法取得好友動態"
-      );
+      throw new Error(data.error || "無法取得好友動態");
     }
 
-    if (
-      !data.posts ||
-      data.posts.length === 0
-    ) {
-      // 🎯 關鍵修正：只清空/更新貼文列表列表 (friendFeedList)，不抹掉發布按鈕
-      const feedList = document.getElementById("friendFeedList");
-      if (feedList) {
-        feedList.innerHTML =
-          '<p class="empty-msg">目前沒有好友動態，快去新增好友吧！ 📸</p>';
-      } else {
-        // 備用：如果找不到 friendFeedList 才寫入 container
-        container.innerHTML =
-          '<p class="empty-msg">目前沒有好友動態，快去新增好友吧！ 📸</p>';
-      }
+    if (!data.posts || data.posts.length === 0) {
+      container.innerHTML = '<p class="empty-msg">目前沒有好友動態，快去新增好友吧！ 📸</p>';
       return;
     }
 
-    container.innerHTML =
-      data.posts.map(post => {
-
-        const displayName =
-          post.nickname ||
-          post.username ||
-          "使用者";
-
-        const avatarText =
-          displayName
-            .charAt(0)
-            .toUpperCase();
-
-        const timeText =
-          post.created_at
-            ? new Date(
-                post.created_at
-              ).toLocaleString(
-                "zh-TW"
-              )
-            : "";
-
-        return `
-          <div class="feed-card">
-
-            <!-- =========================
-                 頭貼 + 名稱
-            ========================== -->
-            <div class="feed-header">
-
-  <div class="feed-avatar">
-    ${escapeHtml(avatarText)}
-  </div>
-
-  <div class="feed-user-info">
-
-    <div class="feed-author">
-      ${escapeHtml(displayName)}
-    </div>
-
-  </div>
-
-  ${
-    post.is_owner
-      ? `
-        <button
-          type="button"
-          class="post-delete-btn"
-          onclick="deletePost(${post.post_id})"
-          title="刪除貼文"
-        >
-          🗑️
-        </button>
-      `
-      : ""
-  }
-
-</div>
-
-            <!-- =========================
-                 貼文內容
-            ========================== -->
-
-            <div class="feed-body">
-
-              <!-- 文字 -->
-              ${
-                post.content
-                  ? `
-                    <p class="feed-caption">
-                      ${escapeHtml(
-                        post.content
-                      )}
-                    </p>
-                  `
-                  : ""
-              }
-
-
-              <!-- 照片 -->
-              ${
-                Array.isArray(post.images) &&
-                post.images.length > 0
-                  ? `
-                    <div class="feed-carousel">
-
-                      <div
-                        class="feed-carousel-track"
-                        onscroll="updateCarouselDots(this)"
-                      >
-
-                        ${post.images.map((imageUrl, index) => `
-                          <div class="feed-carousel-slide">
-
-                            <img
-                              src="${imageUrl}"
-                              class="feed-carousel-image"
-                              alt="貼文照片 ${index + 1}"
-                              loading="lazy"
-                            >
-
-                          </div>
-                        `).join("")}
-
-                      </div>
-
-
-                      ${
-                        post.images.length > 1
-                          ? `
-                            <div class="feed-carousel-count">
-                              1 / ${post.images.length}
-                            </div>
-
-                            <div class="feed-carousel-dots">
-
-                              ${post.images.map((_, index) => `
-                                <span
-                                  class="feed-carousel-dot ${index === 0 ? "active" : ""}"
-                                ></span>
-                              `).join("")}
-
-                            </div>
-                          `
-                          : ""
-                      }
-
-                    </div>
-                  `
-                  : ""
-              }
-
-
-              <!-- 地點 -->
-              ${
-                post.restaurant_id &&
-                post.restaurant_name
-                  ? `
-                    <div
-                      class="feed-restaurant"
-                      onclick="
-                        window.location.href=
-                        'detail.html?id=${post.restaurant_id}'
-                      "
-                    >
-                      📍 ${escapeHtml(
-                        post.restaurant_name
-                      )}
-                    </div>
-                  `
-                  : ""
-              }
-
-              <!-- =========================
-     ❤️ 按讚 + 💬 留言
-========================== -->
-
-<div class="feed-actions">
-
-  <button
-    type="button"
-    class="feed-like-btn ${post.liked_by_me ? "liked" : ""}"
-    onclick="togglePostLike(${post.post_id}, this)"
-    title="按讚"
-  >
-    <span class="heart-icon">
-      ${post.liked_by_me ? "♥" : "♡"}
-    </span>
-  </button>
-
-  <button
-    type="button"
-    class="feed-comment-btn"
-    onclick="openPostCommentModal(${post.post_id})"
-    title="留言"
-  >
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9 L3 21l1.9-5.7 a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9 h.5 a8.5 8.5 0 0 1 8 8 v.5z"></path>
-  </svg>
-</button>
-
-</div>
-
-
-<!-- 讚數 -->
-<div
-  class="feed-like-count"
-  id="likeCount-${post.post_id}"
->
-  ${
-    Number(post.like_count || 0) > 0
-      ? `${Number(post.like_count)} 個讚`
-      : ""
-  }
-</div>
-
-
-<!-- 留言區（點擊直接跳出 Modal） -->
-<div class="post-comments-area" id="commentsArea-${post.post_id}">
-  ${
-    Number(post.comment_count || 0) > 0
-      ? `
-        <button
-          type="button"
-          class="view-comments-btn"
-          onclick="openPostCommentModal(${post.post_id})"
-        >
-          查看全部 ${Number(post.comment_count)} 則留言
-        </button>
-      `
-      : `
-        <button
-          type="button"
-          class="view-comments-btn"
-          style="color: #bbb;"
-          onclick="openPostCommentModal(${post.post_id})"
-        >
-          新增留言...
-        </button>
-      `
-  }
-</div>
-
-              <!-- 時間 -->
-              <div class="feed-bottom-time">
-                ${escapeHtml(timeText)}
-              </div>
-
-            </div>
-
-          </div>
-        `;
-
-      }).join("");
+    // 🎯 直接使用通用卡片渲染器
+    container.innerHTML = data.posts.map(post => renderPostCardHtml(post)).join("");
 
   } catch (err) {
-
-    console.error(
-      "載入好友動態失敗:",
-      err
-    );
-
-    container.innerHTML = `
-      <p
-        class="empty-msg"
-        style="color:#e53e3e;"
-      >
-        ${escapeHtml(err.message)}
-      </p>
-    `;
+    console.error("載入好友動態失敗:", err);
+    container.innerHTML = `<p class="empty-msg" style="color:#e53e3e;">${escapeHtml(err.message)}</p>`;
   }
 }
 
@@ -3230,10 +2920,7 @@ function handleFriendClick(
     return;
   }
 
-  openUserProfile(
-    userId,
-    nickname
-  );
+  openUserProfile(userId, nickname, element);
 }
 
 // ============================================================
@@ -3383,214 +3070,22 @@ function renderMyFriends(friends) {
 
 
 // ==================== 7. 查看某位好友的貼文 ====================
-async function openUserProfile(userId, nickname) {
-  const container =
-    document.getElementById("friendFeedList");
+async function openUserProfile(userId, nickname, element = null) {
+  // 1. 切換 Modal 頁籤至「好友動態 (tab-feed)」
+  document.querySelectorAll(".friends-tabs .tab-btn").forEach(tab => {
+    tab.classList.remove("active");
+  });
+  document.querySelectorAll(".friends-modal-body .tab-content").forEach(content => {
+    content.classList.remove("active");
+  });
 
-  if (!container) return;
+  // 啟用 好友動態 的 tab 與 content
+  document.getElementById("tab-feed")?.classList.add("active");
+  const feedTabBtn = document.querySelector(`.tab-btn[onclick*="'feed'"]`);
+  if (feedTabBtn) feedTabBtn.classList.add("active");
 
-  // 先切換畫面，但避免呼叫 loadFriendFeeds()
-  document
-    .querySelectorAll(".friends-tabs .tab-btn")
-    .forEach(tab => {
-      tab.classList.remove("active");
-    });
-
-  document
-    .querySelectorAll(".friends-modal-body .tab-content")
-    .forEach(content => {
-      content.classList.remove("active");
-    });
-
-  document
-    .getElementById("tab-feed")
-    ?.classList.add("active");
-
-  const feedTab =
-    document.querySelector(
-      `.tab-btn[onclick*="'feed'"]`
-    );
-
-  if (feedTab) {
-    feedTab.classList.add("active");
-  }
-
-  container.innerHTML =
-    `<p class="empty-msg">
-      正在載入 ${escapeHtml(nickname)} 的動態...
-    </p>`;
-
-  try {
-
-    const res = await fetch(
-      `/api/friends/posts/user/${userId}`,
-      {
-        headers: getAuthHeaders()
-      }
-    );
-
-    const data = await res.json();
-
-    if (!res.ok || !data.ok) {
-      throw new Error(
-        data.error || "載入好友動態失敗"
-      );
-    }
-
-    if (!data.posts || data.posts.length === 0) {
-
-      container.innerHTML =
-        `<p class="empty-msg">
-          ${escapeHtml(nickname)}
-          還沒有發過任何動態喔！ 📷
-        </p>`;
-
-      return;
-    }
-
-    container.innerHTML = `
-
-      <div
-        style="
-          padding:8px 0;
-          font-weight:bold;
-          color:#ff5722;
-        "
-      >
-        👤 ${escapeHtml(nickname)}
-        的所有動態
-        (${data.posts.length})
-      </div>
-
-      ${
-        data.posts.map(post => {
-
-          // 🎯 1. 處理圖片陣列解析相容性
-          let imagesList = post.images;
-          if (typeof imagesList === "string") {
-            try { imagesList = JSON.parse(imagesList); } catch (e) { imagesList = []; }
-          }
-          // 如果沒有多圖陣列，但有舊版的單圖 image_url，自動轉為陣列
-          if (!Array.isArray(imagesList) || imagesList.length === 0) {
-            imagesList = post.image_url ? [post.image_url] : [];
-          }
-
-          return `
-            <div class="feed-card">
-
-              <div class="feed-header">
-
-                <div class="feed-avatar">
-                  ${
-                    escapeHtml(
-                      nickname.charAt(0)
-                    )
-                  }
-                </div>
-
-                <div class="feed-user-info">
-
-                  <span class="feed-author">
-                    ${escapeHtml(nickname)}
-                  </span>
-
-                  <span class="feed-time">
-                    ${
-                      new Date(
-                        post.created_at
-                      ).toLocaleString()
-                    }
-                  </span>
-
-                </div>
-
-              </div>
-
-              ${
-                post.restaurant_name
-                  ? `
-                    <span class="feed-tag">
-                      📍 ${escapeHtml(post.restaurant_name)}
-                    </span>
-                  `
-                  : ""
-              }
-
-              ${
-                post.content
-                  ? `
-                    <p class="feed-text">
-                      ${escapeHtml(post.content)}
-                    </p>
-                  `
-                  : ""
-              }
-
-              <!-- 🎯 2. 多圖輪播區塊渲染 -->
-              ${
-                imagesList.length > 0
-                  ? `
-                    <div class="feed-carousel">
-
-                      <div
-                        class="feed-carousel-track"
-                        onscroll="updateCarouselDots(this)"
-                      >
-                        ${imagesList.map((imageUrl, index) => `
-                          <div class="feed-carousel-slide">
-                            <img
-                              src="${imageUrl}"
-                              class="feed-carousel-image"
-                              alt="美食照片 ${index + 1}"
-                              loading="lazy"
-                              onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'220\' height=\'150\' viewBox=\'0 0 220 150\'><rect width=\'100%\' height=\'100%\' fill=\'%23f0f0f0\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' font-family=\'sans-serif\' font-size=\'16\' fill=\'%23999999\'>無照片</text></svg>'"
-                            >
-                          </div>
-                        `).join("")}
-                      </div>
-
-                      ${
-                        imagesList.length > 1
-                          ? `
-                            <div class="feed-carousel-count">
-                              1 / ${imagesList.length}
-                            </div>
-                            <div class="feed-carousel-dots">
-                              ${imagesList.map((_, index) => `
-                                <span class="feed-carousel-dot ${index === 0 ? "active" : ""}"></span>
-                              `).join("")}
-                            </div>
-                          `
-                          : ""
-                      }
-
-                    </div>
-                  `
-                  : ""
-              }
-
-            </div>
-          `;
-
-        }).join("")
-      }
-    `;
-
-  } catch (err) {
-
-    console.error(
-      "載入指定好友動態失敗:",
-      err
-    );
-
-    container.innerHTML =
-      `<p
-        class="empty-msg"
-        style="color:#e53e3e;"
-      >
-        ${escapeHtml(err.message)}
-      </p>`;
-  }
+  // 2. 呼叫既有的 selectFriendFeed，直接在動態頁面上載入該好友的動態與頭像 active 狀態
+  await selectFriendFeed(userId, nickname, element);
 }
 
 
