@@ -2085,6 +2085,52 @@ function getAuthHeaders(includeJson = false) {
 }
 
 
+// ============================================================
+// 🔒 全域 API Fetch 包裝 (自動處理 401/403 逾時登出與跳轉登入)
+// ============================================================
+async function apiFetch(url, options = {}) {
+  const defaultHeaders = typeof getAuthHeaders === 'function' ? getAuthHeaders() : {};
+  options.headers = {
+    ...defaultHeaders,
+    ...(options.headers || {})
+  };
+
+  try {
+    const res = await fetch(url, options);
+
+    // 當後端回傳 401 (Token 過期) 或 403 (未授權)
+    if (res.status === 401 || res.status === 403) {
+      console.warn("登入已逾時，自動清除登入資訊並跳轉至登入畫面");
+
+      // 1. 自動登出：清除本地 Token 與使用者資訊
+      if (typeof logout === 'function') {
+        logout(false);
+      } else {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      }
+
+      // 2. 提示使用者
+      alert("登入已逾時，請重新登入！");
+
+      // 3. 自動導向登入視窗
+      if (typeof switchToLogin === 'function') {
+        switchToLogin();
+      } else if (typeof openLoginModal === 'function') {
+        openLoginModal();
+      } else {
+        window.location.reload();
+      }
+
+      throw new Error("登入逾時，請重新登入");
+    }
+
+    return res;
+  } catch (err) {
+    throw err;
+  }
+}
+
 // 開啟好友視窗
 function openFriendsModal() {
   const token = getToken();
@@ -2612,9 +2658,8 @@ async function loadFriendFeeds() {
   container.innerHTML = '<p class="empty-msg">動態載入中...</p>';
 
   try {
-    const res = await fetch("/api/friends/posts/feed", {
-      headers: getAuthHeaders()
-    });
+    // 🎯 關鍵修改：將 fetch 改為 apiFetch（apiFetch 內部會自動處理 headers 與 401/403 逾時跳轉）
+    const res = await apiFetch("/api/friends/posts/feed");
 
     const data = await res.json();
 
