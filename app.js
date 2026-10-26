@@ -1321,7 +1321,7 @@ if (regPasswordInput) {
 }
 
 // ==================== AI 收藏庫功能 (取代舊的歷史紀錄按鈕) ====================
-// ==================== 🎯 開啟 AI 收藏庫 Modal (強制最高層級) ====================
+// ==================== 🎯 開啟 AI 收藏庫 Modal (使用 top layer，永遠在最前面) ====================
 function openAiFavoritesModal() {
   const token = getToken();
   if (!token) {
@@ -1330,35 +1330,53 @@ function openAiFavoritesModal() {
     return;
   }
 
-  const aiHistoryModal = document.getElementById("aiHistoryModal");
-  if (!aiHistoryModal) return;
+  const modal = document.getElementById("aiHistoryModal");
+  if (!modal) return;
 
-  // 1. 找出目前位於瀏覽器「最上層」的元素（showModal 開的 dialog 或 popover）
-  //    有的話就把收藏庫搬進去，才能蓋在它上面；沒有就放在 body 最後面
-  let topLayerHost = null;
-  try {
-    const layers = document.querySelectorAll("dialog:modal, :popover-open");
-    topLayerHost = layers[layers.length - 1] || null;
-  } catch (e) {
-    // 舊瀏覽器不支援 :modal / :popover-open，退回找開著的 dialog
-    const opened = document.querySelectorAll("dialog[open]");
-    topLayerHost = opened[opened.length - 1] || null;
+  // 1. 建立一個透明的原生 <dialog> 外框（只建立一次）
+  let layer = document.getElementById("aiFavTopLayer");
+  if (!layer) {
+    layer = document.createElement("dialog");
+    layer.id = "aiFavTopLayer";
+    Object.assign(layer.style, {
+      padding: "0", margin: "0", border: "none", background: "transparent",
+      width: "100vw", height: "100dvh", maxWidth: "100vw", maxHeight: "100dvh",
+      overflow: "visible"
+    });
+    document.body.appendChild(layer);
+
+    // 讓 dialog 後面的背景不要變暗（可依需求調整）
+    const style = document.createElement("style");
+    style.textContent = "#aiFavTopLayer::backdrop{background:transparent;}";
+    document.head.appendChild(style);
+
+    // 手機按返回鍵或電腦按 Esc 時，一起關閉
+    layer.addEventListener("cancel", (e) => {
+      e.preventDefault();
+      modal.style.display = "none";
+      layer.close();
+    });
+
+    // 收藏庫被原本的「關閉」按鈕隱藏時，自動把外框 dialog 也關掉
+    new MutationObserver(() => {
+      if (layer.open && getComputedStyle(modal).display === "none") layer.close();
+    }).observe(modal, { attributes: true, attributeFilter: ["style", "class"] });
   }
-  const host = topLayerHost || document.body;
 
-  // 每次開啟都重新搬到最後面，確保 DOM 順序在最上方
-  host.appendChild(aiHistoryModal);
+  // 2. 把收藏庫放進外框
+  layer.appendChild(modal);
+  modal.style.setProperty("position", "fixed", "important");
+  modal.style.top = "0";
+  modal.style.left = "0";
+  modal.style.width = "100vw";
+  modal.style.height = "100dvh";
+  modal.style.display = "flex";
 
-  // 2. 固定全螢幕並給最高 z-index
-  aiHistoryModal.style.setProperty("z-index", "2147483647", "important");
-  aiHistoryModal.style.setProperty("position", "fixed", "important");
-  aiHistoryModal.style.top = "0";
-  aiHistoryModal.style.left = "0";
-  aiHistoryModal.style.width = "100vw";
-  aiHistoryModal.style.height = "100dvh"; // 手機用 dvh，避免被網址列遮住
-  aiHistoryModal.style.display = "flex";
+  // 3. 用 showModal() 打開，進入瀏覽器最上層
+  if (layer.open) layer.close();
+  layer.showModal();
 
-  // 3. 載入收藏內容
+  // 4. 載入收藏內容
   if (typeof loadAiHistories === "function") {
     loadAiHistories("favorites");
   }
