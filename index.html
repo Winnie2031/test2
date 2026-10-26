@@ -3104,6 +3104,48 @@ dialog.ai-history-dialog::backdrop {
   backdrop-filter: blur(2px);
 }
 
+/* 🎯 手機版好友社群 Modal 防重疊專用樣式 */
+@media (max-width: 768px) {
+  /* 1. Modal 背景遮罩：確保 z-index 壓過底部的選單按鈕 */
+  #friendsModal.modal-overlay,
+  .friends-modal-overlay {
+    z-index: 9999 !important;
+    align-items: flex-end; /* 手機版貼近底部或居中 */
+    padding-top: calc(env(safe-area-inset-top) + 20px) !important; /* 留出手機頂部安全距離與網頁按鈕避讓 */
+  }
+
+  /* 2. Modal 內容框：調整上方外距，避免觸碰到頂部按鈕 */
+  .friends-modal-content {
+    margin-top: 40px !important; /* 向上預留 40px 空隙，徹底避開頂部登出/個人選單 */
+    max-height: calc(100vh - 60px) !important;
+    border-radius: 20px 20px 0 0 !important; /* 圓角更符合手機介面 */
+    position: relative !important;
+    overflow: hidden;
+  }
+
+  /* 3. Modal 標題列佈局 */
+  .friends-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 10px 20px;
+    position: relative;
+  }
+
+  /* 4. 叉叉按鈕定位：嚴格限制在 Modal 內部右側 */
+  .friends-modal-content .close-btn {
+    position: absolute !important;
+    right: 16px !important;
+    top: 14px !important;
+    font-size: 1.8rem !important;
+    line-height: 1 !important;
+    color: #888 !important;
+    padding: 6px !important;
+    z-index: 10 !important; /* 確保在 Modal 內部位於最上層 */
+    cursor: pointer;
+  }
+}
+
   </style>
 </head>
 
