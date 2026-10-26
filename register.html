@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>註冊 - 食在中原</title>
+
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #fff5f2 0%, #ffe0d6 100%);
+    }
+
+    .register-container {
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 350px;
+      text-align: center;
+    }
+
+    .logo {
+      margin-bottom: 20px;
+    }
+
+    .logo img {
+      width: 120px;
+      height: auto;
+      transition: transform 0.3s ease;
+    }
+
+    .logo img:hover {
+      transform: scale(1.05);
+    }
+
+    h2 {
+      color: #ff5722;
+      font-size: 1.8rem;
+      margin-bottom: 25px;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 15px;
+      margin-top: 5px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      box-sizing: border-box;
+      font-size: 1rem;
+      transition: all 0.3s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #ff5722;
+      box-shadow: 0 0 0 3px rgba(255, 87, 34, 0.1);
+    }
+
+    .hint {
+      font-size: 0.8rem;
+      color: #888;
+      margin-top: 4px;
+      padding-left: 5px;
+      text-align: left;
+    }
+
+    .hint.error {
+      color: #ff3333;
+      font-weight: bold;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #ff5722;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background-color: #e64a19;
+      transform: translateY(-2px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    .footer-text {
+      margin-top: 20px;
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .footer-text a {
+      color: #ff5722;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .footer-text a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="register-container">
+
+    <div class="logo">
+      <img
+        src="https://upload.wikimedia.org/wikipedia/zh/8/83/CYCU.svg"
+        alt="中原大學校徽"
+      >
+    </div>
+
+    <h2>註冊新帳號</h2>
+
+    <!-- 帳號 -->
+    <div class="input-group">
+      <input
+        id="username"
+        placeholder="請輸入帳號"
+        autocomplete="username"
+      >
+
+      <div
+        id="usernameHint"
+        class="hint"
+      >
+        必須為 8 個純數字
+      </div>
+    </div>
+
+
+    <!-- 暱稱 -->
+    <div class="input-group">
+      <input
+        id="nickname"
+        placeholder="請輸入社群暱稱"
+        maxlength="20"
+      >
+
+      <div
+        id="nicknameHint"
+        class="hint"
+      >
+        1～20 個字，會顯示在好友動態
+      </div>
+    </div>
+
+
+    <!-- 密碼 -->
+    <div class="input-group">
+      <input
+        id="password"
+        type="password"
+        placeholder="請設定密碼"
+        autocomplete="new-password"
+      >
+
+      <div
+        id="passwordHint"
+        class="hint"
+      >
+        必須為 4~10 個英數字
+      </div>
+    </div>
+
+
+    <button
+      id="regBtn"
+      onclick="register()"
+    >
+      立即註冊
+    </button>
+
+
+    <p class="footer-text">
+      已經有帳號？
+      <a href="login.html">
+        回登入頁面
+      </a>
+    </p>
+
+  </div>
+
+
+  <script>
+
+    async function register() {
+
+      const btn =
+        document.getElementById("regBtn");
+
+      const username =
+        document
+          .getElementById("username")
+          .value
+          .trim();
+
+      const nickname =
+        document
+          .getElementById("nickname")
+          .value
+          .trim();
+
+      const password =
+        document
+          .getElementById("password")
+          .value
+          .trim();
+
+
+      const usernameHint =
+        document.getElementById(
+          "usernameHint"
+        );
+
+      const nicknameHint =
+        document.getElementById(
+          "nicknameHint"
+        );
+
+      const passwordHint =
+        document.getElementById(
+          "passwordHint"
+        );
+
+
+      // ===============================
+      // 重設提示
+      // ===============================
+
+      usernameHint.classList.remove(
+        "error"
+      );
+
+      nicknameHint.classList.remove(
+        "error"
+      );
+
+      passwordHint.classList.remove(
+        "error"
+      );
+
+
+      usernameHint.textContent =
+        "必須為 8 個純數字";
+
+      nicknameHint.textContent =
+        "1～20 個字，會顯示在好友動態";
+
+      passwordHint.textContent =
+        "必須為 4~10 個英數字";
+
+
+      // ===============================
+      // 帳號驗證
+      // ===============================
+
+      if (!username) {
+
+        usernameHint.textContent =
+          "❌ 請輸入帳號";
+
+        usernameHint.classList.add(
+          "error"
+        );
+
+        return;
+      }
+
+
+      const usernameRegex =
+        /^[0-9]{8}$/;
+
+
+      if (!usernameRegex.test(username)) {
+
+        usernameHint.textContent =
+          "❌ 帳號格式錯誤：必須為 8 個純數字";
+
+        usernameHint.classList.add(
+          "error"
+        );
+
+        return;
+      }
+
+
+      // ===============================
+      // 暱稱驗證
+      // ===============================
+
+      if (!nickname) {
+
+        nicknameHint.textContent =
+          "❌ 請輸入社群暱稱";
+
+        nicknameHint.classList.add(
+          "error"
+        );
+
+        return;
+      }
+
+
+      if (
+        nickname.length < 1 ||
+        nickname.length > 20
+      ) {
+
+        nicknameHint.textContent =
+          "❌ 暱稱必須為 1～20 個字";
+
+        nicknameHint.classList.add(
+          "error"
+        );
+
+        return;
+      }
+
+
+      // ===============================
+      // 密碼驗證
+      // ===============================
+
+      if (!password) {
+
+        passwordHint.textContent =
+          "❌ 請輸入密碼";
+
+        passwordHint.classList.add(
+          "error"
+        );
+
+        return;
+      }
+
+
+      const passwordRegex =
+        /^[a-zA-Z0-9]{4,10}$/;
+
+
+      if (!passwordRegex.test(password)) {
+
+        passwordHint.textContent =
+          "❌ 密碼格式錯誤：必須為 4~10 個英數字";
+
+        passwordHint.classList.add(
+          "error"
+        );
+
+        return;
+      }
+
+
+      // ===============================
+      // 開始註冊
+      // ===============================
+
+      btn.disabled = true;
+      btn.textContent = "註冊中...";
+
+
+      try {
+
+        const res = await fetch(
+          "/api/auth/register",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+
+            body: JSON.stringify({
+              username,
+              nickname,
+              password
+            })
+          }
+        );
+
+
+        const data =
+          await res.json();
+
+
+        if (data.ok) {
+
+          alert(
+            "🎉 註冊成功！請重新登入"
+          );
+
+          location.href =
+            "login.html";
+
+        } else {
+
+          usernameHint.textContent =
+            "❌ 註冊失敗：" +
+            (
+              data.error ||
+              "未知錯誤"
+            );
+
+          usernameHint.classList.add(
+            "error"
+          );
+        }
+
+
+      } catch (err) {
+
+        console.error(err);
+
+        passwordHint.textContent =
+          "❌ 系統連線失敗，請檢查網路狀態";
+
+        passwordHint.classList.add(
+          "error"
+        );
+
+      } finally {
+
+        btn.disabled = false;
+
+        btn.textContent =
+          "立即註冊";
+      }
+    }
+
+
+    // Enter 快捷註冊
+    document.addEventListener(
+      "keydown",
+      (e) => {
+
+        if (e.key === "Enter") {
+          register();
+        }
+
+      }
+    );
+
+  </script>
+
+</body>
+</html>
