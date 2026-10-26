@@ -1331,25 +1331,36 @@ function openAiFavoritesModal() {
   }
 
   const aiHistoryModal = document.getElementById("aiHistoryModal");
-  if (aiHistoryModal) {
-    // 1. 強制移至 <body> 的直接子節點 (擺脫所有父元件 z-index 限制)
-    if (aiHistoryModal.parentNode !== document.body) {
-      document.body.appendChild(aiHistoryModal);
-    }
+  if (!aiHistoryModal) return;
 
-    // 2. 將 CSS 層級改為 32-bit 整數極限值 (2147483647)，絕對優先於任何對話視窗
-    aiHistoryModal.style.setProperty("z-index", "2147483647", "important");
-    aiHistoryModal.style.position = "fixed";
-    aiHistoryModal.style.top = "0";
-    aiHistoryModal.style.left = "0";
-    aiHistoryModal.style.width = "100vw";
-    aiHistoryModal.style.height = "100vh";
-    aiHistoryModal.style.display = "flex";
+  // 1. 找出目前位於瀏覽器「最上層」的元素（showModal 開的 dialog 或 popover）
+  //    有的話就把收藏庫搬進去，才能蓋在它上面；沒有就放在 body 最後面
+  let topLayerHost = null;
+  try {
+    const layers = document.querySelectorAll("dialog:modal, :popover-open");
+    topLayerHost = layers[layers.length - 1] || null;
+  } catch (e) {
+    // 舊瀏覽器不支援 :modal / :popover-open，退回找開著的 dialog
+    const opened = document.querySelectorAll("dialog[open]");
+    topLayerHost = opened[opened.length - 1] || null;
+  }
+  const host = topLayerHost || document.body;
 
-    // 3. 載入收藏內容
-    if (typeof loadAiHistories === "function") {
-      loadAiHistories("favorites");
-    }
+  // 每次開啟都重新搬到最後面，確保 DOM 順序在最上方
+  host.appendChild(aiHistoryModal);
+
+  // 2. 固定全螢幕並給最高 z-index
+  aiHistoryModal.style.setProperty("z-index", "2147483647", "important");
+  aiHistoryModal.style.setProperty("position", "fixed", "important");
+  aiHistoryModal.style.top = "0";
+  aiHistoryModal.style.left = "0";
+  aiHistoryModal.style.width = "100vw";
+  aiHistoryModal.style.height = "100dvh"; // 手機用 dvh，避免被網址列遮住
+  aiHistoryModal.style.display = "flex";
+
+  // 3. 載入收藏內容
+  if (typeof loadAiHistories === "function") {
+    loadAiHistories("favorites");
   }
 }
 
