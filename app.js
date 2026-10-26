@@ -1320,31 +1320,32 @@ if (regPasswordInput) {
   });
 }
 
-// ==================== AI 歷史紀錄功能 ====================
-const aiHistoryBtn = document.getElementById("aiHistoryBtn");
-const aiHistoryModal = document.getElementById("aiHistoryModal");
+// ==================== AI 收藏庫功能 (取代舊的歷史紀錄按鈕) ====================
+function openAiFavoritesModal() {
+  const token = getToken();
+  if (!token) {
+    alert("請先登入才能查看收藏庫喔！");
+    if (typeof switchToLogin === "function") switchToLogin();
+    return;
+  }
 
-if (aiHistoryBtn) {
-  aiHistoryBtn.onclick = () => {
-    const token = getToken();
-    if (!token) {
-      alert("請先登入才能查看歷史紀錄喔！");
-      switchToLogin();
-      return;
+  const aiHistoryModal = document.getElementById("aiHistoryModal");
+  if (aiHistoryModal) {
+    // 🎯 強制移至 <body> 最外層，擺脫父容器 z-index 與 CSS 限制
+    if (aiHistoryModal.parentNode !== document.body) {
+      document.body.appendChild(aiHistoryModal);
     }
-    if (aiHistoryModal) {
-      // 🎯 關鍵修復 1：確保彈窗節點在 <body> 最外層，擺脫父容器 z-index 限制
-      if (aiHistoryModal.parentNode !== document.body) {
-        document.body.appendChild(aiHistoryModal);
-      }
 
-      // 🎯 關鍵修復 2：將 z-index 強制設為極高優先度
-      aiHistoryModal.style.zIndex = "99999";
-      aiHistoryModal.style.display = "flex";
-      
-      loadAiHistories(); 
+    // 🎯 確保層級設為最高 (99999)，壓過手機版 AI 對話視窗
+    aiHistoryModal.style.position = "fixed";
+    aiHistoryModal.style.zIndex = "99999";
+    aiHistoryModal.style.display = "flex";
+
+    // 載入收藏庫
+    if (typeof loadAiHistories === "function") {
+      loadAiHistories("favorites");
     }
-  };
+  }
 }
 
 // ==================== AI 歷史紀錄與收藏功能 ====================
