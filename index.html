@@ -3320,15 +3320,7 @@ body > .home-subtitle {
     </div>
   </div>
 
-  <div id="aiHistoryModal" class="modal-overlay" style="display: none; z-index: 10001;">
-    <div class="modal-content" style="max-width: 400px;">
-      <span class="close-btn" onclick="document.getElementById('aiHistoryModal').style.display='none'">&times;</span>
-      <h2 style="color: #ff5722; margin-top: 0;">📜 歷史對話紀錄</h2>
-      <div id="aiHistoryList" style="max-height: 300px; overflow-y: auto; text-align: left;">
-        <p style="color: #888; text-align: center;">載入中...</p>
-      </div>
-    </div>
-  </div>
+  
 
   <div id="loginModal" class="modal-overlay" style="display: none;">
     <div class="login-container">
@@ -3726,6 +3718,16 @@ body > .home-subtitle {
   );
 })();
 </script>
+
+<div id="aiHistoryModal" class="modal-overlay" style="display: none; z-index: 10001;">
+    <div class="modal-content" style="max-width: 400px;">
+      <span class="close-btn" onclick="document.getElementById('aiHistoryModal').style.display='none'">&times;</span>
+      <h2 style="color: #ff5722; margin-top: 0;">📜 歷史對話紀錄</h2>
+      <div id="aiHistoryList" style="max-height: 300px; overflow-y: auto; text-align: left;">
+        <p style="color: #888; text-align: center;">載入中...</p>
+      </div>
+    </div>
+  </div>
 
 </body>
 </html>

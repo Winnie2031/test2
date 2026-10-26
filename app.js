@@ -1333,7 +1333,15 @@ if (aiHistoryBtn) {
       return;
     }
     if (aiHistoryModal) {
-      aiHistoryModal.style.display = 'flex';
+      // 🎯 關鍵修復 1：確保彈窗節點在 <body> 最外層，擺脫父容器 z-index 限制
+      if (aiHistoryModal.parentNode !== document.body) {
+        document.body.appendChild(aiHistoryModal);
+      }
+
+      // 🎯 關鍵修復 2：將 z-index 強制設為極高優先度
+      aiHistoryModal.style.zIndex = "99999";
+      aiHistoryModal.style.display = "flex";
+      
       loadAiHistories(); 
     }
   };
