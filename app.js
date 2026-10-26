@@ -102,13 +102,24 @@ function isOpenNow(openingHoursJson) {
   }
 
   // ⭐⭐⭐ 支援兩種格式 ⭐⭐⭐
-  const periods = Array.isArray(data)
-    ? data
-    : data.periods;
+const periods = Array.isArray(data)
+  ? data
+  : data?.periods;
 
-  if (!Array.isArray(periods)) {
-    return null;
-  }
+if (!Array.isArray(periods)) {
+  return null;
+}
+
+// Google 全週 24 小時營業格式：
+// 星期日 00:00 開始，沒有關店時間。
+if (
+  periods.length === 1 &&
+  periods[0]?.open?.day === 0 &&
+  periods[0].open.time === "0000" &&
+  periods[0].close == null
+) {
+  return true;
+}
 
   const now = new Date();
   const today = now.getDay();
@@ -185,6 +196,31 @@ function getOpenStatusHtml(store) {
 
   if (store.business_status === "CLOSED_PERMANENTLY") {
     return `<p class="open-status closed">🔴 永久停業</p>`;
+  }
+
+  if (store.business_status === "OPERATIONAL") {
+    return `<p class="open-status unknown">⚪ 營業時間未知</p>`;
+  }
+
+  return `<p class="open-status unknown">⚪ 狀態未知</p>`;
+function getOpenStatusHtml(store) {
+  // 停業狀態優先於一般營業時間。
+  if (store.business_status === "CLOSED_PERMANENTLY") {
+    return `<p class="open-status closed">🔴 永久停業</p>`;
+  }
+
+  if (store.business_status === "CLOSED_TEMPORARILY") {
+    return `<p class="open-status closed">🟡 暫時停業</p>`;
+  }
+
+  const openStatus = isOpenNow(store.opening_hours_json);
+
+  if (openStatus === true) {
+    return `<p class="open-status open">🟢 營業中</p>`;
+  }
+
+  if (openStatus === false) {
+    return `<p class="open-status closed">🔴 休息中</p>`;
   }
 
   if (store.business_status === "OPERATIONAL") {
