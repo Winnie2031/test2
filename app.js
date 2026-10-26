@@ -1321,6 +1321,7 @@ if (regPasswordInput) {
 }
 
 // ==================== AI 收藏庫功能 (取代舊的歷史紀錄按鈕) ====================
+// ==================== 🎯 開啟 AI 收藏庫 Modal (強制最高層級) ====================
 function openAiFavoritesModal() {
   const token = getToken();
   if (!token) {
@@ -1331,17 +1332,21 @@ function openAiFavoritesModal() {
 
   const aiHistoryModal = document.getElementById("aiHistoryModal");
   if (aiHistoryModal) {
-    // 🎯 強制移至 <body> 最外層，擺脫父容器 z-index 與 CSS 限制
+    // 1. 強制移至 <body> 的直接子節點 (擺脫所有父元件 z-index 限制)
     if (aiHistoryModal.parentNode !== document.body) {
       document.body.appendChild(aiHistoryModal);
     }
 
-    // 🎯 確保層級設為最高 (99999)，壓過手機版 AI 對話視窗
+    // 2. 將 CSS 層級改為 32-bit 整數極限值 (2147483647)，絕對優先於任何對話視窗
+    aiHistoryModal.style.setProperty("z-index", "2147483647", "important");
     aiHistoryModal.style.position = "fixed";
-    aiHistoryModal.style.zIndex = "99999";
+    aiHistoryModal.style.top = "0";
+    aiHistoryModal.style.left = "0";
+    aiHistoryModal.style.width = "100vw";
+    aiHistoryModal.style.height = "100vh";
     aiHistoryModal.style.display = "flex";
 
-    // 載入收藏庫
+    // 3. 載入收藏內容
     if (typeof loadAiHistories === "function") {
       loadAiHistories("favorites");
     }
