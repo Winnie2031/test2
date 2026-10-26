@@ -1321,7 +1321,7 @@ if (regPasswordInput) {
 }
 
 // ==================== AI 收藏庫功能 (取代舊的歷史紀錄按鈕) ====================
-// ==================== 🎯 開啟 AI 收藏庫 Modal (使用 top layer，永遠在最前面) ====================
+// ==================== 🎯 開啟 AI 收藏庫 Modal (原生 Top Layer 頂層) ====================
 function openAiFavoritesModal() {
   const token = getToken();
   if (!token) {
@@ -1330,53 +1330,23 @@ function openAiFavoritesModal() {
     return;
   }
 
-  const modal = document.getElementById("aiHistoryModal");
-  if (!modal) return;
+  const aiHistoryModal = document.getElementById("aiHistoryModal");
+  if (!aiHistoryModal) return;
 
-  // 1. 建立一個透明的原生 <dialog> 外框（只建立一次）
-  let layer = document.getElementById("aiFavTopLayer");
-  if (!layer) {
-    layer = document.createElement("dialog");
-    layer.id = "aiFavTopLayer";
-    Object.assign(layer.style, {
-      padding: "0", margin: "0", border: "none", background: "transparent",
-      width: "100vw", height: "100dvh", maxWidth: "100vw", maxHeight: "100dvh",
-      overflow: "visible"
-    });
-    document.body.appendChild(layer);
-
-    // 讓 dialog 後面的背景不要變暗（可依需求調整）
-    const style = document.createElement("style");
-    style.textContent = "#aiFavTopLayer::backdrop{background:transparent;}";
-    document.head.appendChild(style);
-
-    // 手機按返回鍵或電腦按 Esc 時，一起關閉
-    layer.addEventListener("cancel", (e) => {
-      e.preventDefault();
-      modal.style.display = "none";
-      layer.close();
-    });
-
-    // 收藏庫被原本的「關閉」按鈕隱藏時，自動把外框 dialog 也關掉
-    new MutationObserver(() => {
-      if (layer.open && getComputedStyle(modal).display === "none") layer.close();
-    }).observe(modal, { attributes: true, attributeFilter: ["style", "class"] });
+  // 1. 確保搬至 body 最外層 (擺脫所有對話框視窗的容器限制)
+  if (aiHistoryModal.parentNode !== document.body) {
+    document.body.appendChild(aiHistoryModal);
   }
 
-  // 2. 把收藏庫放進外框
-  layer.appendChild(modal);
-  modal.style.setProperty("position", "fixed", "important");
-  modal.style.top = "0";
-  modal.style.left = "0";
-  modal.style.width = "100vw";
-  modal.style.height = "100dvh";
-  modal.style.display = "flex";
+  // 2. 呼叫瀏覽器原生 showModal()，直接送入 Top Layer 最頂層
+  if (typeof aiHistoryModal.showModal === "function") {
+    aiHistoryModal.showModal();
+  } else {
+    // 舊版瀏覽器備用方案
+    aiHistoryModal.style.display = "flex";
+  }
 
-  // 3. 用 showModal() 打開，進入瀏覽器最上層
-  if (layer.open) layer.close();
-  layer.showModal();
-
-  // 4. 載入收藏內容
+  // 3. 載入收藏內容
   if (typeof loadAiHistories === "function") {
     loadAiHistories("favorites");
   }
