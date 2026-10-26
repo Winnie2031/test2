@@ -3293,9 +3293,9 @@ dialog.ai-history-dialog::backdrop {
       <h3 class="ai-title">🤖 AI 美食助理</h3>
       <div class="ai-tools">
         <button
+          type="button"
           class="ai-favorite-btn"
-          onclick="document.getElementById('aiHistoryModal').style.display='flex'; loadAiHistories('favorites');">
-          ⭐ 收藏庫
+          onclick="openAiFavoritesModal()">          ⭐ 收藏庫
         </button>
       </div>
     </div>

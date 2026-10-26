@@ -1331,7 +1331,10 @@ function openAiFavoritesModal() {
   }
 
   const aiHistoryModal = document.getElementById("aiHistoryModal");
-  if (!aiHistoryModal) return;
+  if (!aiHistoryModal) {
+    console.error("找不到 #aiHistoryModal 元素");
+    return;
+  }
 
   // 1. 確保搬至 body 最外層 (擺脫所有對話框視窗的容器限制)
   if (aiHistoryModal.parentNode !== document.body) {
@@ -1340,9 +1343,14 @@ function openAiFavoritesModal() {
 
   // 2. 呼叫瀏覽器原生 showModal()，直接送入 Top Layer 最頂層
   if (typeof aiHistoryModal.showModal === "function") {
-    aiHistoryModal.showModal();
+    try {
+      if (!aiHistoryModal.open) {
+        aiHistoryModal.showModal();
+      }
+    } catch (e) {
+      aiHistoryModal.style.display = "flex";
+    }
   } else {
-    // 舊版瀏覽器備用方案
     aiHistoryModal.style.display = "flex";
   }
 
