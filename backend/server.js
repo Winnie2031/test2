@@ -282,20 +282,40 @@ const SYSTEM_PROMPT = `你是一個中原大學周邊的美食推薦助手。根
 只寫一句親切的開場與結尾問候，全文控制在25～40字。不要在內文列店家列表、評分或特色，系統會自動顯示卡片。
 最後獨立一行加上搜尋標籤，從清單選出3～5家符合需求的店名，以|隔開：<<<SEARCH:店家A|店家B|店家C>>>
 店名必須與清單完全一致；不足3家可少列，沒有符合店家時請直說並輸出<<<SEARCH:>>>，不要編造店家。`;
+
+// ⭕ 修改後：支援對話歷史（連貫記憶）
 app.post('/api/gpt', route(async (req, res) => {
   if (!client) fail(503, 'AI 尚未設定，請確認 OPENAI_API_KEY');
   const question = textOf(req.body.question, 1, 5000, '問題');
   const userId = optionalUser(req)?.userId || null;
+  
+  // 1. 從前端取得歷史對話紀錄 (預設為空陣列)
+  const history = Array.isArray(req.body.history) ? req.body.history : [];
+
   let currentConvId = req.body.conversationId ? idOf(req.body.conversationId) : null;
   if (userId && currentConvId) {
     if (!(await pg.query('SELECT id FROM ai_conversations WHERE id=$1 AND user_id=$2', [currentConvId, userId])).rowCount)
       fail(403, '無權限使用這筆對話');
   }
   const context = typeof req.body.contextStores === 'string' ? req.body.contextStores : JSON.stringify(req.body.contextStores || []);
-  const response = await client.responses.create({ model: 'gpt-4.1-mini', input: [
+
+  // 2. 組合連貫對話訊息：[System Prompt] -> [歷史問答記錄...] -> [最新的問題]
+  const inputMessages = [
     { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: `【目前餐廳清單】：\n${context}\n【使用者的問題】：${question}` }] });
+    // 插入先前的歷史紀錄
+    ...history.map(msg => ({
+      role: msg.role === 'assistant' ? 'assistant' : 'user',
+      content: msg.content
+    })),
+    // 帶入最新問題與餐廳資料脈絡
+    { role: 'user', content: `【目前餐廳清單】：\n${context}\n【使用者的問題】：${question}` }
+  ];
+
+  // 3. 送出給 OpenAI 處理
+  const response = await client.responses.create({ model: 'gpt-4.1-mini', input: inputMessages });
   const replyText = response.output_text.trim();
+
+  // 寫入資料庫
   if (userId) currentConvId = await transaction(async db => {
     let convId = currentConvId;
     if (!convId) {
@@ -305,8 +325,11 @@ app.post('/api/gpt', route(async (req, res) => {
     await db.query(`INSERT INTO ai_messages (conversation_id,role,content) VALUES ($1,'user',$2),($1,'assistant',$3)`, [convId, question, replyText]);
     return convId;
   });
+  
   res.json({ ok: true, reply: replyText, conversationId: currentConvId });
 }));
+
+
 app.get('/api/ai/conversations', authMiddleware, route(async (req, res) => {
   const result = await pg.query(`SELECT c.id,c.title,c.created_at,c.is_favorite,
     (SELECT m.content FROM ai_messages m WHERE m.conversation_id=c.id AND m.role='assistant' ORDER BY m.id ASC LIMIT 1) AS ai_reply

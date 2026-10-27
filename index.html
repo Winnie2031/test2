@@ -2502,6 +2502,28 @@
         background-color: #ffe0b2;
       }
 
+      .ai-reset-btn {
+  background-color: #f0f0f0;
+  color: #555555;
+  border: 1px solid #dcdcdc;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.ai-reset-btn:hover {
+  background-color: #e2e2e2;
+  color: #333333;
+}
+
+.ai-reset-btn:active {
+  transform: scale(0.95);
+}
+
       #aiOutput {
         max-height: 380px;
         min-height: 180px;
@@ -3347,8 +3369,16 @@ dialog.ai-history-dialog::backdrop {
       <div class="ai-tools">
         <button
           type="button"
+          class="ai-reset-btn"
+          onclick="resetAiChat()"
+          title="清空紀錄並開始新對話">
+          🧹 新對話
+        </button>
+        <button
+          type="button"
           class="ai-favorite-btn"
-          onclick="openAiFavoritesModal()">          ⭐ 收藏庫
+          onclick="openAiFavoritesModal()">
+          ⭐ 收藏庫
         </button>
       </div>
     </div>
