@@ -5,6 +5,8 @@ let likedStores = [];
 let randomStores = [];
 let currentConversationId = null; 
 
+let aiHistoryMessages = [];
+
 function getToken() {
   return localStorage.getItem("token");
 }
@@ -779,7 +781,38 @@ async function sendAiMessage() {
 
   aiInput.value = "";
 
-  // ...中間的 candidateStores 篩選邏輯保持不變...
+  
+const candidateStores = stores.filter(store => {
+  const name = store.name || "";
+  const tags = Array.isArray(store.tags)
+    ? store.tags.join(" ")
+    : String(store.tags || "");
+
+  return (
+    question.includes(name) && name.length > 0 ||
+    foodTypes.some(type =>
+      question.includes(type) && tags.includes(type)
+    )
+  );
+});
+
+// 如果找不到符合條件的餐廳，就使用資料庫中的餐廳
+const selectedStores = candidateStores.length > 0
+  ? candidateStores
+  : stores;
+
+// 整理要傳給 AI 的餐廳資料
+const contextStores = JSON.stringify(
+  selectedStores.slice(0, 30).map(store => ({
+    name: store.name,
+    address: store.address,
+    rating: store.rating,
+    price_level: store.price_level,
+    tags: store.tags,
+    opening_hours_json: store.opening_hours_json
+  }))
+);
+
 
   try {
     const token = getToken();
@@ -861,13 +894,20 @@ async function sendAiMessage() {
       }
     }
 
-  } catch (err) {
-    console.error(err);
-    const replyContainer = document.getElementById(`reply_${msgId}`);
-    if (replyContainer) {
-      replyContainer.innerHTML = `<p style="color:red; margin: 0;">AI 回應失敗</p>`;
-    }
+  
+} catch (err) {
+  console.error("AI 請求失敗：", err);
+
+  const replyContainer =
+    document.getElementById(`reply_${msgId}`);
+
+  if (replyContainer) {
+    replyContainer.textContent =
+      `AI 回應失敗：${err.message}`;
+    replyContainer.style.color = "red";
   }
+}
+
 
   aiSend.disabled = false;
   aiSend.textContent = "送出";

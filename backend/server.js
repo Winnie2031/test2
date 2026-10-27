@@ -311,9 +311,16 @@ app.post('/api/gpt', route(async (req, res) => {
     { role: 'user', content: `【目前餐廳清單】：\n${context}\n【使用者的問題】：${question}` }
   ];
 
-  // 3. 送出給 OpenAI 處理
-  const response = await client.responses.create({ model: 'gpt-4.1-mini', input: inputMessages });
-  const replyText = response.output_text.trim();
+  const response = await client.responses.create({
+    model: "gpt-4.1-mini",
+    input: inputMessages
+  });
+
+  const replyText = response.output_text?.trim();
+
+  if (!replyText) {
+    throw new Error("OpenAI 未回傳有效文字");
+  }
 
   // 寫入資料庫
   if (userId) currentConvId = await transaction(async db => {
