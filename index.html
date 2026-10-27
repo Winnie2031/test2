@@ -2898,7 +2898,10 @@ body > h1.site-title::after {
   body > h1.site-title::after { content: none; }
   .site-logo { width: 300px; max-width: 100%; height: auto; }
   .home-subtitle { display: block; margin: 0 18px 18px; font-size: 13px; line-height: 1.6; color: #96502c; }
-  #helpIcon, #userIcon { width: 44px; height: 44px; box-sizing: border-box; }
+  #helpIcon, .user-dropdown-container { 
+    width: 44px; height: 44px; box-sizing: border-box; 
+    z-index: 1000 !important; 
+  }
   #helpIcon { top: max(14px, env(safe-area-inset-top)); left: 14px; }
   .user-dropdown-container { top: max(14px, env(safe-area-inset-top)); right: 14px; }
   .dropdown-item { box-sizing: border-box; min-height: 44px; }
