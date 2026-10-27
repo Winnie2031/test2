@@ -1328,6 +1328,22 @@ function openAiFavoritesModal() {
   }
 }
 
+// ==================== 🎯 關閉 AI 收藏庫 Modal (徹底解除畫面鎖定) ====================
+function closeAiFavoritesModal() {
+  const aiHistoryModal = document.getElementById("aiHistoryModal");
+  if (!aiHistoryModal) return;
+
+  // 1. 如果是原生 <dialog> 標籤
+  if (typeof aiHistoryModal.close === "function" && aiHistoryModal.open) {
+    aiHistoryModal.close();
+  }
+  // 2. 備用隱藏方式
+  aiHistoryModal.style.display = "none";
+  
+  // 3. 解除 body 鎖定（如果有加遮罩樣式）
+  document.body.style.overflow = "";
+}
+
 // ==================== AI 歷史紀錄與收藏功能 ====================
 let currentConversationIsFavorite = false; // 追蹤目前聊天室的收藏狀態
 
@@ -1518,7 +1534,7 @@ async function clearAllAiHistory() {
   }
 }
 
-// 5. 載入單一對話的詳細內容 (加入頂部星星狀態顯示)
+// 5. 載入單一對話的詳細內容 (加入頂部星星狀態顯示與餐廳卡片渲染)
 async function loadSingleConversation(id, isFavorite = false) {
   const token = getToken();
   const aiOutput = document.getElementById("aiOutput");
@@ -1534,8 +1550,8 @@ async function loadSingleConversation(id, isFavorite = false) {
       currentConversationId = id;
       currentConversationIsFavorite = isFavorite; // 更新全域變數
       
-      const modal = document.getElementById('aiHistoryModal');
-      if (modal) modal.style.display = 'none';
+      // 🎯 關鍵修復 1：點擊對話後，徹底關閉收藏庫視窗並解除畫面鎖定
+      closeAiFavoritesModal();
 
       const aiChat = document.getElementById("aiChat");
       if (aiChat) aiChat.style.display = "block";
@@ -1550,16 +1566,58 @@ async function loadSingleConversation(id, isFavorite = false) {
 
       if (aiOutput) {
         aiOutput.innerHTML = '';
+        
         data.data.forEach(msg => {
           if (msg.role === 'user') {
-            aiOutput.innerHTML += `<p><strong>你：</strong>${escapeHtml(msg.content)}</p>`;
+            aiOutput.innerHTML += `
+              <div class="ai-msg user-msg" style="margin-bottom: 12px;">
+                <strong>🧑 你：</strong> ${escapeHtml(msg.content)}
+              </div>
+            `;
           } else {
+            // 清理系統標籤文字
             let cleanText = msg.content.replace(/<<<SEARCH:(.*?)>>>/, "").trim();
-            aiOutput.innerHTML += `<p><strong>🤖 AI：</strong>${escapeHtml(cleanText)}</p><hr>`;
+            
+            // 🎯 關鍵修復 2：解析並生成餐廳卡片 HTML
+            let restaurants = msg.restaurants || msg.recommendations || [];
+            if (typeof restaurants === "string") {
+              try { restaurants = JSON.parse(restaurants); } catch (e) { restaurants = []; }
+            }
+
+            let restaurantsHtml = "";
+            if (Array.isArray(restaurants) && restaurants.length > 0) {
+              restaurantsHtml = `
+                <div class="ai-restaurant-list" style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+                  ${restaurants.map(r => `
+                    <div class="ai-restaurant-card" onclick="window.location.href='detail.html?id=${r.id || r.restaurant_id}'" style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: #fff; border-radius: 10px; border: 1px solid #e0e0e0; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                      <img src="${r.image_url || r.image || 'images/default-restaurant.jpg'}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px;" alt="${escapeHtml(r.name || '餐廳')}">
+                      <div style="flex: 1; text-align: left;">
+                        <div style="font-weight: bold; color: #333; font-size: 0.9rem;">${escapeHtml(r.name || r.restaurant_name)}</div>
+                        <div style="font-size: 0.75rem; color: #ff9800;">⭐ ${r.rating || '4.5'} (${r.review_count || 100}人評分)</div>
+                        <div style="font-size: 0.75rem; color: #666;">💰 ${r.price_range || r.price || 'NT$100~200'}</div>
+                      </div>
+                    </div>
+                  `).join("")}
+                </div>
+              `;
+            }
+
+            aiOutput.innerHTML += `
+              <div class="ai-msg bot-msg" style="margin-bottom: 12px;">
+                <strong>🤖 AI：</strong> ${escapeHtml(cleanText)}
+                ${restaurantsHtml}
+              </div>
+              <hr style="border: none; border-top: 1px solid #eee; margin: 12px 0;">
+            `;
           }
         });
       }
-      if (aiChat) aiChat.scrollTop = aiChat.scrollHeight;
+
+      // 自動捲動到對話最底部
+      const outputContainer = document.getElementById("aiOutput");
+      if (outputContainer) {
+        outputContainer.scrollTop = outputContainer.scrollHeight;
+      }
     }
   } catch (err) {
     console.error("讀取對話失敗", err);
