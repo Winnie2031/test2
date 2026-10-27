@@ -775,36 +775,37 @@ async function sendAiMessage() {
   aiInput.value = "";
 
   
-const candidateStores = stores.filter(store => {
-  const name = store.name || "";
-  const tags = Array.isArray(store.tags)
-    ? store.tags.join(" ")
-    : String(store.tags || "");
+// 對話追問：保留最初推薦的候選名單，避免重新搜尋全資料庫
+  const wantsOther = /(其他|另外|再推薦|重新推薦|換一批|換幾間)/.test(question);
+  const followupWords = /(以上|上述|剛才|剛剛|前面|這幾間|這些|其中|哪間|哪家|哪一家|第一間|第二間|第三間|評分|評價|評論|最多人|比較|便宜|最貴|價格|那間|那家)/;
+  const isFollowUp = lastRecommendedNames.length > 0 &&
+    followupWords.test(question) && !wantsOther;
 
-  return (
-    question.includes(name) && name.length > 0 ||
-    foodTypes.some(type =>
-      question.includes(type) && tags.includes(type)
-    )
-  );
-});
-
-// 如果找不到符合條件的餐廳，就使用資料庫中的餐廳
-const selectedStores = candidateStores.length > 0
-  ? candidateStores
-  : stores;
-
-// 整理要傳給 AI 的餐廳資料
-const contextStores = JSON.stringify(
-  selectedStores.slice(0, 30).map(store => ({
+  let selectedStores;
+  if (isFollowUp) {
+    selectedStores = lastRecommendedNames
+      .map(name => stores.find(store => store.name === name))
+      .filter(Boolean);
+  } else {
+    const matched = stores.filter(store => {
+      const name = store.name || '';
+      const tags = Array.isArray(store.tags) ? store.tags.join(' ') : String(store.tags || '');
+      return (name && question.includes(name)) ||
+        foodTypes.some(type => question.includes(type) && (tags.includes(type) || name.includes(type)));
+    });
+    selectedStores = matched.length ? matched : stores;
+    if (wantsOther && lastRecommendedNames.length) {
+      selectedStores = selectedStores.filter(store => !lastRecommendedNames.includes(store.name));
+    }
+  }
+  const contextStores = JSON.stringify(selectedStores.slice(0, isFollowUp ? 30 : 40).map(store => ({
     name: store.name,
-    address: store.address,
     rating: store.rating,
+    user_ratings_total: store.user_ratings_total,
     price_level: store.price_level,
-    tags: store.tags,
-    opening_hours_json: store.opening_hours_json
-  }))
-);
+    address: store.address,
+    tags: store.tags
+  })));
 
 
   try {
@@ -822,7 +823,9 @@ const contextStores = JSON.stringify(
         question: question,           
         contextStores: contextStores, 
         conversationId: currentConversationId, // 傳送目前的對話 ID
-        history: historyMessages              // 傳送之前的上下文對話
+        history: historyMessages,              // 傳送之前的上下文對話
+        isFollowUp,
+        allowedNames: isFollowUp ? selectedStores.map(store => store.name) : []
       }),
     });
 
@@ -848,10 +851,12 @@ const contextStores = JSON.stringify(
     const match = replyText.match(searchCommandRegex);
     if (match && match[1]) {
       recommendedName = match[1].trim();
-      lastRecommendedNames = recommendedName
-        .split("|")
-        .map(name => name.trim())
-        .filter(Boolean);
+      if (!isFollowUp) {
+        lastRecommendedNames = recommendedName
+          .split("|")
+          .map(name => name.trim())
+          .filter(name => stores.some(store => store.name === name));
+      }
       replyText = replyText.replace(searchCommandRegex, "").trim();
     }
 
@@ -868,7 +873,7 @@ const contextStores = JSON.stringify(
         const targetNames = recommendedName.split("|").map(n => n.trim()).filter(Boolean);
 
         randomStores = stores.filter(store =>
-          targetNames.some(name => (store.name || "").includes(name))
+          targetNames.includes(store.name)
         );
 
         const searchInput = document.getElementById("search");
@@ -878,18 +883,7 @@ const contextStores = JSON.stringify(
 
         render();
 
-        // 1. 去掉過長的分店後綴（如 -內壢莊敬店、中壢中原店、第一味 中壢興農店 等）
-        const shortNames = targetNames.map(name => {
-          return name
-            .split("-")[0]               // 移除 '-' 後面的分店名
-            .replace(/中壢.*店/g, "")     // 移除 '中壢XX店'
-            .replace(/第.味/g, "")       // 移除 '第一味' 等贅字
-            .trim();
-        });
-
-        // 2. 使用極簡的提示文字
-        const displayNames = shortNames.join("、");
-        replyContainer.innerHTML += `<p style="color: #1f9d55; font-size: 0.82rem; margin-top: 4px; margin-bottom: 0;">✅ 已主畫面列出：<strong>${escapeHtml(displayNames)}</strong></p>`;
+        replyContainer.innerHTML += `<p style="color:#1f9d55;font-size:0.82rem;margin:4px 0 0;">✅ 已在主畫面顯示 ${randomStores.length} 間餐廳</p>`;
 
         const resetRandomBtn = document.getElementById("resetRandomBtn");
         if (resetRandomBtn) {
@@ -1593,12 +1587,12 @@ async function loadSingleConversation(id, isFavorite = false) {
         );
 
         if (match && match[1].trim()) {
-          lastRecommendedNames = match[1]
-            .split("|")
-            .map(name => name.trim())
-            .filter(Boolean);
-
-          break;
+          const names = match[1].split("|").map(name => name.trim()).filter(Boolean);
+          if (names.length > 1) {
+            lastRecommendedNames = names;
+            break;
+          }
+          if (!lastRecommendedNames.length) lastRecommendedNames = names;
         }
       }
 
