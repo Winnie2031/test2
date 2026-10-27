@@ -2903,7 +2903,15 @@ body > h1.site-title::after {
   .note-icon { display: flex; top: 5px; left: 5px; width: 36px; height: 36px; font-size: 17px; }
   .distance-badge { left: 5px; bottom: 6px; max-width: calc(34% - 10px); box-sizing: border-box; padding: 4px 6px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #aiBtn { width: 56px; height: 56px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); }
-  #aiChat { left: 12px !important; right: 12px !important; bottom: calc(80px + env(safe-area-inset-bottom)) !important; width: auto !important; min-width: 0 !important; height: min(480px, calc(100dvh - 110px)) !important; min-height: 0 !important; max-height: calc(100dvh - 110px); max-width: none; box-sizing: border-box; overflow: hidden; }
+#aiChat { 
+  left: 12px !important; right: 12px !important; bottom: calc(80px + env(safe-area-inset-bottom)) !important; 
+  width: auto !important; min-width: 0 !important; height: min(480px, calc(100dvh - 110px)) !important; min-height: 0 !important; 
+  max-height: calc(100dvh - 110px); 
+  max-width: none; 
+  box-sizing: border-box; 
+  overflow: hidden; 
+  z-index: 200000 !important; /* 確保低於頭像與問號的 300000 */
+}
   .resize-handle-tl { display: none; }
   .ai-header { flex-shrink: 0; padding: 10px; gap: 5px; }
   .ai-title { font-size: 14px; min-width: 0; }
@@ -3071,7 +3079,10 @@ body > .home-subtitle {
 
 /* 三個浮動按鈕使用相同圖層 */
 #helpIcon,
-.user-dropdown-container,
+.user-dropdown-container {
+  z-index: 400000 !important;
+}
+
 #aiBtn {
   z-index: 300000 !important;
 }
