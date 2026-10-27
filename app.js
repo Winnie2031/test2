@@ -2251,16 +2251,31 @@ function openFriendsModal() {
 
   if (!token) {
     alert("請先登入才能查看好友功能喔！");
-    switchToLogin();
+    if (typeof switchToLogin === "function") switchToLogin();
     return;
   }
 
+  // 關閉下拉選單
   const container = document.querySelector(".user-dropdown-container");
   if (container) {
     container.classList.remove("active");
   }
 
-  openUserPanel("friends");
+  const friendsModal = document.getElementById("friendsModal");
+  if (friendsModal) {
+    // 🎯 關鍵修復：確保好友 Modal 移至 <body> 最底端，避免受父容器 z-index / Stacking Context 限制
+    if (friendsModal.parentNode !== document.body) {
+      document.body.appendChild(friendsModal);
+    }
+    
+    // 強制設定最高的 z-index
+    friendsModal.style.setProperty("z-index", "99999", "important");
+    friendsModal.style.display = "flex";
+  }
+
+  if (typeof openUserPanel === "function") {
+    openUserPanel("friends");
+  }
 }
 
 // 關閉好友視窗

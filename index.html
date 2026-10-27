@@ -3193,6 +3193,26 @@ dialog.ai-history-dialog .modal-content {
   }
 }
 
+/* 🎯 手機版好友社群 Modal 頂層覆蓋修復 */
+#friendsModal.modal-overlay,
+.friends-modal-overlay {
+  /* 1. 將 z-index 設為極高值，壓過導覽列、個人頭像按鈕與右下角 AI 機器人 */
+  z-index: 99999 !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  background-color: rgba(0, 0, 0, 0.6) !important;
+}
+
+/* 確保裡面的 Modal 內容卡片比遮罩更高，且能正確響應點擊 */
+#friendsModal .modal-content,
+.friends-modal-content {
+  z-index: 100000 !important;
+  position: relative !important;
+}
+
   </style>
 </head>
 
