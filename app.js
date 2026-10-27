@@ -7,6 +7,8 @@ let currentConversationId = null;
 
 let aiHistoryMessages = [];
 
+let lastRecommendedNames = [];
+
 function getToken() {
   return localStorage.getItem("token");
 }
@@ -732,7 +734,7 @@ async function sendAiMessage() {
     question.includes(keyword)
   );
 
-  if (!isRestaurantQuestion) {
+  if (!isRestaurantQuestion && aiHistoryMessages.length === 0) {
     aiOutput.innerHTML += `
       <p style="color:red;">
         🤖 AI：與餐廳無關，請重新提問
@@ -758,17 +760,8 @@ async function sendAiMessage() {
   const msgId = "msg_" + Date.now(); 
   
   // 1. 抓取目前畫面上已有的對話紀錄（上下文記憶）
-  const historyMessages = [];
-  const existingParagraphs = aiOutput.querySelectorAll("p");
-  existingParagraphs.forEach(p => {
-    const text = p.innerText;
-    if (text.startsWith("🧑 你：")) {
-      historyMessages.push({ role: "user", content: text.replace("🧑 你：", "").trim() });
-    } else if (text.startsWith("🤖 AI：")) {
-      historyMessages.push({ role: "assistant", content: text.replace("🤖 AI：", "").trim() });
-    }
-  });
-
+  const historyMessages = aiHistoryMessages.slice(-20);
+  
   aiOutput.innerHTML += `
     <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #eee;">
       <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
@@ -844,10 +837,21 @@ const contextStores = JSON.stringify(
     let replyText = data.reply;
     let recommendedName = "";
 
+    aiHistoryMessages.push(
+      { role: "user", content: question },
+      { role: "assistant", content: replyText }
+    );
+
+    aiHistoryMessages = aiHistoryMessages.slice(-20);
+
     const searchCommandRegex = /<<<SEARCH:(.*?)>>>/;
     const match = replyText.match(searchCommandRegex);
     if (match && match[1]) {
       recommendedName = match[1].trim();
+      lastRecommendedNames = recommendedName
+        .split("|")
+        .map(name => name.trim())
+        .filter(Boolean);
       replyText = replyText.replace(searchCommandRegex, "").trim();
     }
 
@@ -1523,6 +1527,8 @@ async function clearAllAiHistory() {
     if (!currentConversationIsFavorite) {
       document.getElementById('aiOutput').innerHTML = '';
       currentConversationId = null;
+      aiHistoryMessages = [];
+      lastRecommendedNames = [];
       const activeStarBtn = document.getElementById('aiActiveStarBtn');
       if (activeStarBtn) activeStarBtn.style.display = 'none';
     }
@@ -1551,6 +1557,55 @@ async function loadSingleConversation(id, isFavorite = false) {
       currentConversationId = id;
       currentConversationIsFavorite = isFavorite;
 
+      
+      // ===== 恢復 AI 歷史對話記憶 =====
+
+      const messages = data.data ||
+                       data.messages ||
+                       data.conversation || [];
+
+      aiHistoryMessages = messages
+        .filter(msg =>
+          msg.role === "user" ||
+          msg.role === "assistant"
+        )
+        .map(msg => ({
+          role: msg.role,
+          content: msg.content ||
+                   msg.user_message ||
+                   msg.ai_reply || ""
+        }))
+        .filter(msg => msg.content)
+        .slice(-20);
+
+      // ===== 恢復上一輪推薦的餐廳 =====
+
+      lastRecommendedNames = [];
+
+      for (const msg of [...messages].reverse()) {
+        if (msg.role !== "assistant") continue;
+
+        const content = msg.content ||
+                        msg.ai_reply || "";
+
+        const match = content.match(
+          /<<<SEARCH:([^>]*)>>>/
+        );
+
+        if (match && match[1].trim()) {
+          lastRecommendedNames = match[1]
+            .split("|")
+            .map(name => name.trim())
+            .filter(Boolean);
+
+          break;
+        }
+      }
+
+      console.log("恢復歷史記憶：", aiHistoryMessages);
+      console.log("恢復推薦餐廳：", lastRecommendedNames);
+
+
       // 🎯 1. 點擊瞬間立即徹底關閉 Modal，防止遮罩擋住螢幕
       closeAiFavoritesModal();
 
@@ -1567,9 +1622,6 @@ async function loadSingleConversation(id, isFavorite = false) {
 
       if (aiOutput) {
         aiOutput.innerHTML = "";
-
-        // 取得對話陣列 (相容 data.data 或 data.messages 或 data.conversation)
-        const messages = data.data || data.messages || data.conversation || [];
 
         messages.forEach(msg => {
           if (msg.role === "user") {
@@ -1636,9 +1688,7 @@ async function loadSingleConversation(id, isFavorite = false) {
     closeAiFavoritesModal(); // 發生錯誤也強制解鎖
   }
 }
-// ===============================================================
 
-// ==================== 懸浮視窗控制功能 ====================
 
 // 打開彈出視窗並動態渲染餐廳詳情
 function openRestaurantDetail(storeId) {
@@ -4014,6 +4064,12 @@ function resetAiChat() {
   // 1. 重置目前對話 ID 與收藏狀態
   currentConversationId = null;
   currentConversationIsFavorite = false;
+
+   // 清空 AI 對話記憶
+  aiHistoryMessages = [];
+
+  // 清空上一輪推薦的餐廳
+  lastRecommendedNames = [];
 
   // 2. 清空聊天視窗畫面
   const aiOutput = document.getElementById("aiOutput");
