@@ -1331,17 +1331,18 @@ function openAiFavoritesModal() {
 // ==================== 🎯 關閉 AI 收藏庫 Modal (徹底解除畫面鎖定) ====================
 function closeAiFavoritesModal() {
   const aiHistoryModal = document.getElementById("aiHistoryModal");
-  if (!aiHistoryModal) return;
-
-  // 1. 如果是原生 <dialog> 標籤
-  if (typeof aiHistoryModal.close === "function" && aiHistoryModal.open) {
-    aiHistoryModal.close();
+  if (aiHistoryModal) {
+    // 1. 原生 Dialog 關閉
+    if (typeof aiHistoryModal.close === "function" && aiHistoryModal.open) {
+      aiHistoryModal.close();
+    }
+    // 2. 備用 CSS 隱藏
+    aiHistoryModal.style.display = "none";
   }
-  // 2. 備用隱藏方式
-  aiHistoryModal.style.display = "none";
-  
-  // 3. 解除 body 鎖定（如果有加遮罩樣式）
-  document.body.style.overflow = "";
+
+  // 3. 🎯 關鍵修復：強制把 pointer-events 與 overflow 復原，徹底解決畫面卡死問題
+  document.body.style.pointerEvents = "auto";
+  document.body.style.overflow = "auto";
 }
 
 // ==================== AI 歷史紀錄與收藏功能 ====================
@@ -1548,51 +1549,62 @@ async function loadSingleConversation(id, isFavorite = false) {
 
     if (data.ok) {
       currentConversationId = id;
-      currentConversationIsFavorite = isFavorite; // 更新全域變數
-      
-      // 🎯 關鍵修復 1：點擊對話後，徹底關閉收藏庫視窗並解除畫面鎖定
+      currentConversationIsFavorite = isFavorite;
+
+      // 🎯 1. 點擊瞬間立即徹底關閉 Modal，防止遮罩擋住螢幕
       closeAiFavoritesModal();
 
       const aiChat = document.getElementById("aiChat");
       if (aiChat) aiChat.style.display = "block";
 
-      // 顯示聊天室頂部的星星，並依照狀態變色
-      const topStar = document.getElementById('aiActiveStarBtn');
+      // 頂部星星變色
+      const topStar = document.getElementById("aiActiveStarBtn");
       if (topStar) {
-        topStar.style.display = 'inline-block';
-        topStar.style.color = isFavorite ? '#ffc107' : '#ccc';
-        topStar.innerText = isFavorite ? '⭐' : '☆';
+        topStar.style.display = "inline-block";
+        topStar.style.color = isFavorite ? "#ffc107" : "#ccc";
+        topStar.innerText = isFavorite ? "⭐" : "☆";
       }
 
       if (aiOutput) {
-        aiOutput.innerHTML = '';
-        
-        data.data.forEach(msg => {
-          if (msg.role === 'user') {
+        aiOutput.innerHTML = "";
+
+        // 取得對話陣列 (相容 data.data 或 data.messages 或 data.conversation)
+        const messages = data.data || data.messages || data.conversation || [];
+
+        messages.forEach(msg => {
+          if (msg.role === "user") {
             aiOutput.innerHTML += `
               <div class="ai-msg user-msg" style="margin-bottom: 12px;">
-                <strong>🧑 你：</strong> ${escapeHtml(msg.content)}
+                <strong>🧑 你：</strong> ${escapeHtml(msg.content || msg.user_message || "")}
               </div>
             `;
           } else {
-            // 清理系統標籤文字
-            let cleanText = msg.content.replace(/<<<SEARCH:(.*?)>>>/, "").trim();
+            // 清理標籤文字
+            let cleanText = (msg.content || msg.ai_reply || "").replace(/<<<SEARCH:(.*?)>>>/, "").trim();
+
+            // 🎯 2. 多重相容解析：支援所有可能的餐廳資料欄位名稱 (restaurants / recommendations / items)
+            let restaurants = msg.restaurants || msg.recommendations || msg.items || [];
             
-            // 🎯 關鍵修復 2：解析並生成餐廳卡片 HTML
-            let restaurants = msg.restaurants || msg.recommendations || [];
+            // 如果後端將餐廳 JSON 存成字串，嘗試解析
             if (typeof restaurants === "string") {
               try { restaurants = JSON.parse(restaurants); } catch (e) { restaurants = []; }
             }
 
+            // 如果該次對話內沒有帶餐廳，嘗試從文字內提取或檢查單筆頂層資料
+            if (!Array.isArray(restaurants) || restaurants.length === 0) {
+              if (data.restaurants) restaurants = data.restaurants;
+            }
+
+            // 渲染餐廳卡片 HTML
             let restaurantsHtml = "";
             if (Array.isArray(restaurants) && restaurants.length > 0) {
               restaurantsHtml = `
                 <div class="ai-restaurant-list" style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
                   ${restaurants.map(r => `
-                    <div class="ai-restaurant-card" onclick="window.location.href='detail.html?id=${r.id || r.restaurant_id}'" style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: #fff; border-radius: 10px; border: 1px solid #e0e0e0; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div class="ai-restaurant-card" onclick="window.location.href='detail.html?id=${r.id || r.restaurant_id}'" style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #fff; border-radius: 10px; border: 1px solid #e0e0e0; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                       <img src="${r.image_url || r.image || 'images/default-restaurant.jpg'}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px;" alt="${escapeHtml(r.name || '餐廳')}">
                       <div style="flex: 1; text-align: left;">
-                        <div style="font-weight: bold; color: #333; font-size: 0.9rem;">${escapeHtml(r.name || r.restaurant_name)}</div>
+                        <div style="font-weight: bold; color: #333; font-size: 0.9rem;">${escapeHtml(r.name || r.restaurant_name || '推薦餐廳')}</div>
                         <div style="font-size: 0.75rem; color: #ff9800;">⭐ ${r.rating || '4.5'} (${r.review_count || 100}人評分)</div>
                         <div style="font-size: 0.75rem; color: #666;">💰 ${r.price_range || r.price || 'NT$100~200'}</div>
                       </div>
@@ -1613,7 +1625,7 @@ async function loadSingleConversation(id, isFavorite = false) {
         });
       }
 
-      // 自動捲動到對話最底部
+      // 自動捲動到底部
       const outputContainer = document.getElementById("aiOutput");
       if (outputContainer) {
         outputContainer.scrollTop = outputContainer.scrollHeight;
@@ -1621,6 +1633,7 @@ async function loadSingleConversation(id, isFavorite = false) {
     }
   } catch (err) {
     console.error("讀取對話失敗", err);
+    closeAiFavoritesModal(); // 發生錯誤也強制解鎖
   }
 }
 // ===============================================================

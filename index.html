@@ -3815,5 +3815,15 @@ dialog.ai-history-dialog .modal-content {
   </div>
 </dialog>
 
+<dialog id="aiHistoryModal" class="ai-history-dialog">
+  <div class="modal-content" style="max-width: 400px; width: 90%; margin: auto; background: #fff; border-radius: 16px; padding: 20px; position: relative;">
+    <span class="close-btn" onclick="closeAiFavoritesModal()" style="position: absolute; right: 15px; top: 10px; cursor: pointer; font-size: 1.5rem;">&times;</span>
+    <h2 style="color: #ff5722; margin-top: 0;">⭐ 收藏對話紀錄</h2>
+    <div id="aiHistoryList" style="max-height: 60vh; overflow-y: auto; text-align: left;">
+      <p style="color: #888; text-align: center;">載入中...</p>
+    </div>
+  </div>
+</dialog>
+
 </body>
 </html>
