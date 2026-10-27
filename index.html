@@ -28,7 +28,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      z-index: 200000;
+      z-index: 450000 ;
       background-color: rgba(0, 0, 0, 0.5);
       display: none;
       justify-content: center;
@@ -3156,7 +3156,7 @@ dialog.ai-history-dialog .modal-content {
   /* 1. Modal 背景遮罩：確保 z-index 壓過底部的選單按鈕 */
   #friendsModal.modal-overlay,
   .friends-modal-overlay {
-    z-index: 9999 !important;
+    z-index: 450000 !important;
     align-items: flex-end; /* 手機版貼近底部或居中 */
     padding-top: calc(env(safe-area-inset-top) + 20px) !important; /* 留出手機頂部安全距離與網頁按鈕避讓 */
   }
@@ -3612,7 +3612,7 @@ dialog.ai-history-dialog .modal-content {
   </div>
 
   <!-- 發布動態 Modal -->
-  <div id="createPostModal" class="modal-overlay" style="display: none; z-index: 200005;">
+  <div id="createPostModal" class="modal-overlay" style="display: none; z-index: 450010;">
     <div class="modal-content" style="max-width: 480px; padding: 20px;">
       <span class="close-btn" onclick="closeCreatePostModal()">&times;</span>
       <h3 style="margin-top: 0; color: #ff5722;">發布美食動態</h3>
@@ -3709,7 +3709,7 @@ dialog.ai-history-dialog .modal-content {
   </div>
 
   <!-- 💬 貼文留言 Modal -->
-  <div id="postCommentModal" class="modal-overlay" style="display: none; z-index: 200010;">
+  <div id="postCommentModal" class="modal-overlay" style="display: none; z-index: 450020;">
     <div class="modal-content" style="max-width: 480px; padding: 20px;">
       <span class="close-btn" onclick="closePostCommentModal()">&times;</span>
       <h3 style="margin-top: 0; color: #ff5722;">💬 貼文留言</h3>
