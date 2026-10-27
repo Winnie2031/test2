@@ -3804,12 +3804,12 @@ dialog.ai-history-dialog .modal-content {
 })();
 </script>
 
-<!-- 🎯 改用原生 <dialog> 標籤，天生具備最高 Top Layer 權限 -->
+<!-- 🎯 原生 <dialog> 彈窗 -->
 <dialog id="aiHistoryModal" class="ai-history-dialog">
-  <div class="modal-content" style="max-width: 400px; width: 90%; position: relative;">
+  <div class="modal-content" style="max-width: 400px; width: 100%; position: relative; box-sizing: border-box;">
     <span class="close-btn" onclick="document.getElementById('aiHistoryModal').close()">&times;</span>
     <h2 style="color: #ff5722; margin-top: 0;">⭐ 收藏對話紀錄</h2>
-    <div id="aiHistoryList" style="max-height: 60vh; overflow-y: auto; text-align: left;">
+    <div id="aiHistoryList" style="max-height: 60vh; overflow-y: auto; overflow-x: hidden; text-align: left;">
       <p style="color: #888; text-align: center;">載入中...</p>
     </div>
   </div>
