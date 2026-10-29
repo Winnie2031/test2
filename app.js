@@ -799,13 +799,15 @@ async function sendAiMessage() {
   
 // 對話追問：保留最初推薦的候選名單，避免重新搜尋全資料庫
   const wantsOther = /(其他|另外|再推薦|重新推薦|換一批|換幾間)/.test(question);
-  const followupWords = /(以上|上述|剛才|剛剛|前面|這幾間|這些|其中|哪間|哪家|哪一家|第一間|第二間|第三間|評分|評價|評論|最多人|比較|便宜|最貴|價格|那間|那家)/;
-  const isFollowUp = lastRecommendedNames.length > 0 &&
-    followupWords.test(question) && !wantsOther;
+  // 只有明確指向上一輪餐廳時才當作追問；「推薦評價好的餐廳」是新推薦。
+  const explicitFollowUp = /(以上|上述|剛才|剛剛|前面|這幾間|這些|其中|那間|那家|第一間|第二間|第三間|上一輪|前次推薦)/.test(question);
+  const comparisonFollowUp = /(哪間|哪家|哪一家|兩間|這幾家)/.test(question);
+  const newRecommendation = /(推薦|找.*餐廳|介紹.*餐廳)/.test(question) && !explicitFollowUp;
+  const isFollowUp = lastRecommendedNames.length > 0 && !wantsOther &&
+    !newRecommendation && (explicitFollowUp || comparisonFollowUp);
 
-  const asksOpenNow =
-    /(現在.*(營業|有開)|目前.*(營業|有開)|還有營業|還有開|營業中)/.test(question) &&
-    !/(不限.*營業|不管.*營業|無論.*營業|不需要.*營業)/.test(question);  
+  const asksOpenNow = /(現在.*(營業|有開)|目前.*(營業|有開)|還有營業|還有開|營業中)/.test(question) &&
+    !/(不限.*(營業|開)|不管.*(營業|開)|無論.*(營業|開))/.test(question);
   let selectedStores;
   if (isFollowUp) {
     // 追問保留上一輪推薦名單，不重新評分或套用評論數門檻
@@ -832,14 +834,7 @@ async function sendAiMessage() {
       return true;
     });
 
-    // 評論 20 則是優先門檻，不是硬性排除條件。
-    // 如果全都未達門檻，仍使用全部符合營業/種類條件的餐廳推薦。
-    const reliableStores = selectedStores.filter(store =>
-      Number(store.user_ratings_total || 0) >= AI_MIN_REVIEW_COUNT
-    );
-    if (reliableStores.length > 0) {
-      selectedStores = reliableStores;
-    }
+    // 評論數少的店家不排除，改由貝氏校正評分決定優先順序。
 
     // 營業加分 + 貝氏校正評分，並以評論數做同分時的次排序
     selectedStores = [...selectedStores].sort((a, b) =>
@@ -902,16 +897,17 @@ async function sendAiMessage() {
 
     aiHistoryMessages = aiHistoryMessages.slice(-20);
 
-    const searchCommandRegex = /<<<SEARCH:(.*?)>>>/;
+    const searchCommandRegex = /<<<SEARCH:([^>]*)>>>/;
     const match = replyText.match(searchCommandRegex);
-    if (match && match[1]) {
+    if (match) {
       recommendedName = match[1].trim();
       if (!isFollowUp) {
         lastRecommendedNames = recommendedName
-          .split("|")
-          .map(name => name.trim())
-          .filter(name => stores.some(store => store.name === name));
+          ? recommendedName.split("|").map(name => name.trim())
+              .filter(name => stores.some(store => store.name === name))
+          : [];
       }
+      // 即使 SEARCH 為空，也要移除標記，避免直接顯示在聊天窗。
       replyText = replyText.replace(searchCommandRegex, "").trim();
     }
 
