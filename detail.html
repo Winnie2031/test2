@@ -16,35 +16,26 @@
 
     .back-btn {
       position: fixed;
-      top: 16px;
-      left: 16px;
-      z-index: 1000;
+      z-index: 99999 !important;
+      pointer-events: auto !important;
+      cursor: pointer !important;
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      padding: 8px 16px;
+      padding: 6px 14px;
       background: #ffffff;
       color: #ff5722;
       border: 1px solid #ffe0b2;
       border-radius: 20px;
       font-size: 0.95rem;
       font-weight: 600;
-      cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      transition: all 0.2s ease;
-      backdrop-filter: blur(8px);
-    }
-
-    .back-btn:hover {
-      background: #ff5722;
-      color: #ffffff;
-      border-color: #ff5722;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(255, 87, 34, 0.25);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      -webkit-tap-highlight-color: transparent;
     }
 
     .back-btn:active {
       transform: scale(0.95);
+      background-color: #fff3e0;
     }
 
     /* 🎯 手機版優化：防遮擋與全螢幕 Safe Area */
@@ -1218,8 +1209,12 @@ body {
 
   <div class="detail-tabs">
     <!-- 🎯 頁面左上角返回按鈕 -->
-    <button type="button" class="back-btn" onclick="goBack()" title="返回上一頁">
-      ‹
+    <button 
+      type="button" 
+      class="back-btn" 
+      onclick="if (document.referrer && document.referrer.includes(location.host)) { history.back(); } else { location.href='index.html'; }" 
+      title="返回上一頁">
+      ‹ 返回
     </button>
 
     <button
