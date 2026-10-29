@@ -330,13 +330,43 @@ app.post('/api/gpt', route(async (req, res) => {
     } catch { return []; }
   })() : [];
 
+  
+
+  let exactRestaurant = null;
+
+  if (!isFollowUp) {
+    const result = await pg.query(
+      `SELECT name, rating, user_ratings_total, business_status
+      FROM restaurants
+      WHERE LOWER(TRIM(name)) = LOWER($1)
+      LIMIT 1`,
+      [question.trim()]
+    );
+
+    exactRestaurant = result.rows[0] || null;
+  }
+
+
   const byReviews = /(評價人數|評論數|評論人數|最多人|較多人|多少人|人數|點評)/.test(question);
   const byRating = /(評分|評價高|評價最|星等|幾顆星|最高分)/.test(question);
   const byCheapest = /(最便宜|價格最低|最低價)/.test(question);
   const byExpensive = /(最貴|價格最高)/.test(question);
   let replyText;
 
-  if (!isFollowUp && generalCandidates.length === 0) {
+  if (exactRestaurant) {
+    const statusText =
+      exactRestaurant.business_status === "CLOSED_PERMANENTLY"
+        ? "（已永久停業）"
+        : exactRestaurant.business_status === "CLOSED_TEMPORARILY"
+          ? "（目前暫時停業）"
+          : "";
+
+    replyText =
+      `已找到「${exactRestaurant.name}」${statusText}，` +
+      `已在主畫面顯示這間餐廳。` +
+      `<<<SEARCH:${exactRestaurant.name}>>>`;
+
+  } else if (!isFollowUp && generalCandidates.length === 0) {
     replyText = '目前沒有符合條件的餐廳，請嘗試放寬搜尋條件。<<<SEARCH:>>>';
   } else if (alternativeFollowUp) {
     // 從上一輪「完整推薦名單」中選擇替代方案，而非重新搜尋整份資料庫。
