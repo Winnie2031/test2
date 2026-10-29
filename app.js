@@ -776,14 +776,16 @@ async function sendAiMessage() {
     !/(推薦|幫我|請問|怎麼|如何|什麼|哪間|哪家|餐廳|評分|評價|評論|營業|有開|價格|價位|便宜|點什麼|菜單|招牌|人氣|好吃|介紹|附近|中原附近|早午餐|午餐|晚餐|現在|有沒有|還有|其他)/.test(question) &&
     !foodTypes.includes(question);
   const mentionsStoreName = namedStores.length > 0;
-  const menuQuestion = /(都點什麼|點什麼|點些什麼|最多人點|熱門餐點|人氣餐點|招牌菜|必點|菜單|賣什麼)/.test(question);
+  // 餐點、菜單、單品價格、停售信息及多店口味比較，都屬於「餐點資訊」，不能當作一般推薦。
+  const menuQuestion = /(都點什麼|點什麼|點些什麼|最多人點|最多人買|銷量|賣最好|熱門餐點|人氣餐點|招牌菜|必點|菜單|賣什麼|停售|停賣|下架|每一道|每道|餐點|菜色|不吃辣|不辣|辣度|適合.*人|哪家比較適合)/.test(question) ||
+    (namedStores.length > 0 && /(實際價格|確切價格|多少錢)/.test(question));
   const namedRestaurantInfo = mentionsStoreName &&
-    /(都點什麼|點什麼|點些什麼|最多人點|菜單|招牌|評分|評價|評論|價格|價位|營業|有開|幾點|電話|地址|在哪|好吃|介紹|怎麼樣)/.test(question);
+    /(都點什麼|點什麼|點些什麼|最多人點|銷量|賣最好|菜單|招牌|餐點|菜色|停售|停賣|下架|辣|適合|哪家|比較|評分|評價|評論|價格|價位|營業|有開|幾點|電話|地址|在哪|好吃|介紹|怎麼樣)/.test(question);
   // 「150 元還有其他選擇」「那道不辣嗎」是同一家店的餐點追問，
   // 不能被「其他」誤判成其他餐廳推薦。
   const menuContextFollowUp = Boolean(activeMenuRestaurantName) && !mentionsStoreName &&
     !/(重新推薦餐廳|換一家餐廳|其他餐廳|附近餐廳|找新的餐廳)/.test(question) &&
-    /(預算|\d+\s*元|\d+\s*塊|不吃辣|不辣|辣度|那一道|那道|這道|餐點|菜色|點什麼|吃什麼|還有其他選擇|其他選擇|其他可以點|其他能點|便宜一點)/.test(question);
+    /(預算|\d+\s*元|\d+\s*塊|不吃辣|不辣|辣度|那一道|那道|這道|餐點|菜色|菜單|停售|下架|銷量|點什麼|吃什麼|還有其他選擇|其他選擇|其他可以點|其他能點|便宜一點)/.test(question);
   const isRestaurantQuestion = menuContextFollowUp || directNameQuery || mentionsStoreName || allKeywords.some((keyword) =>
     question.includes(keyword)
   );

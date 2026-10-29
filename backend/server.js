@@ -370,7 +370,7 @@ app.post('/api/gpt', route(async (req, res) => {
     req.body.menuRestaurantName.trim().length > 0;
   const menuRestaurantName = menuFollowUp ? req.body.menuRestaurantName.trim().slice(0, 200) : '';
   const asksMenuQuestion =
-    /(點什麼|吃什麼|必點|招牌|熱門餐點|人氣餐點|推薦餐點|推薦菜色|菜單|餐點推薦|什麼好吃|最多人點)/.test(question);
+    /(點什麼|吃什麼|必點|招牌|熱門餐點|人氣餐點|推薦餐點|推薦菜色|菜單|餐點推薦|什麼好吃|最多人點|最多人買|銷量|賣最好|實際價格|確切價格|每一道|每道|餐點|菜色|停售|停賣|下架|不吃辣|不辣|辣度|哪家比較適合|適合.*人)/.test(question);
   const byReviews = /(評價人數|評論數|評論人數|最多人|較多人|多少人|人數|點評)/.test(question);
   const byRating = /(評分|評價高|評價最|星等|幾顆星|最高分)/.test(question);
   const byCheapest = /(最便宜|價格最低|最低價)/.test(question);
@@ -409,56 +409,76 @@ app.post('/api/gpt', route(async (req, res) => {
     : (isFollowUp && allowedStores.length === 1 ? allowedStores : []);
   const distinctMenuTargets = [...new Map(menuTargets.map(store => [store.name, store])).values()];
 
+  function distinctlyNamedTargets(items, query, comparison) {
+    if (!comparison) return items.slice(0, 1);
+    const selected = [];
+    const keys = new Set();
+    for (const item of items) {
+      const brand = String(item.name).trim().split(/[\s　（(\-－—]+/)[0].toLowerCase();
+      if (keys.has(brand)) continue;
+      selected.push(item);
+      keys.add(brand);
+      if (selected.length >= 3) break;
+    }
+    return selected;
+  }
+
   if (menuQuestion) {
+    // 此分支只處理「有實際店名的餐點／菜單問題」，不使用整間店的 price_level 充當菜單價格。
     if (distinctMenuTargets.length === 0) {
-      replyText = '請提供想查詢的餐廳名稱（例如「墨竹亭」），我才能幫你查詢推薦餐點。';
-    } else if (distinctMenuTargets.length > 1) {
-      replyText = `找到多間可能的店家：${distinctMenuTargets.slice(0, 8).map(s => s.name).join('、')}。請指定想查詢的分店，避免菜單混淆。`;
+      replyText = '請先提供想查詢的餐廳名稱，我才能核對該店的菜單資訊。';
     } else {
-      const target = distinctMenuTargets[0];
-      resolvedMenuRestaurantName = target.name;
-      const menuPrompt = `你是「食在中原」的餐點推薦助手。先使用網路搜尋確認正確的店家、分店、官方菜單及公開評論。
-      請只回覆使用者想知道的內容，不要寫店家地址、搜尋過程、來源清單或任何網址。
-      若是追問，請接續提供的最近對話來理解「這道」「其他選擇」及飲食偏好、預算；不可改推薦別家餐廳。
-      使用者說150元預算，須找可驗證價格在150元以內的同店餐點；若查不到價錢就說明無法確認，不能把整間店的price_level當作菜單價格。
-      最多推薦三道能查證的餐點。每道格式為「餐點名稱：一句特色或推薦理由」。
-      全文以繁體中文寫成，最多約 150 個中文字，避免 Markdown、星號、長篇前言與重複店名。
-      餐點名稱必須有公開資料支持，不得虛構餐點、價格、評論或銷量。
-      「最多人點」沒有真實銷售統計時，簡短說明無法確認銷售排行，再介紹可查證的常見推薦餐點。
-      若查不到可靠菜單，簡短說明查不到，不要猜測。
-      使用搜尋資料進行內部核對，但回答中不要提供來源、網址、引用標記或網域名稱。
-      不要輸出 PICKS 或 SEARCH 標記。`;
-      try {
-        const menuResponse = await client.responses.create({
-          model: 'gpt-4.1-mini',
-          tools: [{ type: 'web_search', search_context_size: 'medium' }],
-          tool_choice: 'required',
-          input: [
-            { role: 'system', content: menuPrompt },
-            { role: 'user', content: `餐廳名稱：${target.name}\n地址：${target.address || '未提供'}\n最近對話：${history.slice(-6).map(m => `${m.role}: ${String(m.content || '').replace(/<<<SEARCH:[^>]*>>>/g, '')}`).join('\n')}\n問題：${question}` }
-          ],
-          max_output_tokens: 650
-        });
-        const rawMenuReply = menuResponse.output_text?.trim() || '';
-        // 搜尋工具的引用、網站連結、Markdown 不顯示在使用者聊天視窗。
-        const cleanMenuReply = rawMenuReply
-          .replace(/\[[^\]]+\]\(https?:\/\/[^)]+\)/g, m => m.slice(1, m.indexOf(']')))
-          .replace(/\([^()\s]*(?:\.com|\.tw|\.net|\.org)\)\(https?:\/\/[^)]*\)/gi, '')
-          .replace(/https?:\/\/[^\s)]+/gi, '')
-          .replace(/(?:cite[^]+|【[^】]*(?:turn\d+|來源|citation)[^】]*】)/gi, '')
-          .replace(/\[[0-9]+\]/g, '')
-          .replace(/\*\*/g, '')
-          .replace(/(?:資料來源|參考來源|來源)\s*[:：].*$/gmi, '')
-          .replace(/\n\s*\n+/g, '\n')
-          .trim();
-        replyText = cleanMenuReply.slice(0, 260) ||
-          `目前沒有找到「${target.name}」可核對的公開餐點資料。`;
-      } catch (error) {
-        console.error('餐點網路搜尋失敗：', error.message);
-        replyText = `已找到「${target.name}」，但目前無法取得網路上的菜單資料，請稍後再試；不會猜測熱門餐點。`;
+      // 兩家或多家明確提及的餐廳可直接比較；不要一律要求選擇分店。
+      // 只提及同品牌、卻對應多個分店時，才請使用者確認。
+      const brandKeys = [...new Set(distinctMenuTargets.map(store =>
+        String(store.name).trim().split(/[\s　（(\-－—]+/)[0].toLowerCase()
+      ))];
+      const explicitlyCompared = /(和|與|跟|以及|還有).*(比較|哪家|哪間|適合)|哪家.*比較/.test(question);
+      if (distinctMenuTargets.length > 1 && brandKeys.length === 1 && !explicitlyCompared) {
+        replyText = `找到多間可能的分店：${distinctMenuTargets.slice(0, 6).map(s => s.name).join('、')}。請指定分店以免菜單混淆。`;
+      } else {
+        const targets = distinctlyNamedTargets(distinctMenuTargets, question, explicitlyCompared);
+        resolvedMenuRestaurantName = targets.length === 1 ? targets[0].name : null;
+        const targetDescription = targets.map(t =>
+          `店名：${t.name}；地址：${t.address || '未知'}`
+        ).join('\n');
+        const menuPrompt = `你是食在中原的餐點資訊助手，必須先利用網路搜尋核對指定餐廳與分店的公開菜單、官方公告和評論。
+只回答使用者正在問的餐點問題，繁體中文，約 50～130 字，無需前言，禁止輸出網址、引用格式、Markdown、來源清單、PICKS 或 SEARCH。
+嚴格區分「店家 price_level（餐廳價格級距）」和「每一道菜的實際標價」；price_level 不能當作菜單售價。
+若詢問所有餐點的今日確切價格，除非能確認完整且當日有效的官方菜單，否則直接說無法核實完整的當日價格，不可編造、不可靠資料不要列出。
+若詢問去年或任何年度哪道銷量最多及實際銷量，除非找到店家或可信官方發布的該期間銷售數據，否則明確說沒有可核實的銷售數據，不得用評論數或聲量冒充銷量。
+若詢問已停售或下架的品項，只有找到有日期且可核實的店家公告或可靠證據才能斷言停售，否則說明無法確認，不得把菜單上找不到視為停售。
+若比較兩家店對不吃辣者的適合度，分別查兩家店菜單和辣度資訊，只比較已核實的品項，不將不同品牌或分店混在一起；資訊不足就說明不足，不能單憑店名猜測。
+若介紹推薦餐點，最多提供三道有依據的餐點；可用「公開資訊較常推薦」，不能無憑據稱為銷售冠軍。
+如果搜尋不到足夠公開證據，應坦白說不能確認，絕不能迎合使用者要求亂列數字。
+回答中可不顯示來源，但內部必須依搜尋結果查證。`;
+        try {
+          const menuResponse = await client.responses.create({
+            model: 'gpt-4.1-mini',
+            tools: [{ type: 'web_search', search_context_size: 'medium' }],
+            tool_choice: 'required',
+            input: [
+              { role: 'system', content: menuPrompt },
+              { role: 'user', content: `待確認的餐廳：\n${targetDescription}\n最近對話：${history.slice(-6).map(m => `${m.role}: ${String(m.content || '').replace(/<<<SEARCH:[^>]*>>>/g, '')}`).join('\n')}\n使用者現在的問題：${question}` }
+            ],
+            max_output_tokens: 900
+          });
+          const raw = menuResponse.output_text?.trim() || '';
+          replyText = raw
+            .replace(/\[[^\]]+\]\(https?:\/\/[^)]+\)/g, m => m.slice(1, m.indexOf(']')))
+            .replace(/https?:\/\/[^\s)]+/gi, '')
+            .replace(/(?:cite[^]+|【[^】]*(?:turn\d+|來源|citation)[^】]*】)/gi, '')
+            .replace(/\*\*/g, '')
+            .replace(/(?:資料來源|參考來源|來源)\s*[:：].*$/gmi, '')
+            .replace(/\n\s*\n+/g, '\n')
+            .trim().slice(0, 280) || '目前無法找到足夠資料確認這項餐點資訊。';
+        } catch (err) {
+          console.error('餐點網路查詢失敗：', err.message);
+          replyText = '目前無法取得可靠的網路菜單資訊，請稍後再試。';
+        }
+        // 僅更新可確認的餐廳卡片；不以此覆蓋原本的推薦名單。
+        replyText += `\n<<<SEARCH:${targets.map(t => t.name).join('|')}>>>`;
       }
-      // 保持原本主畫面的店家顯示功能，並沿用歷史記憶。
-      replyText += `\n<<<SEARCH:${target.name}>>>`;
     }
   } else if (!isFollowUp && directNameQuery) {
     if (!matchedRestaurants.length) {
@@ -546,7 +566,10 @@ app.post('/api/gpt', route(async (req, res) => {
       replyText = visible;
     } else {
       const match = rawText.match(/<<<PICKS:([^>]*)>>>/);
-      if (!match) fail(502, 'AI 回傳格式不完整，請再試一次');
+      if (!match) {
+        // 網路工具以外的非推薦文字若缺少 PICKS，不應以 502 讓使用者看到格式錯誤。
+        replyText = '目前無法確認符合條件的餐廳，請調整需求後再試。';
+      } else {
       const indices = [...new Set(match[1].split('|').map(s => s.trim())
         .filter(s => /^\d+$/.test(s)).map(Number))]
         .filter(i => Number.isSafeInteger(i) && i >= 0 && i < generalCandidates.length);
@@ -554,6 +577,7 @@ app.post('/api/gpt', route(async (req, res) => {
       const suggestedNames = [...new Set(indices.map(i => generalCandidates[i].name))];
       const visible = rawText.replace(/<<<PICKS:[^>]*>>>/g, '').trim().slice(0, 500);
       replyText = visible + `\n<<<SEARCH:${suggestedNames.join('|')}>>>`;
+      }
     }
   }
 
