@@ -365,6 +365,10 @@ app.post('/api/gpt', route(async (req, res) => {
   }
   
 
+  const menuFollowUp = req.body.menuFollowUp === true &&
+    typeof req.body.menuRestaurantName === 'string' &&
+    req.body.menuRestaurantName.trim().length > 0;
+  const menuRestaurantName = menuFollowUp ? req.body.menuRestaurantName.trim().slice(0, 200) : '';
   const asksMenuQuestion =
     /(點什麼|吃什麼|必點|招牌|熱門餐點|人氣餐點|推薦餐點|推薦菜色|菜單|餐點推薦|什麼好吃|最多人點)/.test(question);
   const byReviews = /(評價人數|評論數|評論人數|最多人|較多人|多少人|人數|點評)/.test(question);
@@ -372,13 +376,21 @@ app.post('/api/gpt', route(async (req, res) => {
   const byCheapest = /(最便宜|價格最低|最低價)/.test(question);
   const byExpensive = /(最貴|價格最高)/.test(question);
   let replyText;
+  let resolvedMenuRestaurantName = null;
 
   // 指定店家的餐點問題採用網路搜尋；普通餐廳推薦仍走原本的 PICKS 流程。
   // 注意：沒有店名時不隨意猜測，避免搜尋到其他分店或品牌。
-  const menuQuestion = asksMenuQuestion || req.body.menuQuestion === true;
+  const menuQuestion = asksMenuQuestion || req.body.menuQuestion === true || menuFollowUp;
 
   // 前端沒有找到店名時，後端再次從資料庫辨識「墨竹亭有什麼推薦餐點？」等問句。
   // 不依賴前端是否載入全部餐廳，也不讓模型猜測不存在的店家。
+  // 餐點追問的店名不必再次出現在文字內，從前端保存的店名向 DB 驗證。
+  if (menuFollowUp && matchedRestaurants.length === 0) {
+    const remembered = await pg.query(
+      `${restaurantSelect} WHERE r.name = $1 LIMIT 1`, [menuRestaurantName]
+    );
+    matchedRestaurants = remembered.rows;
+  }
   if (menuQuestion && matchedRestaurants.length === 0) {
     const found = await pg.query(
       `${restaurantSelect}
@@ -404,8 +416,11 @@ app.post('/api/gpt', route(async (req, res) => {
       replyText = `找到多間可能的店家：${distinctMenuTargets.slice(0, 8).map(s => s.name).join('、')}。請指定想查詢的分店，避免菜單混淆。`;
     } else {
       const target = distinctMenuTargets[0];
+      resolvedMenuRestaurantName = target.name;
       const menuPrompt = `你是「食在中原」的餐點推薦助手。先使用網路搜尋確認正確的店家、分店、官方菜單及公開評論。
       請只回覆使用者想知道的內容，不要寫店家地址、搜尋過程、來源清單或任何網址。
+      若是追問，請接續提供的最近對話來理解「這道」「其他選擇」及飲食偏好、預算；不可改推薦別家餐廳。
+      使用者說150元預算，須找可驗證價格在150元以內的同店餐點；若查不到價錢就說明無法確認，不能把整間店的price_level當作菜單價格。
       最多推薦三道能查證的餐點。每道格式為「餐點名稱：一句特色或推薦理由」。
       全文以繁體中文寫成，最多約 150 個中文字，避免 Markdown、星號、長篇前言與重複店名。
       餐點名稱必須有公開資料支持，不得虛構餐點、價格、評論或銷量。
@@ -420,7 +435,7 @@ app.post('/api/gpt', route(async (req, res) => {
           tool_choice: 'required',
           input: [
             { role: 'system', content: menuPrompt },
-            { role: 'user', content: `餐廳名稱：${target.name}\n地址：${target.address || '未提供'}\n問題：${question}` }
+            { role: 'user', content: `餐廳名稱：${target.name}\n地址：${target.address || '未提供'}\n最近對話：${history.slice(-6).map(m => `${m.role}: ${String(m.content || '').replace(/<<<SEARCH:[^>]*>>>/g, '')}`).join('\n')}\n問題：${question}` }
           ],
           max_output_tokens: 650
         });
@@ -554,7 +569,8 @@ app.post('/api/gpt', route(async (req, res) => {
   });
   
   res.json({ ok: true, reply: replyText, conversationId: currentConvId,
-    restaurants: matchedRestaurants });
+    restaurants: matchedRestaurants,
+    menuRestaurantName: resolvedMenuRestaurantName });
 }));
 
 
