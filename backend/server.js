@@ -279,16 +279,6 @@ app.delete('/api/favorites/:restaurantId', authMiddleware, route(async (req, res
 
 // AI 推薦與歷史對話：保留卡片搜尋標記及前端回傳欄位
 const SYSTEM_PROMPT = `你是「食在中原」餐廳助手，請使用繁體中文，僅依提供的候選餐廳資料回答，不得編造店家、評分、評論、價格或營業資訊。
-【問題範圍限制】
-1. 本系統只回答與實際餐廳搜尋、推薦、營業時間、價格、評分、評論人數，以及已推薦餐廳比較有關的問題。
-2. 使用者的問題必須涉及實際餐廳搜尋、推薦，或針對具體餐廳的資訊查詢。
-3. 對於純假設、抽象討論、一般知識問題，即使內容提到餐廳、食物、評分或評論，也不應回答。
-4. 例如「如果一間餐廳5顆星但只有2則評論，另一間4.6顆星但有350則評論，你會優先推薦哪間？」屬於假設性問題，不是實際餐廳查詢。
-5. 如果問題不符合上述服務範圍，請固定回覆：
-「這個問題與餐廳搜尋或推薦無關，請重新詢問餐廳相關問題。」
-6. 對於不符合服務範圍的問題，不得執行餐廳推薦，也不得輸出 PICKS 或 SEARCH 標記。
-7. 不可因為使用者提到「餐廳」、「評分」或「評論」等字詞，就直接認定這是有效的餐廳查詢。
-
 一般推薦請根據使用者的餐點類型、價格、地點和營業需求選出所有真正符合條件的餐廳，不要預設只選3到5間，也不設定固定選店數量。符合條件的候選越多，可以選越多，但不得為湊數選不相關店家。使用者指定數量時盡量遵守。
 已知停業店家不得推薦。使用者要求現在營業時，只能選 open_status 為 open 的店家；沒有要求時，休息中的店家仍可推薦，但營業中的優先。unknown 不等於營業中。
 先以需求相關性為準，再參考 recommendation_score 排序；評論較少或低於20則的店家仍可選，不可只因評論少就剔除，但應考慮其評分可信度。
@@ -323,6 +313,11 @@ app.post('/api/gpt', route(async (req, res) => {
     allowedStores = allowedNames.map(name => found.rows.find(store => store.name === name)).filter(Boolean);
   }
 
+  const alternativeFollowUp = isFollowUp && req.body.alternativeFollowUp === true;
+  const excludeNames = Array.isArray(req.body.excludeNames)
+    ? new Set(req.body.excludeNames.filter(name => typeof name === 'string').slice(0, 100))
+    : new Set();
+
   const generalCandidates = !isFollowUp ? (() => {
     try {
       const rows = JSON.parse(context);
@@ -338,6 +333,25 @@ app.post('/api/gpt', route(async (req, res) => {
 
   if (!isFollowUp && generalCandidates.length === 0) {
     replyText = '目前沒有符合條件的餐廳，請嘗試放寬搜尋條件。<<<SEARCH:>>>';
+  } else if (alternativeFollowUp) {
+    // 從上一輪「完整推薦名單」中選擇替代方案，而非重新搜尋整份資料庫。
+    const remaining = allowedStores.filter(store => !excludeNames.has(store.name));
+    const wantsCheapAlternative = /(便宜|平價|省錢|低價)/.test(question);
+    if (!remaining.length) {
+      replyText = '前次推薦的餐廳已沒有其他可選店家，可以請我重新搜尋。';
+    } else if (wantsCheapAlternative) {
+      const priced = remaining.filter(s => s.price_level != null && Number.isFinite(Number(s.price_level)));
+      if (!priced.length) {
+        replyText = '其餘餐廳缺少可比較的價格級距，暫時無法判斷哪些比較便宜；可請我重新搜尋平價餐廳。';
+      } else {
+        priced.sort((a,b) => Number(a.price_level)-Number(b.price_level) || Number(b.rating || 0)-Number(a.rating || 0));
+        const lowest = Number(priced[0].price_level);
+        const chosen = priced.filter(s => Number(s.price_level) === lowest);
+        replyText = `扣除剛才不想吃的店家，原本推薦名單中另有 ${chosen.length} 間價格級距較低的餐廳（第 ${lowest} 級）。請參考主畫面，價格級距不代表實際菜單售價。<<<SEARCH:${chosen.map(s=>s.name).join('|')}>>>`;
+      }
+    } else {
+      replyText = `原本的推薦名單中，扣除剛才那間後還有 ${remaining.length} 間可參考。<<<SEARCH:${remaining.map(s=>s.name).join('|')}>>>`;
+    }
   } else if (isFollowUp && (byReviews || byRating || byCheapest || byExpensive)) {
     const metric = byReviews ? 'user_ratings_total' : byRating ? 'rating' : 'price_level';
     const eligible = allowedStores.filter(store => store[metric] != null &&

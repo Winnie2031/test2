@@ -8,6 +8,7 @@ let currentConversationId = null;
 let aiHistoryMessages = [];
 
 let lastRecommendedNames = [];
+let lastFocusedNames = []; // 最近一次追問實際顯示的餐廳（與完整推薦名單分開）
 
 function getToken() {
   return localStorage.getItem("token");
@@ -798,20 +799,29 @@ async function sendAiMessage() {
 
   
 // 對話追問：保留最初推薦的候選名單，避免重新搜尋全資料庫
-  const wantsOther = /(其他|另外|再推薦|重新推薦|換一批|換幾間)/.test(question);
-  // 只有明確指向上一輪餐廳時才當作追問；「推薦評價好的餐廳」是新推薦。
-  const explicitFollowUp = /(以上|上述|剛才|剛剛|前面|這幾間|這些|其中|那間|那家|第一間|第二間|第三間|上一輪|前次推薦)/.test(question);
-  const comparisonFollowUp = /(哪間|哪家|哪一家|兩間|這幾家)/.test(question);
-  const newRecommendation = /(推薦|找.*餐廳|介紹.*餐廳)/.test(question) && !explicitFollowUp;
-  const isFollowUp = lastRecommendedNames.length > 0 && !wantsOther &&
-    !newRecommendation && (explicitFollowUp || comparisonFollowUp);
+  const wantsOther = /(其他|另外|再推薦|重新推薦|換一批|換幾間|還有其他|還有別的)/.test(question);
+  const explicitFollowUp = /(以上|上述|剛才|剛剛|前面|上面|這幾間|這些|其中|那間|這間|那家|這家|第一間|第二間|第三間|上一輪|前次推薦)/.test(question);
+  const comparisonFollowUp = /(哪間|哪家|哪一家|兩間|這幾家|哪個最)/.test(question);
+  // 「我不想吃這間，還有其他便宜的嗎？」仍是沿用上次名單的追問。
+  const alternativeFollowUp = lastRecommendedNames.length > 0 &&
+    /(不想吃|不要這間|換一間|還有其他|還有別的|另外.*(便宜|家|間)|其他.*(便宜|家|間))/.test(question) &&
+    !/(重新推薦全部|重新搜尋|找新的餐廳)/.test(question);
+  const newRecommendation = /(推薦|找.*餐廳|介紹.*餐廳)/.test(question) &&
+    !explicitFollowUp && !alternativeFollowUp;
+  const isFollowUp = lastRecommendedNames.length > 0 &&
+    (alternativeFollowUp || (!wantsOther && !newRecommendation &&
+      (explicitFollowUp || comparisonFollowUp)));
 
   const asksOpenNow = /(現在.*(營業|有開)|目前.*(營業|有開)|還有營業|還有開|營業中)/.test(question) &&
     !/(不限.*(營業|開)|不管.*(營業|開)|無論.*(營業|開))/.test(question);
   let selectedStores;
   if (isFollowUp) {
     // 追問保留上一輪推薦名單，不重新評分或套用評論數門檻
-    selectedStores = lastRecommendedNames
+    const referenceNames = alternativeFollowUp
+      ? lastRecommendedNames
+      : (/(這間|那間|這家|那家)/.test(question) && lastFocusedNames.length
+          ? lastFocusedNames : lastRecommendedNames);
+    selectedStores = referenceNames
       .map(name => stores.find(store => store.name === name))
       .filter(Boolean);
   } else {
@@ -875,6 +885,8 @@ async function sendAiMessage() {
         conversationId: currentConversationId, // 傳送目前的對話 ID
         history: historyMessages,              // 傳送之前的上下文對話
         isFollowUp,
+        alternativeFollowUp,
+        excludeNames: alternativeFollowUp && lastFocusedNames.length === 1 ? lastFocusedNames : [],
         allowedNames: isFollowUp ? selectedStores.map(store => store.name) : []
       }),
     });
@@ -907,6 +919,10 @@ async function sendAiMessage() {
               .filter(name => stores.some(store => store.name === name))
           : [];
       }
+      // 追問只更新聚焦餐廳；保留原始推薦的整份名單。
+      lastFocusedNames = recommendedName
+        ? recommendedName.split("|").map(name => name.trim()).filter(Boolean)
+        : [];
       // 即使 SEARCH 為空，也要移除標記，避免直接顯示在聊天窗。
       replyText = replyText.replace(searchCommandRegex, "").trim();
     }
@@ -1574,6 +1590,7 @@ async function clearAllAiHistory() {
       currentConversationId = null;
       aiHistoryMessages = [];
       lastRecommendedNames = [];
+      lastFocusedNames = [];
       const activeStarBtn = document.getElementById('aiActiveStarBtn');
       if (activeStarBtn) activeStarBtn.style.display = 'none';
     }
@@ -1626,6 +1643,7 @@ async function loadSingleConversation(id, isFavorite = false) {
       // ===== 恢復上一輪推薦的餐廳 =====
 
       lastRecommendedNames = [];
+      lastFocusedNames = [];
 
       for (const msg of [...messages].reverse()) {
         if (msg.role !== "assistant") continue;
@@ -1639,6 +1657,7 @@ async function loadSingleConversation(id, isFavorite = false) {
 
         if (match && match[1].trim()) {
           const names = match[1].split("|").map(name => name.trim()).filter(Boolean);
+          if (!lastFocusedNames.length) lastFocusedNames = [...names];
           if (names.length > 1) {
             lastRecommendedNames = names;
             break;
@@ -4130,6 +4149,7 @@ function resetAiChat() {
 
   // 清空上一輪推薦的餐廳
   lastRecommendedNames = [];
+  lastFocusedNames = [];
 
   // 2. 清空聊天視窗畫面
   const aiOutput = document.getElementById("aiOutput");
