@@ -233,6 +233,15 @@ function getOpenStatusHtml(store) {
 
   return `<p class="open-status unknown">⚪ 狀態未知</p>`;
 }
+
+// 🎯 返回上一頁邏輯 (若無歷史紀錄則安全導向首頁)
+function goBack() {
+  if (document.referrer && document.referrer.includes(window.location.host)) {
+    window.history.back();
+  } else {
+    window.location.href = "index.html"; // 若直接開啟網址則返回首頁
+  }
+}
 function render() {
   const keyword = (document.getElementById("search")?.value || "").trim();
   const container = document.getElementById("cards");
