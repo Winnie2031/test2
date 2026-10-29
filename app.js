@@ -2323,6 +2323,27 @@ function closeWelcomeModal() {
   console.log("🔒 已記錄：使用者看過歡迎視窗 (hasSeenWelcome = true)");
 }
 
+// 🎯 歡迎視窗：展開/收合登入特權列表
+function toggleWelcomeMemberFeatures() {
+  const panel = document.getElementById("welcomeMemberFeatures");
+  const arrow = document.getElementById("welcomeToggleArrow");
+  
+  if (!panel) return;
+
+  if (panel.style.display === "none" || !panel.style.display) {
+    panel.style.display = "block";
+    if (arrow) arrow.innerText = "▲";
+    
+    // 自動捲動到底部確保內容完整呈現
+    setTimeout(() => {
+      panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 100);
+  } else {
+    panel.style.display = "none";
+    if (arrow) arrow.innerText = "▼";
+  }
+}
+
 // 🎯 緊接在後面：處理自動彈出與問號 Icon 點擊
 document.addEventListener("DOMContentLoaded", () => {
   const welcomeModal = document.getElementById("welcomeModal");

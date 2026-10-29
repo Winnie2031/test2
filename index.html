@@ -122,6 +122,86 @@ body.modal-open {
   transform: scale(1.05);
 }
 
+/* 🎯 登入功能介紹按鈕 */
+.welcome-login-info-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: transparent;
+  color: #ff5722;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.welcome-login-info-btn:hover {
+  color: #e64a19;
+}
+
+/* 🎯 會員特權展褶面板 */
+.welcome-member-panel {
+  margin-top: 12px;
+  padding: 14px;
+  background: #fff8f5;
+  border: 1px solid #ffe0b2;
+  border-radius: 12px;
+  text-align: left;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.member-feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.member-feature-item:last-child {
+  margin-bottom: 0;
+}
+
+.member-feature-item .icon {
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+
+.member-feature-item strong {
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.member-feature-item p {
+  margin: 2px 0 0 0;
+  font-size: 0.8rem;
+  color: #666;
+  line-height: 1.3;
+}
+
+/* 面板底部的快速登入引導按鈕 */
+.welcome-go-login-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px 0;
+  background: #ff5722;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(255, 87, 34, 0.2);
+  transition: background 0.2s;
+}
+
+.welcome-go-login-btn:hover {
+  background: #e64a19;
+}
+
 h1 {
   font-size: 3rem;
   color: #ff5722;
@@ -3628,8 +3708,50 @@ dialog.ai-history-dialog .modal-content {
       <button type="button" class="welcome-start-btn" onclick="closeWelcomeModal()">
         太棒了，開始探索！🚀
       </button>
+<!-- 🎯 新增：登入功能介紹觸發按鈕 -->
+    <button type="button" class="welcome-login-info-btn" onclick="toggleWelcomeMemberFeatures()">
+      🔒 登入後解鎖哪些專屬功能？ <span id="welcomeToggleArrow">▼</span>
+    </button>
+
+    <!-- 🎯 新增：點擊後展開的會員特權面板 -->
+    <div id="welcomeMemberFeatures" class="welcome-member-panel" style="display: none;">
+      <div class="member-feature-item">
+        <span class="icon">❤️</span>
+        <div>
+          <strong>收藏口袋名單</strong>
+          <p>一鍵收藏心儀餐廳，隨時在個人清單快速查閱。</p>
+        </div>
+      </div>
+      <div class="member-feature-item">
+        <span class="icon">📝</span>
+        <div>
+          <strong>撰寫私房備忘錄</strong>
+          <p>記錄必點招牌餐點與個人踩雷心得，不怕忘記。</p>
+        </div>
+      </div>
+      <div class="member-feature-item">
+        <span class="icon">👥</span>
+        <div>
+          <strong>解鎖好友社群動態</strong>
+          <p>拍照打卡美食、分享心得，並觀看中原好友的美食足跡。</p>
+        </div>
+      </div>
+      <div class="member-feature-item">
+        <span class="icon">🤖</span>
+        <div>
+          <strong>AI 機器人對話備份</strong>
+          <p>無限制保留與 AI 美食助理的對話與推薦紀錄，隨時複習。</p>
+        </div>
+      </div>
+
+      <!-- 引導按鈕 -->
+      <button type="button" class="welcome-go-login-btn" onclick="closeWelcomeModal(); switchToLogin();">
+        立即登入 / 註冊 鍵入專屬美味 🔑
+      </button>
     </div>
+
   </div>
+</div>
 
   <!-- 編輯使用者 Modal -->
   <div id="editUserModal" class="modal-overlay" style="display: none;">
