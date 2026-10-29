@@ -803,7 +803,9 @@ async function sendAiMessage() {
   const isFollowUp = lastRecommendedNames.length > 0 &&
     followupWords.test(question) && !wantsOther;
 
-  const asksOpenNow = /(現在營業|目前營業|營業中|還有開|有開的|現在有開)/.test(question);
+  const asksOpenNow =
+    /(現在.*(營業|有開)|目前.*(營業|有開)|還有營業|還有開|營業中)/.test(question) &&
+    !/(不限.*營業|不管.*營業|無論.*營業|不需要.*營業)/.test(question);  
   let selectedStores;
   if (isFollowUp) {
     // 追問保留上一輪推薦名單，不重新評分或套用評論數門檻
