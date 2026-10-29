@@ -376,6 +376,22 @@ app.post('/api/gpt', route(async (req, res) => {
   // 指定店家的餐點問題採用網路搜尋；普通餐廳推薦仍走原本的 PICKS 流程。
   // 注意：沒有店名時不隨意猜測，避免搜尋到其他分店或品牌。
   const menuQuestion = asksMenuQuestion || req.body.menuQuestion === true;
+
+  // 前端沒有找到店名時，後端再次從資料庫辨識「墨竹亭有什麼推薦餐點？」等問句。
+  // 不依賴前端是否載入全部餐廳，也不讓模型猜測不存在的店家。
+  if (menuQuestion && matchedRestaurants.length === 0) {
+    const found = await pg.query(
+      `${restaurantSelect}
+       WHERE length(replace(trim(r.name), ' ', '')) >= 3
+         AND position(lower(left(replace(trim(r.name), ' ', ''), 3))
+                      in lower(replace($1, ' ', ''))) > 0
+       ORDER BY length(r.name) ASC, r.rating DESC NULLS LAST
+       LIMIT 12`,
+      [question]
+    );
+    matchedRestaurants = found.rows;
+  }
+
   const menuTargets = matchedRestaurants.length
     ? matchedRestaurants
     : (isFollowUp && allowedStores.length === 1 ? allowedStores : []);
@@ -388,11 +404,15 @@ app.post('/api/gpt', route(async (req, res) => {
       replyText = `找到多間可能的店家：${distinctMenuTargets.slice(0, 8).map(s => s.name).join('、')}。請指定想查詢的分店，避免菜單混淆。`;
     } else {
       const target = distinctMenuTargets[0];
-      const menuPrompt = `你是「食在中原」餐點資訊助手。請使用網路搜尋確認指定店家（含分店）的公開菜單、官方網站及可核對的顧客評論。
-      只能介紹來源實際支持的餐點，不可編造菜名、價格或銷量。
-      若使用者問「最多人點」，沒有可查證的銷售統計時必須明確說無法確定；可另外整理評論中常被提及的菜色，但不可稱為銷售冠軍。
-      優先官方菜單；找不到可核對的菜單或相關資料就坦白說明。請附上 1～3 個實際引用的來源網址。
-      使用繁體中文，清楚、簡短回答。這是餐點詢問，禁止輸出 PICKS 或 SEARCH 指令。`;
+      const menuPrompt = `你是「食在中原」的餐點推薦助手。先使用網路搜尋確認正確的店家、分店、官方菜單及公開評論。
+      請只回覆使用者想知道的內容，不要寫店家地址、搜尋過程、來源清單或任何網址。
+      最多推薦三道能查證的餐點。每道格式為「餐點名稱：一句特色或推薦理由」。
+      全文以繁體中文寫成，最多約 150 個中文字，避免 Markdown、星號、長篇前言與重複店名。
+      餐點名稱必須有公開資料支持，不得虛構餐點、價格、評論或銷量。
+      「最多人點」沒有真實銷售統計時，簡短說明無法確認銷售排行，再介紹可查證的常見推薦餐點。
+      若查不到可靠菜單，簡短說明查不到，不要猜測。
+      使用搜尋資料進行內部核對，但回答中不要提供來源、網址、引用標記或網域名稱。
+      不要輸出 PICKS 或 SEARCH 標記。`;
       try {
         const menuResponse = await client.responses.create({
           model: 'gpt-4.1-mini',
@@ -402,9 +422,21 @@ app.post('/api/gpt', route(async (req, res) => {
             { role: 'system', content: menuPrompt },
             { role: 'user', content: `餐廳名稱：${target.name}\n地址：${target.address || '未提供'}\n問題：${question}` }
           ],
-          max_output_tokens: 1200
+          max_output_tokens: 650
         });
-        replyText = menuResponse.output_text?.trim() ||
+        const rawMenuReply = menuResponse.output_text?.trim() || '';
+        // 搜尋工具的引用、網站連結、Markdown 不顯示在使用者聊天視窗。
+        const cleanMenuReply = rawMenuReply
+          .replace(/\[[^\]]+\]\(https?:\/\/[^)]+\)/g, m => m.slice(1, m.indexOf(']')))
+          .replace(/\([^()\s]*(?:\.com|\.tw|\.net|\.org)\)\(https?:\/\/[^)]*\)/gi, '')
+          .replace(/https?:\/\/[^\s)]+/gi, '')
+          .replace(/(?:cite[^]+|【[^】]*(?:turn\d+|來源|citation)[^】]*】)/gi, '')
+          .replace(/\[[0-9]+\]/g, '')
+          .replace(/\*\*/g, '')
+          .replace(/(?:資料來源|參考來源|來源)\s*[:：].*$/gmi, '')
+          .replace(/\n\s*\n+/g, '\n')
+          .trim();
+        replyText = cleanMenuReply.slice(0, 260) ||
           `目前沒有找到「${target.name}」可核對的公開餐點資料。`;
       } catch (error) {
         console.error('餐點網路搜尋失敗：', error.message);
