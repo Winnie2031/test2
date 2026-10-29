@@ -236,10 +236,12 @@ function getOpenStatusHtml(store) {
 
 // 🎯 返回上一頁邏輯 (若無歷史紀錄則安全導向首頁)
 function goBack() {
-  if (document.referrer && document.referrer.includes(window.location.host)) {
+  // 判斷瀏覽器歷史紀錄長度，大於 1 代表有上一頁可以回
+  if (window.history.length > 1 && document.referrer) {
     window.history.back();
   } else {
-    window.location.href = "index.html"; // 若直接開啟網址則返回首頁
+    // 否則直接強制跳轉回首頁
+    window.location.href = "index.html";
   }
 }
 function render() {
