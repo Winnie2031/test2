@@ -363,14 +363,57 @@ app.post('/api/gpt', route(async (req, res) => {
         (prefix.length >= 3 && q.includes(prefix.slice(0, 3)));
     });
   }
+  
 
+  const asksMenuQuestion =
+    /(點什麼|吃什麼|必點|招牌|熱門餐點|人氣餐點|推薦餐點|推薦菜色|菜單|餐點推薦|什麼好吃|最多人點)/.test(question);
   const byReviews = /(評價人數|評論數|評論人數|最多人|較多人|多少人|人數|點評)/.test(question);
   const byRating = /(評分|評價高|評價最|星等|幾顆星|最高分)/.test(question);
   const byCheapest = /(最便宜|價格最低|最低價)/.test(question);
   const byExpensive = /(最貴|價格最高)/.test(question);
   let replyText;
 
-  if (!isFollowUp && directNameQuery) {
+  // 指定店家的餐點問題採用網路搜尋；普通餐廳推薦仍走原本的 PICKS 流程。
+  // 注意：沒有店名時不隨意猜測，避免搜尋到其他分店或品牌。
+  const menuQuestion = asksMenuQuestion || req.body.menuQuestion === true;
+  const menuTargets = matchedRestaurants.length
+    ? matchedRestaurants
+    : (isFollowUp && allowedStores.length === 1 ? allowedStores : []);
+  const distinctMenuTargets = [...new Map(menuTargets.map(store => [store.name, store])).values()];
+
+  if (menuQuestion) {
+    if (distinctMenuTargets.length === 0) {
+      replyText = '請提供想查詢的餐廳名稱（例如「墨竹亭」），我才能幫你查詢推薦餐點。';
+    } else if (distinctMenuTargets.length > 1) {
+      replyText = `找到多間可能的店家：${distinctMenuTargets.slice(0, 8).map(s => s.name).join('、')}。請指定想查詢的分店，避免菜單混淆。`;
+    } else {
+      const target = distinctMenuTargets[0];
+      const menuPrompt = `你是「食在中原」餐點資訊助手。請使用網路搜尋確認指定店家（含分店）的公開菜單、官方網站及可核對的顧客評論。
+      只能介紹來源實際支持的餐點，不可編造菜名、價格或銷量。
+      若使用者問「最多人點」，沒有可查證的銷售統計時必須明確說無法確定；可另外整理評論中常被提及的菜色，但不可稱為銷售冠軍。
+      優先官方菜單；找不到可核對的菜單或相關資料就坦白說明。請附上 1～3 個實際引用的來源網址。
+      使用繁體中文，清楚、簡短回答。這是餐點詢問，禁止輸出 PICKS 或 SEARCH 指令。`;
+      try {
+        const menuResponse = await client.responses.create({
+          model: 'gpt-4.1-mini',
+          tools: [{ type: 'web_search', search_context_size: 'medium' }],
+          tool_choice: 'required',
+          input: [
+            { role: 'system', content: menuPrompt },
+            { role: 'user', content: `餐廳名稱：${target.name}\n地址：${target.address || '未提供'}\n問題：${question}` }
+          ],
+          max_output_tokens: 1200
+        });
+        replyText = menuResponse.output_text?.trim() ||
+          `目前沒有找到「${target.name}」可核對的公開餐點資料。`;
+      } catch (error) {
+        console.error('餐點網路搜尋失敗：', error.message);
+        replyText = `已找到「${target.name}」，但目前無法取得網路上的菜單資料，請稍後再試；不會猜測熱門餐點。`;
+      }
+      // 保持原本主畫面的店家顯示功能，並沿用歷史記憶。
+      replyText += `\n<<<SEARCH:${target.name}>>>`;
+    }
+  } else if (!isFollowUp && directNameQuery) {
     if (!matchedRestaurants.length) {
       replyText = `找不到名稱包含「${directNameQuery}」的餐廳，請確認店名或換個關鍵字。<<<SEARCH:>>>`;
     } else {
