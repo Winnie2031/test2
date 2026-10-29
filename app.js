@@ -842,7 +842,7 @@ async function sendAiMessage() {
     const matched = stores.filter(store => {
       const name = store.name || "";
       const tags = Array.isArray(store.tags) ? store.tags.join(" ") : String(store.tags || "");
-      return (name && question.includes(name)) ||
+      return (name && ( question.includes(name) || name.includes(question.trim()))) ||
         foodTypes.some(type => question.includes(type) && (tags.includes(type) || name.includes(type)));
     });
     selectedStores = matched.length ? matched : stores;
