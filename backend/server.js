@@ -278,13 +278,17 @@ app.delete('/api/favorites/:restaurantId', authMiddleware, route(async (req, res
 }));
 
 // AI 推薦與歷史對話：保留卡片搜尋標記及前端回傳欄位
-const SYSTEM_PROMPT = `你是「食在中原」餐廳助手，使用繁體中文，只使用提供的餐廳資料。
-一般推薦請挑 2～5 間，不編造餐廳、價格、評論或營業時間。
-回答簡短，一般控制在 50 字內，避免開場客套和重複列出大量餐廳名稱。
-若是延續上一輪的追問，只能在提供的候選餐廳中回答，不可另行推薦其他店家。
-詢問評分以 rating 比較；詢問評價人數以 user_ratings_total 比較，兩者不可混淆。
-一般推薦最後必須附 <<<SEARCH:完整店名A|完整店名B>>>；無資料用 <<<SEARCH:>>>。
-搜尋標籤中的店名必須與資料完全一致。`;
+const SYSTEM_PROMPT = `你是「食在中原」餐廳助手。請使用繁體中文，且僅使用提供的資料。
+一般推薦：優先符合使用者所述餐點、價位、營業需求與地點；參考 recommendation_score 排序，但需求相關性優先。
+評分已由程式考慮評論數及營業狀態校正。不可自行編造店家、價格、評分、評論與營業時間。
+已知停業店家不應推薦；使用者要求目前營業時，只能選 open_status=open 的餐廳。
+一般推薦沒有預設推薦數量：符合條件的店家越多，可選越多；但不為湊數而推薦不相關店家。
+使用者指定推薦數量時，優先依其要求。若沒有符合店家，就回覆沒有符合條件的餐廳。
+為降低傳輸長度，普通推薦請只輸出一段簡短說明，並在末尾輸出 <<<PICKS:0|2|5>>>。
+PICKS 中的數字是候選餐廳清單中的 index（從 0 起算），順序就是推薦順序，不能輸出不存在的編號。
+如沒有符合店家，輸出 <<<PICKS:>>>。一般推薦不要輸出完整店名清單。
+追問時只討論指定候選餐廳，回答評分使用 rating、評論人數使用 user_ratings_total；不要新增餐廳。
+追問不需輸出 PICKS 標記。`;
 // ⭕ 修改後：支援對話歷史（連貫記憶）
 app.post('/api/gpt', route(async (req, res) => {
   if (!client) fail(503, 'AI 尚未設定，請確認 OPENAI_API_KEY');
@@ -304,7 +308,7 @@ app.post('/api/gpt', route(async (req, res) => {
   // 僅使用資料庫可驗證的餐廳資料進行比較，不信任前端自行提供的評分
   const isFollowUp = req.body.isFollowUp === true;
   const allowedNames = Array.isArray(req.body.allowedNames)
-    ? [...new Set(req.body.allowedNames.filter(name => typeof name === 'string' && name.length <= 200))].slice(0, 30)
+    ? [...new Set(req.body.allowedNames.filter(name => typeof name === 'string' && name.length <= 200))].slice(0, 100)
     : [];
   let allowedStores = [];
   if (isFollowUp && allowedNames.length) {
@@ -315,13 +319,22 @@ app.post('/api/gpt', route(async (req, res) => {
     allowedStores = allowedNames.map(name => found.rows.find(store => store.name === name)).filter(Boolean);
   }
 
+  const generalCandidates = !isFollowUp ? (() => {
+    try {
+      const rows = JSON.parse(context);
+      return Array.isArray(rows) ? rows.slice(0, 100) : [];
+    } catch { return []; }
+  })() : [];
+
   const byReviews = /(評價人數|評論數|評論人數|最多人|較多人|多少人|人數|點評)/.test(question);
   const byRating = /(評分|評價高|評價最|星等|幾顆星|最高分)/.test(question);
   const byCheapest = /(最便宜|價格最低|最低價)/.test(question);
   const byExpensive = /(最貴|價格最高)/.test(question);
   let replyText;
 
-  if (isFollowUp && (byReviews || byRating || byCheapest || byExpensive)) {
+  if (!isFollowUp && generalCandidates.length === 0) {
+    replyText = '目前沒有符合條件的餐廳，請嘗試放寬搜尋條件。<<<SEARCH:>>>';
+  } else if (isFollowUp && (byReviews || byRating || byCheapest || byExpensive)) {
     const metric = byReviews ? 'user_ratings_total' : byRating ? 'rating' : 'price_level';
     const eligible = allowedStores.filter(store => store[metric] != null &&
       Number.isFinite(Number(store[metric])));
@@ -341,23 +354,37 @@ app.post('/api/gpt', route(async (req, res) => {
   } else if (isFollowUp && allowedStores.length === 0) {
     replyText = '找不到前次推薦的餐廳，請重新推薦一次。';
   } else {
+    // 一般推薦用簡短編號代替重複輸出完整店名，能容納較多推薦結果。
+    const candidatesText = isFollowUp
+      ? JSON.stringify(allowedStores)
+      : JSON.stringify(generalCandidates.map((store, index) => ({ index, ...store })));
     const inputMessages = [
       { role: 'system', content: SYSTEM_PROMPT },
-      ...history.slice(-20).filter(msg => msg && ['assistant','user'].includes(msg.role) && typeof msg.content === 'string')
-        .map(msg => ({ role: msg.role, content: msg.content.slice(0,4000) })),
-      { role: 'user', content: `【${isFollowUp ? '只能討論以下餐廳' : '目前餐廳清單'}】：\n${isFollowUp ? JSON.stringify(allowedStores) : context}\n【問題】：${question}` }
+      ...history.slice(-20).filter(msg => msg && ['assistant', 'user'].includes(msg.role) && typeof msg.content === 'string')
+        .map(msg => ({ role: msg.role, content: msg.content.slice(0, 4000) })),
+      { role: 'user', content: `【${isFollowUp ? '只能討論以下餐廳' : '候選餐廳清單'}】：\n${candidatesText}\n【問題】：${question}` }
     ];
-    const response = await client.responses.create({ model: 'gpt-4.1-mini', input: inputMessages, max_output_tokens: 220 });
+    const response = await client.responses.create({
+      model: 'gpt-4.1-mini', input: inputMessages, max_output_tokens: 4000
+    });
     const rawText = response.output_text?.trim();
     if (!rawText) fail(502, 'AI 未回傳有效內容');
-    const rawTag = rawText.match(/<<<SEARCH:([^>]*)>>>/);
-    let suggestedNames = rawTag?.[1]?.split('|').map(n => n.trim()).filter(Boolean) || [];
-    const candidates = isFollowUp ? allowedStores.map(s => s.name) : (() => {
-      try { return JSON.parse(context).map(s => s.name); } catch { return []; }
-    })();
-    suggestedNames = [...new Set(suggestedNames.filter(name => candidates.includes(name)))].slice(0, isFollowUp ? 1 : 5);
-    const visible = rawText.replace(/<<<SEARCH:[^>]*>>>/g, '').trim().slice(0, 70);
-    replyText = visible + (suggestedNames.length ? `\n<<<SEARCH:${suggestedNames.join('|')}>>>` : '');
+
+    if (isFollowUp) {
+      // 追問保留文字回答，不強制改變原有的單店比較功能。
+      const visible = rawText.replace(/<<<PICKS:[^>]*>>>/g, '').trim();
+      replyText = visible;
+    } else {
+      const match = rawText.match(/<<<PICKS:([^>]*)>>>/);
+      if (!match) fail(502, 'AI 回傳格式不完整，請再試一次');
+      const indices = [...new Set(match[1].split('|').map(s => s.trim())
+        .filter(s => /^\d+$/.test(s)).map(Number))]
+        .filter(i => Number.isSafeInteger(i) && i >= 0 && i < generalCandidates.length);
+      // 無額外 slice(0, 5/10/20)：最多可選出所有 100 間候選的符合店家
+      const suggestedNames = [...new Set(indices.map(i => generalCandidates[i].name))];
+      const visible = rawText.replace(/<<<PICKS:[^>]*>>>/g, '').trim().slice(0, 500);
+      replyText = visible + `\n<<<SEARCH:${suggestedNames.join('|')}>>>`;
+    }
   }
 
   // 寫入資料庫

@@ -183,6 +183,28 @@ if (
   return false;
 }
 
+// ===== AI 推薦：使用現有營業時間與可信評分 =====
+const AI_MIN_REVIEW_COUNT = 20; // 優先門檻；若全部低於 20 則，仍會推薦評論較少的餐廳
+
+function getAiOpenStatus(store) {
+  if (store.business_status === "CLOSED_PERMANENTLY") return "permanently_closed";
+  if (store.business_status === "CLOSED_TEMPORARILY") return "temporarily_closed";
+  const result = isOpenNow(store.opening_hours_json);
+  return result === true ? "open" : result === false ? "closed" : "unknown";
+}
+
+function getAiRecommendationScore(store) {
+  const r = Number(store.rating);
+  const v = Number(store.user_ratings_total);
+  // 未提供評分或評論數的店家可作備用候選，不把缺失資料當成 5 星
+  const count = Number.isFinite(v) && v >= 0 ? v : 0;
+  const rating = Number.isFinite(r) && r >= 0 && r <= 5 ? r : 4.0;
+  // 貝氏平均：評論越少，評分越接近保守基準 4.0
+  const adjustedRating = (count * rating + 30 * 4.0) / (count + 30);
+  const openBonus = getAiOpenStatus(store) === "open" ? 0.15 : 0;
+  return adjustedRating + openBonus;
+}
+
 function getOpenStatusHtml(store) {
   if (store.business_status === "CLOSED_PERMANENTLY") {
     return `<p class="open-status closed">🔴 永久停業</p>`;
@@ -781,15 +803,17 @@ async function sendAiMessage() {
   const isFollowUp = lastRecommendedNames.length > 0 &&
     followupWords.test(question) && !wantsOther;
 
+  const asksOpenNow = /(現在營業|目前營業|營業中|還有開|有開的|現在有開)/.test(question);
   let selectedStores;
   if (isFollowUp) {
+    // 追問保留上一輪推薦名單，不重新評分或套用評論數門檻
     selectedStores = lastRecommendedNames
       .map(name => stores.find(store => store.name === name))
       .filter(Boolean);
   } else {
     const matched = stores.filter(store => {
-      const name = store.name || '';
-      const tags = Array.isArray(store.tags) ? store.tags.join(' ') : String(store.tags || '');
+      const name = store.name || "";
+      const tags = Array.isArray(store.tags) ? store.tags.join(" ") : String(store.tags || "");
       return (name && question.includes(name)) ||
         foodTypes.some(type => question.includes(type) && (tags.includes(type) || name.includes(type)));
     });
@@ -797,14 +821,43 @@ async function sendAiMessage() {
     if (wantsOther && lastRecommendedNames.length) {
       selectedStores = selectedStores.filter(store => !lastRecommendedNames.includes(store.name));
     }
+
+    // 先依營業需求過濾，不因評論數偏低而把所有店家排除
+    selectedStores = selectedStores.filter(store => {
+      const status = getAiOpenStatus(store);
+      if (status === "permanently_closed" || status === "temporarily_closed") return false;
+      if (asksOpenNow && status !== "open") return false;
+      return true;
+    });
+
+    // 評論 20 則是優先門檻，不是硬性排除條件。
+    // 如果全都未達門檻，仍使用全部符合營業/種類條件的餐廳推薦。
+    const reliableStores = selectedStores.filter(store =>
+      Number(store.user_ratings_total || 0) >= AI_MIN_REVIEW_COUNT
+    );
+    if (reliableStores.length > 0) {
+      selectedStores = reliableStores;
+    }
+
+    // 營業加分 + 貝氏校正評分，並以評論數做同分時的次排序
+    selectedStores = [...selectedStores].sort((a, b) =>
+      getAiRecommendationScore(b) - getAiRecommendationScore(a) ||
+      Number(b.user_ratings_total || 0) - Number(a.user_ratings_total || 0)
+    );
   }
-  const contextStores = JSON.stringify(selectedStores.slice(0, isFollowUp ? 30 : 40).map(store => ({
+
+  // AI 最多查看前 100 間候選，最終推薦不另設固定數量上限
+  const contextStores = JSON.stringify(selectedStores.slice(0, 100).map(store => ({
     name: store.name,
     rating: store.rating,
     user_ratings_total: store.user_ratings_total,
     price_level: store.price_level,
     address: store.address,
-    tags: store.tags
+    tags: store.tags,
+    business_status: store.business_status,
+    opening_hours_json: store.opening_hours_json,
+    open_status: getAiOpenStatus(store),
+    recommendation_score: Number(getAiRecommendationScore(store).toFixed(3))
   })));
 
 
@@ -872,9 +925,9 @@ async function sendAiMessage() {
       if (recommendedName) {
         const targetNames = recommendedName.split("|").map(n => n.trim()).filter(Boolean);
 
-        randomStores = stores.filter(store =>
-          targetNames.includes(store.name)
-        );
+        randomStores = targetNames
+          .map(name => stores.find(store => store.name === name))
+          .filter(Boolean);
 
         const searchInput = document.getElementById("search");
         if (searchInput) {
