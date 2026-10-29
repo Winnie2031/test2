@@ -119,24 +119,21 @@
     }
 
     /* ============================================================
-       左右滑動區
+   左右滑動區 (修復大力滑動連跳問題)
     ============================================================ */
 
     .detail-slider {
       width: 100%;
-
       display: flex;
-
       overflow-x: auto;
       overflow-y: hidden;
-
       scroll-snap-type: x mandatory;
-
       scroll-behavior: smooth;
-
       scrollbar-width: none;
-
       -webkit-overflow-scrolling: touch;
+
+      /* 🎯 關鍵修復：強制每次滑動停在下一個 Slide，絕不允許跨頁暴衝！ */
+      scroll-snap-stop: always; 
     }
 
     .detail-slider::-webkit-scrollbar {
@@ -146,13 +143,13 @@
     .detail-slide {
       width: 100%;
       min-width: 100%;
-
       flex: 0 0 100%;
-
       scroll-snap-align: start;
-
+      
+      /* 🎯 補強：確保每一個 Slide 獨立停靠 */
+      scroll-snap-stop: always; 
+      
       padding: 0 4px;
-
       box-sizing: border-box;
     }
 
