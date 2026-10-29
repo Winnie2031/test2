@@ -318,6 +318,11 @@ app.post('/api/gpt', route(async (req, res) => {
     ? new Set(req.body.excludeNames.filter(name => typeof name === 'string').slice(0, 100))
     : new Set();
 
+  // 無論追問採用程式比較或 AI 回答，都必須剔除使用者已拒絕的店家。
+  if (isFollowUp) {
+    allowedStores = allowedStores.filter(store => !excludeNames.has(store.name));
+  }
+
   const generalCandidates = !isFollowUp ? (() => {
     try {
       const rows = JSON.parse(context);
