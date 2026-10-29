@@ -26,7 +26,7 @@ cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET });
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 const FRONTEND_DIR = path.join(__dirname, '..');
 // 前端位於專案根目錄；禁止透過靜態路由下載 backend 的程式與設定。
 app.use('/backend', (req, res) => res.sendStatus(404));
@@ -332,20 +332,37 @@ app.post('/api/gpt', route(async (req, res) => {
 
   
 
-  let exactRestaurant = null;
-
-  if (!isFollowUp) {
-    const result = await pg.query(
-      `SELECT name, rating, user_ratings_total, business_status
-      FROM restaurants
-      WHERE LOWER(TRIM(name)) = LOWER($1)
-      LIMIT 1`,
-      [question.trim()]
-    );
-
-    exactRestaurant = result.rows[0] || null;
+  // 直接輸入品牌或部分店名時，先查 PostgreSQL；不要求 AI 產生 PICKS。
+  const directNameQuery = typeof req.body.directNameQuery === 'string'
+    ? req.body.directNameQuery.trim().slice(0, 80) : '';
+  const lookupNames = Array.isArray(req.body.restaurantLookupNames)
+    ? [...new Set(req.body.restaurantLookupNames.filter(s => typeof s === 'string'))].slice(0, 30) : [];
+  const restaurantSelect = `SELECT r.id,r.name,r.address,r.lat,r.lng,r.rating,r.user_ratings_total,
+    r.price_level,r.opening_now,r.opening_hours_json,r.business_status,r.phone,
+    r.website,r.google_maps_url,r.tags,
+    (SELECT p.image_url FROM restaurant_photos p WHERE p.restaurant_id=r.id
+      AND p.image_url IS NOT NULL ORDER BY p.id LIMIT 1) AS image_url
+    FROM restaurants r`;
+  let matchedRestaurants = [];
+  if (!isFollowUp && directNameQuery) {
+    const matched = await pg.query(
+      `${restaurantSelect} WHERE strpos(lower(r.name),lower($1)) > 0
+       ORDER BY CASE WHEN lower(trim(r.name))=lower($1) THEN 0 ELSE 1 END,
+         r.rating DESC NULLS LAST LIMIT 50`, [directNameQuery]);
+    matchedRestaurants = matched.rows;
+  } else if (!isFollowUp && lookupNames.length) {
+    const matched = await pg.query(
+      `${restaurantSelect} WHERE r.name = ANY($1::text[])
+       ORDER BY r.rating DESC NULLS LAST LIMIT 30`, [lookupNames]);
+    // 防止前端任意傳入非問題提及的餐廳。
+    matchedRestaurants = matched.rows.filter(r => {
+      const whole = r.name.replace(/\s+/g, '').toLowerCase();
+      const prefix = r.name.trim().split(/[\s　（(\-－—]+/)[0].toLowerCase();
+      const q = question.replace(/\s+/g, '').toLowerCase();
+      return q.includes(whole) || (prefix.length >= 3 && q.includes(prefix)) ||
+        (prefix.length >= 3 && q.includes(prefix.slice(0, 3)));
+    });
   }
-
 
   const byReviews = /(評價人數|評論數|評論人數|最多人|較多人|多少人|人數|點評)/.test(question);
   const byRating = /(評分|評價高|評價最|星等|幾顆星|最高分)/.test(question);
@@ -353,19 +370,29 @@ app.post('/api/gpt', route(async (req, res) => {
   const byExpensive = /(最貴|價格最高)/.test(question);
   let replyText;
 
-  if (exactRestaurant) {
-    const statusText =
-      exactRestaurant.business_status === "CLOSED_PERMANENTLY"
-        ? "（已永久停業）"
-        : exactRestaurant.business_status === "CLOSED_TEMPORARILY"
-          ? "（目前暫時停業）"
-          : "";
-
-    replyText =
-      `已找到「${exactRestaurant.name}」${statusText}，` +
-      `已在主畫面顯示這間餐廳。` +
-      `<<<SEARCH:${exactRestaurant.name}>>>`;
-
+  if (!isFollowUp && directNameQuery) {
+    if (!matchedRestaurants.length) {
+      replyText = `找不到名稱包含「${directNameQuery}」的餐廳，請確認店名或換個關鍵字。<<<SEARCH:>>>`;
+    } else {
+      replyText = `找到 ${matchedRestaurants.length} 間名稱包含「${directNameQuery}」的餐廳，已在主畫面顯示。` +
+        `<<<SEARCH:${matchedRestaurants.map(s => s.name).join('|')}>>>`;
+    }
+  } else if (!isFollowUp && lookupNames.length && matchedRestaurants.length) {
+    const menuQuestion = req.body.menuQuestion === true ||
+      /(最多人點|點什麼|熱門餐點|必點|招牌菜|菜單)/.test(question);
+    const best = matchedRestaurants[0];
+    if (menuQuestion) {
+      replyText = `已找到「${best.name}」。目前資料庫沒有實際點餐銷量或熱門餐點排行榜，無法確定最多人點哪一道；可參考店家菜單與顧客評論。`;
+    } else if (/(評分|評價|評論)/.test(question)) {
+      replyText = `「${best.name}」目前記錄評分 ${best.rating ?? '未知'}，評論 ${best.user_ratings_total ?? '未知'} 則。`;
+    } else if (/(價格|價位|便宜|多少錢)/.test(question)) {
+      replyText = `「${best.name}」的價格級距為 ${best.price_level ?? '未知'}（不代表實際菜單售價）。`;
+    } else if (/(地址|在哪)/.test(question)) {
+      replyText = `「${best.name}」地址：${best.address || '資料庫未提供'}。`;
+    } else {
+      replyText = `已找到「${best.name}」，請參考主畫面的餐廳資料；未收錄的資訊無法確認。`;
+    }
+    replyText += `<<<SEARCH:${matchedRestaurants.map(s => s.name).join('|')}>>>`;
   } else if (!isFollowUp && generalCandidates.length === 0) {
     replyText = '目前沒有符合條件的餐廳，請嘗試放寬搜尋條件。<<<SEARCH:>>>';
   } else if (alternativeFollowUp) {
@@ -451,7 +478,8 @@ app.post('/api/gpt', route(async (req, res) => {
     return convId;
   });
   
-  res.json({ ok: true, reply: replyText, conversationId: currentConvId });
+  res.json({ ok: true, reply: replyText, conversationId: currentConvId,
+    restaurants: matchedRestaurants });
 }));
 
 
@@ -643,6 +671,9 @@ app.get('/api/posts/restaurants/search', authMiddleware, route(async (req, res) 
   const result = await pg.query('SELECT id,name,address FROM restaurants WHERE name ILIKE $1 ORDER BY rating DESC NULLS LAST,name ASC LIMIT 10', [`%${q}%`]);
   res.json({ ok: true, restaurants: result.rows });
 }));
+
+// API 路由不存在時應回 JSON，而不是前端 HTML。
+app.use('/api', (req, res) => res.status(404).json({ok:false,error:'API 路由不存在'}));
 
 // 統一處理驗證、上傳及伺服器錯誤，不把 SQL 細節傳給前端。
 app.use((err, req, res, next) => {

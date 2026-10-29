@@ -691,6 +691,22 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+// AI 店名查詢：保留「墨竹亭」可匹配「墨竹亭 中原店」的能力。
+// 只有完整名稱或有辨識度的店名第一段符合時，才當成指定店家。
+function findAiNamedStores(question) {
+  const q = question.replace(/\s+/g, "").toLowerCase();
+  return stores.filter(store => {
+    const name = String(store.name || "").trim();
+    if (!name) return false;
+    const whole = name.replace(/\s+/g, "").toLowerCase();
+    const prefix = name.split(/[\s　（(\-－—]+/)[0].toLowerCase();
+    const shortBrand = prefix.slice(0, 3);
+    return q.includes(whole) ||
+      (prefix.length >= 3 && q.includes(prefix)) ||
+      (shortBrand.length === 3 && q.includes(shortBrand));
+  });
+}
+
 async function sendAiMessage() {
   if (isSending) return;
   if (!aiInput || !aiSend || !aiOutput) return;
@@ -751,10 +767,18 @@ async function sendAiMessage() {
     ...takeoutKeywords, ...deliveryKeywords, ...otherKeywords
   ];
 
-  const storeNames = stores.map(s => s.name).filter(Boolean);
-  const mentionsStoreName = storeNames.some(name => question.includes(name));
-
-  const isRestaurantQuestion = mentionsStoreName || allKeywords.some((keyword) =>
+  const namedStores = findAiNamedStores(question);
+  // 兩字以上且沒有一般問句詞彙的短文字，視為「可能的店名」，交給資料庫驗證。
+  // 不能只用全名 question.includes(name)，否則「墨竹亭」找不到「墨竹亭 中原店」。
+  const directNameQuery = question.length >= 2 && question.length <= 40 &&
+    !/[？?，,。！!\n]/.test(question) &&
+    !/(推薦|幫我|請問|怎麼|如何|什麼|哪間|哪家|餐廳|評分|評價|評論|營業|有開|價格|價位|便宜|點什麼|菜單|招牌|人氣|好吃|介紹|附近|中原附近|早午餐|午餐|晚餐|現在|有沒有|還有|其他)/.test(question) &&
+    !foodTypes.includes(question);
+  const mentionsStoreName = namedStores.length > 0;
+  const menuQuestion = /(都點什麼|點什麼|點些什麼|最多人點|熱門餐點|人氣餐點|招牌菜|必點|菜單|賣什麼)/.test(question);
+  const namedRestaurantInfo = mentionsStoreName &&
+    /(都點什麼|點什麼|點些什麼|最多人點|菜單|招牌|評分|評價|評論|價格|價位|營業|有開|幾點|電話|地址|在哪|好吃|介紹|怎麼樣)/.test(question);
+  const isRestaurantQuestion = directNameQuery || mentionsStoreName || allKeywords.some((keyword) =>
     question.includes(keyword)
   );
 
@@ -812,7 +836,8 @@ async function sendAiMessage() {
     !/(重新推薦全部|重新搜尋|找新的餐廳)/.test(question);
   const newRecommendation = /(推薦|找.*餐廳|介紹.*餐廳)/.test(question) &&
     !explicitFollowUp && !alternativeFollowUp;
-  const isFollowUp = lastRecommendedNames.length > 0 &&
+  const isFollowUp = !directNameQuery && !namedRestaurantInfo &&
+    lastRecommendedNames.length > 0 &&
     (alternativeFollowUp || (!newRecommendation &&
       (explicitFollowUp || comparisonFollowUp)));
 
@@ -851,7 +876,7 @@ async function sendAiMessage() {
     }
 
     // 開始新的推薦時清除前一主題的拒絕清單
-    rejectedRestaurantNames = [];
+    if (!namedRestaurantInfo && !directNameQuery) rejectedRestaurantNames = [];
     // 先依營業需求過濾，不因評論數偏低而把所有店家排除
     selectedStores = selectedStores.filter(store => {
       const status = getAiOpenStatus(store);
@@ -903,12 +928,29 @@ async function sendAiMessage() {
         isFollowUp,
         alternativeFollowUp,
         excludeNames: rejectedRestaurantNames,
+        directNameQuery: directNameQuery ? question : null,
+        restaurantLookupNames: namedRestaurantInfo ? namedStores.map(store => store.name).slice(0, 30) : [],
+        menuQuestion,
         allowedNames: isFollowUp ? selectedStores.map(store => store.name) : []
       }),
     });
 
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
+    const responseText = await res.text();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      console.error("AI API 非 JSON 回應", res.status, res.url, responseText.slice(0, 600));
+      throw new Error(`伺服器未回傳 JSON（HTTP ${res.status}），請檢查 Render Logs`);
+    }
+    if (!res.ok || !data.ok) throw new Error(data.error || `API 錯誤（HTTP ${res.status}）`);
+
+    // 直接資料庫查到的餐廳可能不在首頁預先載入的前 500 間中。
+    if (Array.isArray(data.restaurants)) {
+      for (const found of data.restaurants) {
+        if (!stores.some(s => s.id === found.id)) stores.push(found);
+      }
+    }
 
     // 3. 更新 currentConversationId，確保下次發問屬於同一次對話
     if (data.conversationId) {
@@ -929,7 +971,7 @@ async function sendAiMessage() {
     const match = replyText.match(searchCommandRegex);
     if (match) {
       recommendedName = match[1].trim();
-      if (!isFollowUp) {
+      if (!isFollowUp && !namedRestaurantInfo) {
         lastRecommendedNames = recommendedName
           ? recommendedName.split("|").map(name => name.trim())
               .filter(name => stores.some(store => store.name === name))
@@ -962,10 +1004,13 @@ async function sendAiMessage() {
           .filter(Boolean);
 
         const searchInput = document.getElementById("search");
-        if (searchInput) {
-          searchInput.value = "";
-        }
-
+        if (searchInput) searchInput.value = "";
+        // 既有分類/價格篩選不能讓 AI 找到的店家被畫面隱藏。
+        currentCategories = [];
+        currentPriceLevels = [];
+        document.querySelectorAll(".category-btn").forEach(b => b.classList.remove("active"));
+        document.querySelector('[data-category="all"]')?.classList.add("active");
+        document.querySelectorAll(".price-btn.active").forEach(b => b.classList.remove("active"));
         render();
 
         replyContainer.innerHTML += `<p style="color:#1f9d55;font-size:0.82rem;margin:4px 0 0;">✅ 已在主畫面顯示 ${randomStores.length} 間餐廳</p>`;
