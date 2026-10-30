@@ -1211,8 +1211,20 @@ function openLoginModal() {
   if (loginModal) loginModal.style.display = "flex";
   if (registerModal) registerModal.style.display = "none";
   if (forgotPasswordModal) forgotPasswordModal.style.display = "none";
+  
+  // 🔒 鎖定背景滾動
+  document.body.classList.add('no-scroll');
 }
 
+// 關閉 Auth Modal (提供給關閉按鈕/背景遮罩呼叫)
+function closeAuthModal() {
+  if (loginModal) loginModal.style.display = "none";
+  if (registerModal) registerModal.style.display = "none";
+  if (forgotPasswordModal) forgotPasswordModal.style.display = "none";
+  
+  // 🔓 解除背景鎖定
+  document.body.classList.remove('no-scroll');
+}
 // ============================================================
 // 🔐 忘記密碼狀態
 // ============================================================
