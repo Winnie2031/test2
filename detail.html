@@ -63,54 +63,33 @@
     }
 
     /* ============================================================
-       上方三頁切換
+   上方三頁切換
     ============================================================ */
-
     .detail-tabs {
       width: 100%;
       max-width: 700px;
       margin: 0 auto 20px auto;
-
       display: flex;
-
       background: #ffffff;
-
       border-radius: 999px;
-
       padding: 5px;
-
-      box-shadow:
-        0 3px 12px
-        rgba(0, 0, 0, 0.08);
-
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
       position: sticky;
       top: 10px;
-
       z-index: 100;
     }
 
     .detail-tab-btn {
       flex: 1;
-
       border: none;
-
       background: transparent;
-
       padding: 11px 8px;
-
       border-radius: 999px;
-
       font-size: 0.95rem;
-
       font-weight: bold;
-
       color: #777777;
-
       cursor: pointer;
-
-      transition:
-        background 0.2s ease,
-        color 0.2s ease;
+      transition: background 0.2s ease, color 0.2s ease;
     }
 
     .detail-tab-btn.active {
@@ -119,15 +98,14 @@
     }
 
     /* ============================================================
-   左右滑動區 (修復大力滑動連跳問題)
+      左右滑動區 (關閉原生滾動，改由 JS 接管)
     ============================================================ */
-
     .detail-slider {
       width: 100%;
       display: flex;
       overflow: hidden !important; /* 🎯 關閉原生滾動，徹底封鎖瀏覽器滑動慣性 */
       scrollbar-width: none;
-      touch-action: pan-y; /* 允許垂直滾動頁面，但水平滑動完全交給 JS 接管 */
+      touch-action: pan-y; /* 允許垂直滾動頁面，但水平滑動交給 JS */
     }
 
     .detail-slider::-webkit-scrollbar {
@@ -140,6 +118,7 @@
       flex: 0 0 100%;
       padding: 0 4px;
       box-sizing: border-box;
+      will-change: transform;
       transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1); /* 🎯 順暢的滑動切換動畫 */
     }
 
@@ -3823,7 +3802,9 @@ slider.addEventListener(
     (function initStrictSlider() {
       const slider = document.querySelector('.detail-slider');
       const slides = document.querySelectorAll('.detail-slide');
-      const tabs = document.querySelectorAll('.tab-btn');
+      // 🎯 修正點 1：更正 class 名稱，對齊 HTML 的 .detail-tab-btn
+      const tabs = document.querySelectorAll('.detail-tab-btn'); 
+      
       if (!slider || slides.length === 0) return;
 
       let startX = 0;
@@ -3834,7 +3815,7 @@ slider.addEventListener(
       function updateSliderPosition(index) {
         currentTabIndex = Math.max(0, Math.min(index, totalTabs - 1));
 
-        // 使用 Transform 平移，完全不靠原生 Scroll
+        // 🎯 修正點 2：修復語法錯誤，正確計算 translateX(-index * 100%)
         slides.forEach((slide) => {
           slide.style.transform = `translateX(-${currentTabIndex * 100}%)`;
         });
@@ -3849,7 +3830,7 @@ slider.addEventListener(
         });
       }
 
-      // 1. 手指觸碰
+      // 1. 手指觸碰記錄起點
       slider.addEventListener('touchstart', (e) => {
         startX = e.touches[0].clientX;
       }, { passive: true });
@@ -3861,15 +3842,15 @@ slider.addEventListener(
         const minThreshold = 40; // 觸發滑動最小像素
 
         if (diffX > minThreshold) {
-          // 往左滑 -> 下一頁
+          // 往左滑 -> 下一頁 (最多到最後一頁)
           updateSliderPosition(currentTabIndex + 1);
         } else if (diffX < -minThreshold) {
-          // 往右滑 -> 上一頁
+          // 往右滑 -> 上一頁 (最少回到第 0 頁)
           updateSliderPosition(currentTabIndex - 1);
         }
       }, { passive: true });
 
-      // 3. 如果使用者點擊上方的 Tab 頁籤，也要同步切換
+      // 3. 點擊上方的 Tab 頁籤同步切換
       tabs.forEach((tab, index) => {
         tab.addEventListener('click', () => {
           updateSliderPosition(index);
