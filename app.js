@@ -5290,6 +5290,39 @@ async function deleteModalComment(commentId, postId) {
   }
 }
 
+// 🎯 終極自動防呆：只要沒有任何 Auth Modal 開著，就強制恢復背景滑動
+(function initAutoScrollUnlocker() {
+  const modalIds = ['loginModal', 'registerModal', 'forgotPasswordModal'];
+
+  function checkAndToggleScroll() {
+    // 檢查是否有任何一個 Modal 當前為顯示狀態 (display !== 'none')
+    const isAnyModalOpen = modalIds.some(id => {
+      const el = document.getElementById(id);
+      if (!el) return false;
+      const display = window.getComputedStyle(el).display;
+      return display !== 'none';
+    });
+
+    if (isAnyModalOpen) {
+      document.body.classList.add('no-scroll');
+    } else {
+      document.body.classList.remove('no-scroll');
+    }
+  }
+
+  // 頁面載入完成時先檢查一次
+  document.addEventListener('DOMContentLoaded', checkAndToggleScroll);
+
+  // 監聽三個 Modal 的 style/class 變動
+  modalIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const observer = new MutationObserver(checkAndToggleScroll);
+    observer.observe(el, { attributes: true, attributeFilter: ['style', 'class'] });
+  });
+})();
+
 
 
 
