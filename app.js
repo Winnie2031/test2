@@ -1030,198 +1030,127 @@ async function sendAiMessage() {
     } else if (!menuContextFollowUp && !menuQuestion && !namedRestaurantInfo && !directNameQuery) {
       activeMenuRestaurantName = "";
     }
-    let replyText = data.reply;
-    let recommendedName = "";
+    let replyText = String(data.reply || "");
+    const searchMatch = replyText.match(/<<<SEARCH:([^>]*)>>>/);
+    const recommendedName = searchMatch ? searchMatch[1].trim() : "";
 
+    // 內部保留完整 SEARCH 名單，聊天視窗不顯示控制標記。
     aiHistoryMessages.push(
       { role: "user", content: question },
       { role: "assistant", content: replyText }
     );
-
     aiHistoryMessages = aiHistoryMessages.slice(-20);
 
-    const searchCommandRegex = /<<<SEARCH:([^>]*)>>>/;
-    const match = replyText.match(searchCommandRegex);
-    if (match) {
-      recommendedName = match[1].trim();
-      if (!isFollowUp && !namedRestaurantInfo && !menuContextFollowUp && !menuQuestion) {
-        lastRecommendedNames = recommendedName
-          ? recommendedName.split("|").map(name => name.trim())
-              .filter(name => stores.some(store => store.name === name))
-          : [];
-      }
-      // 追問只更新聚焦餐廳；保留原始推薦的整份名單。
-      if (recommendedName) {
-        lastFocusedNames = recommendedName.split("|")
-          .map(name => name.trim())
-          .filter(name => name && !rejectedRestaurantNames.includes(name));
-      }
-      // 即使 SEARCH 為空，也要移除標記，避免直接顯示在聊天窗。
-      replyText = replyText.replace(searchCommandRegex, "").trim();
-    }
+    const cleanReply = replyText
+      .replace(/<<<SEARCH:[^>]*>>>/gi, "")
+      .replace(/<<<PICKS:[^>]*>>>/gi, "")
+      .replace(/\[?\{?\s*PICKS\s*[:：]\s*[\d|\s]*[\]\}]?/gi, "")
+      .trim();
 
     const starContainer = document.getElementById(`star_${msgId}`);
     if (starContainer && data.conversationId) {
-      starContainer.innerHTML = `<button onclick="toggleAiFavorite(${data.conversationId}, false, this)" style="background:none; border:none; font-size: 1.3rem; cursor: pointer; color: #ccc;" title="加入收藏">☆</button>`;
+      starContainer.innerHTML = `<button onclick="toggleAiFavorite(${data.conversationId}, false, this)" style="background:none; border:none; font-size:1.3rem; cursor:pointer; color:#ccc;" title="加入收藏">☆</button>`;
     }
 
     const replyContainer = document.getElementById(`reply_${msgId}`);
     if (replyContainer) {
-      replyContainer.innerHTML = `<p style="margin: 0; color: #333;"><strong>🤖 AI：</strong>${escapeHtml(replyText)}</p>`;
-      
       if (recommendedName) {
-        const targetNames = recommendedName.split("|").map(n => n.trim()).filter(Boolean);
-
-        const allRecommendedStores = targetNames
+        // AI 已推薦的名單：可能只有 5 間，但不代表資料庫只有 5 間符合需求。
+        const aiNames = [...new Set(
+          recommendedName.split("|").map(name => name.trim()).filter(Boolean)
+        )];
+        const aiStores = aiNames
           .map(name => stores.find(store => store.name === name))
           .filter(Boolean);
 
-        // 主畫面顯示全部符合需求的餐廳
-        randomStores = allRecommendedStores;
+        // 對於明確餐點／標籤查詢，主畫面使用「全部符合標籤及既有條件」
+        // 的 selectedStores，避免被 AI PICKS 選取數量限制。
+        const hasFoodTag = foodTypes.some(type => question.includes(type));
+        const hasMappedIntent = Object.keys(intentTagMap)
+          .some(keyword => question.includes(keyword));
+        const isCategoryRecommendation =
+          !isFollowUp && !directNameQuery && !namedRestaurantInfo &&
+          !menuContextFollowUp && !menuQuestion &&
+          (hasFoodTag || hasMappedIntent);
 
-        // AI 聊天視窗只顯示前 5 間
-        const displayStores = allRecommendedStores.slice(0, 5);
+        const allRecommendedStores = isCategoryRecommendation
+          ? [...selectedStores]
+          : aiStores;
 
-        // 更新推薦名單，供後續追問使用
+        // 主畫面保留全部符合需求的店家；聊天室最多列出 5 家。
+        randomStores = [...allRecommendedStores];
+        const displayStores = aiStores.length
+          ? aiStores.slice(0, 5)
+          : allRecommendedStores.slice(0, 5);
+
         if (!isFollowUp && !namedRestaurantInfo &&
             !menuContextFollowUp && !menuQuestion) {
           lastRecommendedNames = allRecommendedStores.map(store => store.name);
         }
+        lastFocusedNames = displayStores.map(store => store.name)
+          .filter(name => !rejectedRestaurantNames.includes(name));
+
+        const matchedFood = [...foodTypes]
+          .filter(type => question.includes(type))
+          .sort((a, b) => b.length - a.length)[0];
+
+        const allOpen = randomStores.length > 0 &&
+          randomStores.every(store => getAiOpenStatus(store) === "open");
+
+        let intro = matchedFood
+          ? `以下是符合「${matchedFood}」需求的餐廳：`
+          : "以下是為你推薦的餐廳：";
+        if (matchedFood && allOpen) {
+          intro = `目前營業中且符合「${matchedFood}」需求的餐廳包括：`;
+        }
+
+        const listHtml = displayStores.map(store =>
+          `<li style="margin-bottom:5px;">${escapeHtml(store.name)}</li>`
+        ).join("");
+
+        replyContainer.innerHTML = `
+          <div style="color:#333;line-height:1.8;">
+            <strong>🤖 AI：</strong>${escapeHtml(intro)}
+            <ol style="margin:6px 0 0;padding-left:35px;">
+              ${listHtml}
+            </ol>
+          </div>
+        `;
 
         const searchInput = document.getElementById("search");
         if (searchInput) searchInput.value = "";
-        // 既有分類/價格篩選不能讓 AI 找到的店家被畫面隱藏。
         currentCategories = [];
         currentPriceLevels = [];
-        document.querySelectorAll(".category-btn").forEach(b => b.classList.remove("active"));
-        document.querySelector('[data-category="all"]')?.classList.add("active");
-        document.querySelectorAll(".price-btn.active").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".category-btn")
+          .forEach(b => b.classList.remove("active"));
+        document.querySelector('[data-category="all"]')
+          ?.classList.add("active");
+        document.querySelectorAll(".price-btn.active")
+          .forEach(b => b.classList.remove("active"));
         render();
 
-        replyContainer.innerHTML += `<p style="color:#1f9d55;font-size:0.82rem;margin:4px 0 0;">✅ 已在主畫面顯示 ${randomStores.length} 間餐廳</p>`;
-
-        const resetRandomBtn = document.getElementById("resetRandomBtn");
-        if (resetRandomBtn) {
-          resetRandomBtn.style.display = "flex";
-        }
+        replyContainer.innerHTML += `
+          <p style="color:#1f9d55;font-size:0.82rem;margin:6px 0 0;">
+            ✅ 已在主畫面顯示 ${randomStores.length} 間餐廳
+          </p>
+        `;
+        const resetBtn = document.getElementById("resetRandomBtn");
+        if (resetBtn) resetBtn.style.display = "flex";
+      } else {
+        replyContainer.innerHTML = `
+          <p style="margin:0;color:#333;line-height:1.8;">
+            <strong>🤖 AI：</strong>${escapeHtml(cleanReply)}
+          </p>
+        `;
       }
     }
-} catch (err) {
-  console.error("AI 請求失敗：", err);
-
-  const replyContainer = document.getElementById(`reply_${msgId}`);
-
-  if (replyContainer) {
-    // 清除 AI 控制標記，避免顯示 PICKS / SEARCH
-    const cleanReply = replyText
-      .replace(/<<<PICKS:[^>]*>>>/gi, "")
-      .replace(/<<<SEARCH:[^>]*>>>/gi, "")
-      .replace(/\[?PICKS\s*[:：]\s*[\d|\s]*\]?/gi, "")
-      .trim();
-
-    if (recommendedName) {
-      const targetNames = [
-        ...new Set(
-          recommendedName.split("|")
-            .map(name => name.trim())
-            .filter(Boolean)
-        )
-      ];
-
-      // 取得所有 AI 推薦且存在資料庫中的餐廳
-      const allRecommendedStores = targetNames
-        .map(name => stores.find(store => store.name === name))
-        .filter(Boolean);
-
-      // 主畫面顯示全部符合需求的餐廳
-      randomStores = allRecommendedStores;
-
-      // AI 聊天視窗只顯示前 5 間
-      const displayStores = allRecommendedStores.slice(0, 5);
-
-      // 更新推薦名單，供後續追問使用
-      if (!isFollowUp && !namedRestaurantInfo &&
-          !menuContextFollowUp && !menuQuestion) {
-        lastRecommendedNames = allRecommendedStores.map(store => store.name);
-      }
-
-      // 後續追問也以畫面顯示的 5 間為基準
-      if (!isFollowUp && !namedRestaurantInfo &&
-          !menuContextFollowUp && !menuQuestion) {
-        lastRecommendedNames = randomStores.map(store => store.name);
-      }
-
-      // 判斷使用者想吃的餐點類型
-      const matchedFood = [...foodTypes]
-        .filter(type => question.includes(type))
-        .sort((a, b) => b.length - a.length)[0];
-
-      const allOpen = randomStores.length > 0 &&
-        randomStores.every(store => getAiOpenStatus(store) === "open");
-
-      let intro = matchedFood
-        ? `以下是符合「${matchedFood}」需求的餐廳：`
-        : "以下是為你推薦的餐廳：";
-
-      if (matchedFood && allOpen) {
-        intro = `目前營業中且符合「${matchedFood}」需求的餐廳包括：`;
-      }
-
-      // 使用編號清單顯示餐廳名稱
-      const listHtml = displayStores.map(store =>
-        `<li style="margin-bottom:5px;">${escapeHtml(store.name)}</li>`
-      ).join("");
-
-      replyContainer.innerHTML = `
-        <div style="color:#333;line-height:1.8;">
-          <strong>🤖 AI：</strong>${escapeHtml(intro)}
-          <ol style="margin:6px 0 0 0;padding-left:40px;">
-            ${listHtml}
-          </ol>
-        </div>
-      `;
-
-      // 同步更新主畫面的餐廳
-      const searchInput = document.getElementById("search");
-      if (searchInput) searchInput.value = "";
-
-      currentCategories = [];
-      currentPriceLevels = [];
-
-      document.querySelectorAll(".category-btn")
-        .forEach(b => b.classList.remove("active"));
-
-      document.querySelector('[data-category="all"]')
-        ?.classList.add("active");
-
-      document.querySelectorAll(".price-btn.active")
-        .forEach(b => b.classList.remove("active"));
-
-      render();
-
-      replyContainer.innerHTML += `
-        <p style="color:#1f9d55;font-size:0.82rem;margin:6px 0 0;">
-          ✅ 已在主畫面顯示 ${randomStores.length} 間餐廳
-        </p>
-      `;
-
-      const resetRandomBtn = document.getElementById("resetRandomBtn");
-      if (resetRandomBtn) {
-        resetRandomBtn.style.display = "flex";
-      }
-
-    } else {
-      // 一般問答或追問，保留 AI 原本的文字回答
-      replyContainer.innerHTML = `
-        <p style="margin:0;color:#333;line-height:1.8;">
-          <strong>🤖 AI：</strong>${escapeHtml(cleanReply)}
-        </p>
-      `;
+  } catch (err) {
+    console.error("AI 請求失敗：", err);
+    const replyContainer = document.getElementById(`reply_${msgId}`);
+    if (replyContainer) {
+      replyContainer.textContent = `🤖 AI：目前無法完成推薦，請稍後再試。${err.message ? "（" + err.message + "）" : ""}`;
     }
   }
-
-}
-
 
   aiSend.disabled = false;
   aiSend.textContent = "送出";
