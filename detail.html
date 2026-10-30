@@ -79,6 +79,17 @@
       z-index: 100;
     }
 
+    /* 🎯 專屬手機版設定 (螢幕寬度 768px 以下才生效) */
+    @media (max-width: 768px) {
+      .detail-tabs {
+        /* 把上方邊界拉大到 50px，避開左上角的返回按鈕 */
+        margin-top: 50px;
+        
+        /* 捲動吸頂時同樣保持在返回按鈕下方 */
+        top: 55px;
+      }
+    }
+
     .detail-tab-btn {
       flex: 1;
       border: none;
@@ -3800,6 +3811,59 @@ slider.addEventListener(
 );
       }
     );
+
+    const slider = document.querySelector('.detail-slider');
+    const tabs = document.querySelectorAll('.detail-tab-btn');
+
+    const pageW = () => slider.clientWidth;
+    const currentIndex = () => Math.round(slider.scrollLeft / pageW());
+
+    let anchor = 0;            // 這次手勢開始時所在的頁
+    let programmatic = false;  // 點頁籤造成的捲動不限制
+    let endTimer;
+
+    // 手勢開始：記錄起點頁
+    function onGestureStart() {
+      if (!programmatic) anchor = currentIndex();
+    }
+    slider.addEventListener('touchstart', onGestureStart, { passive: true });
+    slider.addEventListener('pointerdown', onGestureStart);
+
+    // 立即停在某個位置，並切斷慣性（iOS 需要 overflow 切換才停得住）
+    function hardStop(left) {
+      slider.style.overflowX = 'hidden';
+      slider.scrollTo({ left, behavior: 'instant' });
+      requestAnimationFrame(() => {
+        slider.style.overflowX = 'auto';
+      });
+    }
+
+    slider.addEventListener('scroll', () => {
+      if (!programmatic) {
+        const w = pageW();
+        const min = Math.max(0, (anchor - 1) * w);
+        const max = Math.min(slider.scrollWidth - w, (anchor + 1) * w);
+
+        if (slider.scrollLeft < min - 1) hardStop(min);
+        else if (slider.scrollLeft > max + 1) hardStop(max);
+      }
+
+      // 捲動停止後：更新起點頁、同步頁籤
+      clearTimeout(endTimer);
+      endTimer = setTimeout(() => {
+        programmatic = false;
+        anchor = currentIndex();
+        tabs.forEach((btn, i) => btn.classList.toggle('active', i === anchor));
+      }, 120);
+    }, { passive: true });
+
+    // 點頁籤：可以直接跳到任何一頁
+    tabs.forEach((btn, i) => {
+      btn.addEventListener('click', () => {
+        programmatic = true;
+        slider.scrollTo({ left: i * pageW(), behavior: 'smooth' });
+      });
+    });
 
     
     
