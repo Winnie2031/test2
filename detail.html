@@ -103,9 +103,10 @@
     .detail-slider {
       width: 100%;
       display: flex;
-      overflow: hidden !important; /* 🎯 關閉原生滾動，徹底封鎖瀏覽器滑動慣性 */
+      overflow: hidden !important;
       scrollbar-width: none;
-      touch-action: pan-y; /* 允許垂直滾動頁面，但水平滑動交給 JS */
+      /* 🎯 關鍵修復：設為 none，讓瀏覽器把所有觸控手勢 100% 交給 JS 處理 */
+      touch-action: none; 
     }
 
     .detail-slider::-webkit-scrollbar {
@@ -116,10 +117,11 @@
       width: 100%;
       min-width: 100%;
       flex: 0 0 100%;
+      flex-shrink: 0; /* 🎯 確保每一個卡片寬度都不會被壓縮 */
       padding: 0 4px;
       box-sizing: border-box;
-      will-change: transform;
-      transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1); /* 🎯 順暢的滑動切換動畫 */
+      /* 🎯 動畫過渡效果 */
+      transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
     }
 
     .page-container {
@@ -3802,25 +3804,24 @@ slider.addEventListener(
     (function initStrictSlider() {
       const slider = document.querySelector('.detail-slider');
       const slides = document.querySelectorAll('.detail-slide');
-      // 🎯 修正點 1：更正 class 名稱，對齊 HTML 的 .detail-tab-btn
-      const tabs = document.querySelectorAll('.detail-tab-btn'); 
+      const tabs = document.querySelectorAll('.detail-tab-btn');
       
       if (!slider || slides.length === 0) return;
 
       let startX = 0;
+      let startY = 0;
       let currentTabIndex = 0;
       const totalTabs = slides.length;
 
-      // 🎯 更新頁面平移與 Tab 亮燈狀態
       function updateSliderPosition(index) {
         currentTabIndex = Math.max(0, Math.min(index, totalTabs - 1));
 
-        // 🎯 修正點 2：修復語法錯誤，正確計算 translateX(-index * 100%)
+        // 使用 transform 進行平移
         slides.forEach((slide) => {
           slide.style.transform = `translateX(-${currentTabIndex * 100}%)`;
         });
 
-        // 同步更新上方 Tab 亮燈
+        // 更新頁籤亮燈
         tabs.forEach((tab, i) => {
           if (i === currentTabIndex) {
             tab.classList.add('active');
@@ -3830,27 +3831,39 @@ slider.addEventListener(
         });
       }
 
-      // 1. 手指觸碰記錄起點
+      // 1. 觸碰開始：記錄起始座標
       slider.addEventListener('touchstart', (e) => {
         startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
       }, { passive: true });
 
-      // 2. 手指放開（計算方向，一次只許改變 ±1 頁）
+      // 2. 滑動進行中：如果主要是水平滑動，阻止瀏覽器預設干擾
+      slider.addEventListener('touchmove', (e) => {
+        const moveX = e.touches[0].clientX;
+        const moveY = e.touches[0].clientY;
+        const diffX = Math.abs(moveX - startX);
+        const diffY = Math.abs(moveY - startY);
+
+        // 當水平位移大於垂直位移時，專注於左右頁籤切換
+        if (diffX > diffY && e.cancelable) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+
+      // 3. 觸碰結束：計算方向並執行單頁位移
       slider.addEventListener('touchend', (e) => {
         const endX = e.changedTouches[0].clientX;
         const diffX = startX - endX;
-        const minThreshold = 40; // 觸發滑動最小像素
+        const minThreshold = 30; // 降低滑動門檻 (30px 即可觸發)
 
         if (diffX > minThreshold) {
-          // 往左滑 -> 下一頁 (最多到最後一頁)
-          updateSliderPosition(currentTabIndex + 1);
+          updateSliderPosition(currentTabIndex + 1); // 往左滑 -> 下一頁
         } else if (diffX < -minThreshold) {
-          // 往右滑 -> 上一頁 (最少回到第 0 頁)
-          updateSliderPosition(currentTabIndex - 1);
+          updateSliderPosition(currentTabIndex - 1); // 往右滑 -> 上一頁
         }
       }, { passive: true });
 
-      // 3. 點擊上方的 Tab 頁籤同步切換
+      // 4. 點擊頂部 Tab 切換
       tabs.forEach((tab, index) => {
         tab.addEventListener('click', () => {
           updateSliderPosition(index);
