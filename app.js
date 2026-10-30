@@ -1245,10 +1245,33 @@ function switchToForgotPassword() {
 }
 
 // 回登入視窗
+// 🎯 切換至登入視窗
 function switchToLogin() {
   if (registerModal) registerModal.style.display = "none";
   if (forgotPasswordModal) forgotPasswordModal.style.display = "none";
-  if (loginModal) loginModal.style.display = "flex";
+  if (loginModal) {
+    loginModal.style.display = "flex";
+    document.body.classList.add("no-scroll"); // 🔒 鎖定背景滾動
+  }
+}
+
+// 🎯 切換至註冊視窗
+function switchToRegister() {
+  if (loginModal) loginModal.style.display = "none";
+  if (forgotPasswordModal) forgotPasswordModal.style.display = "none";
+  if (registerModal) {
+    registerModal.style.display = "flex";
+    document.body.classList.add("no-scroll"); // 🔒 鎖定背景滾動
+  }
+}
+
+// 🎯 關閉所有驗證彈窗 (按下 X、取消或點擊遮罩時呼叫)
+function closeAuthModal() {
+  if (loginModal) loginModal.style.display = "none";
+  if (registerModal) registerModal.style.display = "none";
+  if (forgotPasswordModal) forgotPasswordModal.style.display = "none";
+  
+  document.body.classList.remove("no-scroll"); // 🔓 解除背景鎖定
 }
 
 // 關閉 Modal

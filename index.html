@@ -586,6 +586,12 @@ h1 {
       to { transform: scale(1); opacity: 1; }
     }
 
+body.no-scroll {
+  overflow: hidden !important;
+  height: 100vh !important;
+  touch-action: none !important; /* 封鎖手機 Touch 手勢的背景滾動 */
+}
+
 .login-container {
   background: white;
   padding: 40px;
