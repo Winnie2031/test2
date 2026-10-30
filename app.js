@@ -1030,16 +1030,17 @@ async function sendAiMessage() {
     } else if (!menuContextFollowUp && !menuQuestion && !namedRestaurantInfo && !directNameQuery) {
       activeMenuRestaurantName = "";
     }
-
-    let replyText = data.reply || "";
+    let replyText = data.reply;
     let recommendedName = "";
 
-    // 清除 AI 可能回傳的控制標記
-    const searchCommandRegex = /<<<SEARCH:([^>]*)>>>/;
-    const picksCommandRegex = /<<<PICKS:[^>]*>>>/gi;
-    // 額外防呆：若模型不小心輸出 [PICKS:0|2|1] 或 PICKS:0|2|1 也一起清掉
-    const loosePicksRegex = /\[?\{?\s*PICKS\s*[:：]\s*[0-9|\s]*[\]\}]?/gi;
+    aiHistoryMessages.push(
+      { role: "user", content: question },
+      { role: "assistant", content: replyText }
+    );
 
+    aiHistoryMessages = aiHistoryMessages.slice(-20);
+
+    const searchCommandRegex = /<<<SEARCH:([^>]*)>>>/;
     const match = replyText.match(searchCommandRegex);
     if (match) {
       recommendedName = match[1].trim();
@@ -1049,28 +1050,15 @@ async function sendAiMessage() {
               .filter(name => stores.some(store => store.name === name))
           : [];
       }
-
       // 追問只更新聚焦餐廳；保留原始推薦的整份名單。
       if (recommendedName) {
         lastFocusedNames = recommendedName.split("|")
           .map(name => name.trim())
           .filter(name => name && !rejectedRestaurantNames.includes(name));
       }
+      // 即使 SEARCH 為空，也要移除標記，避免直接顯示在聊天窗。
+      replyText = replyText.replace(searchCommandRegex, "").trim();
     }
-
-    // 最後統一清掉 SEARCH / PICKS 標記
-    replyText = replyText
-      .replace(searchCommandRegex, "")
-      .replace(picksCommandRegex, "")
-      .replace(loosePicksRegex, "")
-      .trim();
-
-    aiHistoryMessages.push(
-      { role: "user", content: question },
-      { role: "assistant", content: replyText }
-    );
-
-    aiHistoryMessages = aiHistoryMessages.slice(-20);
 
     const starContainer = document.getElementById(`star_${msgId}`);
     if (starContainer && data.conversationId) {
