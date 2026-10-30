@@ -3828,8 +3828,49 @@ slider.addEventListener(
       }
     );
 
+    
+    // 🎯 解決大力滑動暴衝問題：強效單頁切換控制器
+    (function initSliderGuard() {
+      const slider = document.querySelector('.detail-slider');
+      if (!slider) return;
 
+      let isScrolling = false;
+      let startX = 0;
+      let currentSlideIndex = 0;
 
+      // 1. 記錄手指觸碰起點
+      slider.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        // 計算目前停在第幾頁
+        const slideWidth = slider.clientWidth;
+        currentSlideIndex = Math.round(slider.scrollLeft / slideWidth);
+      }, { passive: true });
+
+      // 2. 當手指離開螢幕時，強行計算只跳一頁
+      slider.addEventListener('touchend', (e) => {
+        const endX = e.changedTouches[0].clientX;
+        const diffX = startX - endX;
+        const slideWidth = slider.clientWidth;
+        const minThreshold = 40; // 觸發切換的最小距離 (px)
+
+        let targetIndex = currentSlideIndex;
+
+        if (diffX > minThreshold) {
+          // 向左大力滑 -> 強制只進 1 頁
+          targetIndex = Math.min(currentSlideIndex + 1, 2);
+        } else if (diffX < -minThreshold) {
+          // 向右大力滑 -> 強制只退 1 頁
+          targetIndex = Math.max(currentSlideIndex - 1, 0);
+        }
+
+        // 強制滑動到目標頁面，不給瀏覽器慣性連跳的機會
+        slider.scrollTo({
+          left: targetIndex * slideWidth,
+          behavior: 'smooth'
+        });
+      }, { passive: true });
+    })();
+    
     /* ============================================================
        初始化
     ============================================================ */
