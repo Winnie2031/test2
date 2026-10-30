@@ -1104,8 +1104,17 @@ async function sendAiMessage() {
           intro = `目前營業中且符合「${matchedFood}」需求的餐廳包括：`;
         }
 
+        // 只縮短聊天視窗顯示的店名；完整店名仍用於資料庫比對與主畫面。
+        const shortRestaurantName = name => {
+          const shortened = String(name || "")
+            .replace(/\([^()]*\)|（[^（）]*）|\[[^\[\]]*\]|【[^【】]*】/g, "")
+            .replace(/\s{2,}/g, " ")
+            .trim();
+          return shortened || String(name || "");
+        };
+
         const listHtml = displayStores.map(store =>
-          `<li style="margin-bottom:5px;">${escapeHtml(store.name)}</li>`
+          `<li style="margin-bottom:5px;">${escapeHtml(shortRestaurantName(store.name))}</li>`
         ).join("");
 
         replyContainer.innerHTML = `
