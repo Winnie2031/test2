@@ -741,6 +741,16 @@ async function sendAiMessage() {
     "麥當勞", "肯德基", "摩斯", "摩斯漢堡", "必勝客", "達美樂", "Subway"
   ];
 
+  const intentTagMap = {
+    "喝酒": ["居酒屋", "餐酒館"],
+    "小酌": ["居酒屋", "餐酒館"],
+    "吃早餐": ["早餐", "早午餐"],
+    "吃義大利麵": ["義大利麵", "義式"],
+    "喝咖啡": ["咖啡"],
+    "吃甜點": ["甜點", "蛋糕", "鬆餅"],
+    "吃火鍋": ["火鍋", "麻辣鍋"]
+  };
+
   const timeKeywords = ["營業", "開嗎", "幾點", "關門", "現在"];
   const dineInKeywords = ["內用", "聚餐", "約會", "多人", "單人", "慶生", "聊天"];
   const takeoutKeywords = ["外帶", "帶走", "自取"];
@@ -780,24 +790,40 @@ async function sendAiMessage() {
   ];
 
   const namedStores = findAiNamedStores(question);
-  // 兩字以上且沒有一般問句詞彙的短文字，視為「可能的店名」，交給資料庫驗證。
-  // 不能只用全名 question.includes(name)，否則「墨竹亭」找不到「墨竹亭 中原店」。
-  const directNameQuery = question.length >= 2 && question.length <= 40 &&
+  
+
+  const isFoodRequest =
+  /(?:我想|想要|想吃|想喝|我要|要吃|要喝|找|有沒有|來點|想找)/.test(question) ||
+  
+  
+
+  foodTypes.some(type => question.includes(type));
+
+  const isGeneralRestaurantRequest =
+    /(?:吃|喝|早餐|午餐|晚餐|宵夜|推薦|餐廳|美食|附近|哪裡|適合|聚餐|預算|便宜)/.test(question);
+
+  const directNameQuery =
+    question.length >= 2 &&
+    question.length <= 40 &&
     !/[？?，,。！!\n]/.test(question) &&
-    !/(推薦|幫我|請問|怎麼|如何|什麼|哪間|哪家|餐廳|評分|評價|評論|營業|有開|價格|價位|便宜|點什麼|菜單|招牌|人氣|好吃|介紹|附近|中原附近|早午餐|午餐|晚餐|現在|有沒有|還有|其他)/.test(question) &&
-    !foodTypes.includes(question);
+    !isFoodRequest &&
+    !isGeneralRestaurantRequest &&
+    !/(評分|評價|評論|營業|價格|價位|菜單|招牌|介紹|其他)/.test(question);
+    
   const mentionsStoreName = namedStores.length > 0;
-  // 餐點、菜單、單品價格、停售信息及多店口味比較，都屬於「餐點資訊」，不能當作一般推薦。
+  
   const menuQuestion = /(都點什麼|點什麼|點些什麼|最多人點|最多人買|銷量|賣最好|熱門餐點|人氣餐點|招牌菜|必點|菜單|賣什麼|停售|停賣|下架|每一道|每道|餐點|菜色|不吃辣|不辣|辣度|適合.*人|哪家比較適合)/.test(question) ||
     (namedStores.length > 0 && /(實際價格|確切價格|多少錢)/.test(question));
+  
   const namedRestaurantInfo = mentionsStoreName &&
     /(都點什麼|點什麼|點些什麼|最多人點|銷量|賣最好|菜單|招牌|餐點|菜色|停售|停賣|下架|辣|適合|哪家|比較|評分|評價|評論|價格|價位|營業|有開|幾點|電話|地址|在哪|好吃|介紹|怎麼樣)/.test(question);
-  // 「150 元還有其他選擇」「那道不辣嗎」是同一家店的餐點追問，
-  // 不能被「其他」誤判成其他餐廳推薦。
+  
+  
   const menuContextFollowUp = Boolean(activeMenuRestaurantName) && !mentionsStoreName &&
     !/(重新推薦餐廳|換一家餐廳|其他餐廳|附近餐廳|找新的餐廳)/.test(question) &&
     /(預算|\d+\s*元|\d+\s*塊|不吃辣|不辣|辣度|那一道|那道|這道|餐點|菜色|菜單|停售|下架|銷量|點什麼|吃什麼|還有其他選擇|其他選擇|其他可以點|其他能點|便宜一點)/.test(question);
-  const isRestaurantQuestion = menuContextFollowUp || directNameQuery || mentionsStoreName || allKeywords.some((keyword) =>
+  
+    const isRestaurantQuestion = menuContextFollowUp || directNameQuery || mentionsStoreName || allKeywords.some((keyword) =>
     question.includes(keyword)
   );
 
@@ -883,11 +909,33 @@ async function sendAiMessage() {
       .map(name => stores.find(store => store.name === name))
       .filter(Boolean);
   } else {
+    // 將自然語言轉換成相關標籤
+    const intentTags = Object.entries(intentTagMap)
+      .filter(([keyword]) => question.includes(keyword))
+      .flatMap(([, tags]) => tags);
+
     const matched = stores.filter(store => {
       const name = store.name || "";
-      const tags = Array.isArray(store.tags) ? store.tags.join(" ") : String(store.tags || "");
-      return (name && ( question.includes(name) || name.includes(question.trim()))) ||
-        foodTypes.some(type => question.includes(type) && (tags.includes(type) || name.includes(type)));
+      const tags = Array.isArray(store.tags)
+        ? store.tags
+        : [];
+
+      // 1. 比對餐廳名稱
+      const matchName =
+        question.includes(name) && name.length > 0;
+
+      // 2. 比對原本的 foodTypes
+      const matchFoodType = foodTypes.some(type =>
+        question.includes(type) &&
+        (tags.includes(type) || name.includes(type))
+      );
+
+      // 3. 比對自然語言對應的標籤
+      const matchIntent = intentTags.some(tag =>
+        tags.includes(tag)
+      );
+
+      return matchName || matchFoodType || matchIntent;
     });
     selectedStores = matched.length ? matched : stores;
     if (wantsOther && lastRecommendedNames.length) {
@@ -903,8 +951,6 @@ async function sendAiMessage() {
       if (asksOpenNow && status !== "open") return false;
       return true;
     });
-
-    // 評論數少的店家不排除，改由貝氏校正評分決定優先順序。
 
     // 營業加分 + 貝氏校正評分，並以評論數做同分時的次排序
     selectedStores = [...selectedStores].sort((a, b) =>
