@@ -1072,9 +1072,21 @@ async function sendAiMessage() {
       if (recommendedName) {
         const targetNames = recommendedName.split("|").map(n => n.trim()).filter(Boolean);
 
-        randomStores = targetNames
+        const allRecommendedStores = targetNames
           .map(name => stores.find(store => store.name === name))
           .filter(Boolean);
+
+        // 主畫面顯示全部符合需求的餐廳
+        randomStores = allRecommendedStores;
+
+        // AI 聊天視窗只顯示前 5 間
+        const displayStores = allRecommendedStores.slice(0, 5);
+
+        // 更新推薦名單，供後續追問使用
+        if (!isFollowUp && !namedRestaurantInfo &&
+            !menuContextFollowUp && !menuQuestion) {
+          lastRecommendedNames = allRecommendedStores.map(store => store.name);
+        }
 
         const searchInput = document.getElementById("search");
         if (searchInput) searchInput.value = "";
