@@ -125,15 +125,9 @@
     .detail-slider {
       width: 100%;
       display: flex;
-      overflow-x: auto;
-      overflow-y: hidden;
-      scroll-snap-type: x mandatory;
-      scroll-behavior: smooth;
+      overflow: hidden !important; /* 🎯 關閉原生滾動，徹底封鎖瀏覽器滑動慣性 */
       scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
-
-      /* 🎯 關鍵修復：強制每次滑動停在下一個 Slide，絕不允許跨頁暴衝！ */
-      scroll-snap-stop: always; 
+      touch-action: pan-y; /* 允許垂直滾動頁面，但水平滑動完全交給 JS 接管 */
     }
 
     .detail-slider::-webkit-scrollbar {
@@ -144,13 +138,9 @@
       width: 100%;
       min-width: 100%;
       flex: 0 0 100%;
-      scroll-snap-align: start;
-      
-      /* 🎯 補強：確保每一個 Slide 獨立停靠 */
-      scroll-snap-stop: always; 
-      
       padding: 0 4px;
       box-sizing: border-box;
+      transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1); /* 🎯 順暢的滑動切換動畫 */
     }
 
     .page-container {
@@ -3829,48 +3819,64 @@ slider.addEventListener(
     );
 
     
-    // 🎯 解決大力滑動暴衝問題：強效單頁切換控制器
-    (function initSliderGuard() {
+    // 🎯 100% 防暴衝：JS 完美單頁滑動控制器
+    (function initStrictSlider() {
       const slider = document.querySelector('.detail-slider');
-      if (!slider) return;
+      const slides = document.querySelectorAll('.detail-slide');
+      const tabs = document.querySelectorAll('.tab-btn');
+      if (!slider || slides.length === 0) return;
 
-      let isScrolling = false;
       let startX = 0;
-      let currentSlideIndex = 0;
+      let currentTabIndex = 0;
+      const totalTabs = slides.length;
 
-      // 1. 記錄手指觸碰起點
+      // 🎯 更新頁面平移與 Tab 亮燈狀態
+      function updateSliderPosition(index) {
+        currentTabIndex = Math.max(0, Math.min(index, totalTabs - 1));
+
+        // 使用 Transform 平移，完全不靠原生 Scroll
+        slides.forEach((slide) => {
+          slide.style.transform = `translateX(-${currentTabIndex * 100}%)`;
+        });
+
+        // 同步更新上方 Tab 亮燈
+        tabs.forEach((tab, i) => {
+          if (i === currentTabIndex) {
+            tab.classList.add('active');
+          } else {
+            tab.classList.remove('active');
+          }
+        });
+      }
+
+      // 1. 手指觸碰
       slider.addEventListener('touchstart', (e) => {
         startX = e.touches[0].clientX;
-        // 計算目前停在第幾頁
-        const slideWidth = slider.clientWidth;
-        currentSlideIndex = Math.round(slider.scrollLeft / slideWidth);
       }, { passive: true });
 
-      // 2. 當手指離開螢幕時，強行計算只跳一頁
+      // 2. 手指放開（計算方向，一次只許改變 ±1 頁）
       slider.addEventListener('touchend', (e) => {
         const endX = e.changedTouches[0].clientX;
         const diffX = startX - endX;
-        const slideWidth = slider.clientWidth;
-        const minThreshold = 40; // 觸發切換的最小距離 (px)
-
-        let targetIndex = currentSlideIndex;
+        const minThreshold = 40; // 觸發滑動最小像素
 
         if (diffX > minThreshold) {
-          // 向左大力滑 -> 強制只進 1 頁
-          targetIndex = Math.min(currentSlideIndex + 1, 2);
+          // 往左滑 -> 下一頁
+          updateSliderPosition(currentTabIndex + 1);
         } else if (diffX < -minThreshold) {
-          // 向右大力滑 -> 強制只退 1 頁
-          targetIndex = Math.max(currentSlideIndex - 1, 0);
+          // 往右滑 -> 上一頁
+          updateSliderPosition(currentTabIndex - 1);
         }
-
-        // 強制滑動到目標頁面，不給瀏覽器慣性連跳的機會
-        slider.scrollTo({
-          left: targetIndex * slideWidth,
-          behavior: 'smooth'
-        });
       }, { passive: true });
+
+      // 3. 如果使用者點擊上方的 Tab 頁籤，也要同步切換
+      tabs.forEach((tab, index) => {
+        tab.addEventListener('click', () => {
+          updateSliderPosition(index);
+        });
+      });
     })();
-    
+
     /* ============================================================
        初始化
     ============================================================ */
