@@ -1206,47 +1206,74 @@ const loginModal = document.getElementById('loginModal');
 const registerModal = document.getElementById('registerModal');
 const forgotPasswordModal = document.getElementById('forgotPasswordModal');
 
-// 打開登入 Modal
+// 🔒 統一的鎖定與關閉邏輯
 function openLoginModal() {
   if (loginModal) loginModal.style.display = "flex";
   if (registerModal) registerModal.style.display = "none";
   if (forgotPasswordModal) forgotPasswordModal.style.display = "none";
-  
-  // 🔒 鎖定背景滾動
   document.body.classList.add('no-scroll');
 }
 
-// 關閉 Auth Modal (提供給關閉按鈕/背景遮罩呼叫)
+// 🎯 統一代稱：關閉 Auth Modal (相容 closeAuthModal 與 closeModals)
 function closeAuthModal() {
-  if (loginModal) loginModal.style.display = "none";
-  if (registerModal) registerModal.style.display = "none";
-  if (forgotPasswordModal) forgotPasswordModal.style.display = "none";
-  
+  if (loginModal) loginModal.style.display = 'none';
+  if (registerModal) registerModal.style.display = 'none';
+  if (forgotPasswordModal) forgotPasswordModal.style.display = 'none';
+
+  // 清空輸入框
+  document.querySelectorAll('.modal-overlay input').forEach(input => input.value = '');
+
   // 🔓 解除背景鎖定
   document.body.classList.remove('no-scroll');
 }
+
+// 🎯 讓舊的 closeModals 函式指向 closeAuthModal，解決 detail.html 呼叫失效問題！
+function closeModals() {
+  closeAuthModal();
+}
+
 // ============================================================
-// 🔐 忘記密碼狀態
+// 🔐 視窗切換邏輯
 // ============================================================
 
-// 切換到註冊視窗
+// 切換至登入視窗
+function switchToLogin() {
+  if (registerModal) registerModal.style.display = "none";
+  if (forgotPasswordModal) forgotPasswordModal.style.display = "none";
+  if (loginModal) {
+    loginModal.style.display = "flex";
+    document.body.classList.add("no-scroll");
+  }
+}
+
+// 切換至註冊視窗
 function switchToRegister() {
-  if (loginModal) loginModal.style.display = 'none';
-  if (forgotPasswordModal) forgotPasswordModal.style.display = 'none';
-  if (registerModal) registerModal.style.display = 'flex';
+  if (loginModal) loginModal.style.display = "none";
+  if (forgotPasswordModal) forgotPasswordModal.style.display = "none";
+  if (registerModal) {
+    registerModal.style.display = "flex";
+    document.body.classList.add("no-scroll");
+  }
 }
 
 // 切換到忘記密碼視窗
 function switchToForgotPassword() {
   if (loginModal) loginModal.style.display = 'none';
   if (registerModal) registerModal.style.display = 'none';
-  if (forgotPasswordModal) forgotPasswordModal.style.display = 'flex';
-  
+  if (forgotPasswordModal) {
+    forgotPasswordModal.style.display = 'flex';
+    document.body.classList.add("no-scroll");
+  }
+
   // 清空輸入框
-  document.getElementById("forgot-username").value = "";
-  document.getElementById("forgot-phone").value = "";
-  document.getElementById("forgot-password").value = "";
-  
+  const forgotUser = document.getElementById("forgot-username");
+  const forgotPhone = document.getElementById("forgot-phone");
+  const forgotPass = document.getElementById("forgot-password");
+
+  if (forgotUser) forgotUser.value = "";
+  if (forgotPhone) forgotPhone.value = "";
+  if (forgotPass) forgotPass.value = "";
+
   // 恢復提示文字狀態
   const hint = document.getElementById("forgotPasswordHint");
   if (hint) {
@@ -1254,44 +1281,6 @@ function switchToForgotPassword() {
     hint.style.color = "#888";
     hint.style.fontWeight = "normal";
   }
-}
-
-// 回登入視窗
-// 🎯 切換至登入視窗
-function switchToLogin() {
-  if (registerModal) registerModal.style.display = "none";
-  if (forgotPasswordModal) forgotPasswordModal.style.display = "none";
-  if (loginModal) {
-    loginModal.style.display = "flex";
-    document.body.classList.add("no-scroll"); // 🔒 鎖定背景滾動
-  }
-}
-
-// 🎯 切換至註冊視窗
-function switchToRegister() {
-  if (loginModal) loginModal.style.display = "none";
-  if (forgotPasswordModal) forgotPasswordModal.style.display = "none";
-  if (registerModal) {
-    registerModal.style.display = "flex";
-    document.body.classList.add("no-scroll"); // 🔒 鎖定背景滾動
-  }
-}
-
-// 🎯 關閉所有驗證彈窗 (按下 X、取消或點擊遮罩時呼叫)
-function closeAuthModal() {
-  if (loginModal) loginModal.style.display = "none";
-  if (registerModal) registerModal.style.display = "none";
-  if (forgotPasswordModal) forgotPasswordModal.style.display = "none";
-  
-  document.body.classList.remove("no-scroll"); // 🔓 解除背景鎖定
-}
-
-// 關閉 Modal
-function closeModals() {
-  if (loginModal) loginModal.style.display = 'none';
-  if (registerModal) registerModal.style.display = 'none';
-  if (forgotPasswordModal) forgotPasswordModal.style.display = 'none';
-  document.querySelectorAll('.modal-overlay input').forEach(input => input.value = '');
 }
 
 // 點黑色背景關閉

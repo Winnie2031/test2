@@ -3571,106 +3571,109 @@ dialog.ai-history-dialog .modal-content {
 
   
 
-  <div id="loginModal" class="modal-overlay" style="display: none;">
-    <div class="login-container">
-      <span class="close-btn" onclick="closeModals()">&times;</span>
-      <h2 style="text-align: left; margin-bottom: 20px;">登入</h2>
+  <!-- 1. 登入 Modal -->
+<div id="loginModal" class="modal-overlay" style="display: none;" onclick="closeModals()">
+  <div class="login-container" onclick="event.stopPropagation()">
+    <span class="close-btn" onclick="closeModals()">&times;</span>
+    <h2 style="text-align: left; margin-bottom: 20px;">登入</h2>
 
-      <div class="input-group">
-        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">帳號</label>
-        <input id="loginUsername" placeholder="請輸入您的帳號" autocomplete="username">
-      </div>
+    <div class="input-group">
+      <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">帳號</label>
+      <input id="loginUsername" placeholder="請輸入您的帳號" autocomplete="username">
+    </div>
 
-      <div class="input-group">
-        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">密碼</label>
-        <input id="loginPassword" type="password" placeholder="請輸入您的密碼" autocomplete="current-password">
-      </div>
+    <div class="input-group">
+      <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">密碼</label>
+      <input id="loginPassword" type="password" placeholder="請輸入您的密碼" autocomplete="current-password">
+    </div>
 
-      <div style="text-align: right; margin-bottom: 20px; font-size: 0.9rem;">
-        <a href="javascript:void(0)" onclick="switchToForgotPassword()" style="color: #888; text-decoration: none; margin-right: 15px;">忘記密碼？</a>
-        <span style="color: #666;">還沒有帳號嗎？</span>
-        <a href="javascript:void(0)" onclick="switchToRegister()" style="color: #4da6ff; text-decoration: none; font-weight: bold;">前往註冊</a>
-      </div>
+    <div style="text-align: right; margin-bottom: 20px; font-size: 0.9rem;">
+      <a href="javascript:void(0)" onclick="switchToForgotPassword()" style="color: #888; text-decoration: none; margin-right: 15px;">忘記密碼？</a>
+      <span style="color: #666;">還沒有帳號嗎？</span>
+      <a href="javascript:void(0)" onclick="switchToRegister()" style="color: #4da6ff; text-decoration: none; font-weight: bold;">前往註冊</a>
+    </div>
 
-      <div class="modal-buttons">
-        <button id="loginBtn" class="btn-primary" onclick="submitLogin()">登入</button>
-        <button class="btn-secondary" onclick="closeModals()">取消</button>
-      </div>
+    <div class="modal-buttons">
+      <button id="loginBtn" class="btn-primary" onclick="submitLogin()">登入</button>
+      <button class="btn-secondary" onclick="closeModals()">取消</button>
     </div>
   </div>
+</div>
 
-  <div id="registerModal" class="modal-overlay" style="display: none;">
-    <div class="login-container">
-      <span class="close-btn" onclick="closeModals()">&times;</span>
-      <h2 style="text-align: left; margin-bottom: 20px;">註冊</h2>
+<!-- 2. 註冊 Modal -->
+<div id="registerModal" class="modal-overlay" style="display: none;" onclick="closeModals()">
+  <div class="login-container" onclick="event.stopPropagation()">
+    <span class="close-btn" onclick="closeModals()">&times;</span>
+    <h2 style="text-align: left; margin-bottom: 20px;">註冊</h2>
 
-      <div class="input-group">
-        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">設定帳號</label>
-        <input id="reg-username" placeholder="請設定您的帳號">
-        <div id="regUsernameHint" class="hint">必須為 8 個純數字</div>
-      </div>
+    <div class="input-group">
+      <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">設定帳號</label>
+      <input id="reg-username" placeholder="請設定您的帳號">
+      <div id="regUsernameHint" class="hint">必須為 8 個純數字</div>
+    </div>
 
-      <div class="input-group">
-        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">社群暱稱 / 顯示名字</label>
-        <input id="reg-nickname" placeholder="例如：小美、小明" maxlength="20">
-        <div id="regNicknameHint" class="hint">將顯示於好友牆與匿名評論</div>
-      </div>
+    <div class="input-group">
+      <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">社群暱稱 / 顯示名字</label>
+      <input id="reg-nickname" placeholder="例如：小美、小明" maxlength="20">
+      <div id="regNicknameHint" class="hint">將顯示於好友牆與匿名評論</div>
+    </div>
 
-      <div class="input-group">
-        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">設定密碼</label>
-        <input id="reg-password" type="password" placeholder="請設定您的密碼">
-        <div id="regPasswordHint" class="hint">必須為 4~10 個英數字</div>
-      </div>
+    <div class="input-group">
+      <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">設定密碼</label>
+      <input id="reg-password" type="password" placeholder="請設定您的密碼">
+      <div id="regPasswordHint" class="hint">必須為 4~10 個英數字</div>
+    </div>
 
-      <div class="input-group">
-        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">手機號碼</label>
-        <input id="reg-phone" placeholder="例如：0912345678" maxlength="10">
-        <div id="regPhoneHint" class="hint">忘記密碼時用來驗證身份</div>
-      </div>
+    <div class="input-group">
+      <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">手機號碼</label>
+      <input id="reg-phone" placeholder="例如：0912345678" maxlength="10">
+      <div id="regPhoneHint" class="hint">忘記密碼時用來驗證身份</div>
+    </div>
 
-      <div style="text-align: right; margin-bottom: 20px; font-size: 0.9rem;">
-        <span style="color: #666;">已經有帳號了？</span>
-        <a href="javascript:void(0)" onclick="switchToLogin()" style="color: #4da6ff; text-decoration: none; font-weight: bold;">返回登入</a>
-      </div>
+    <div style="text-align: right; margin-bottom: 20px; font-size: 0.9rem;">
+      <span style="color: #666;">已經有帳號了？</span>
+      <a href="javascript:void(0)" onclick="switchToLogin()" style="color: #4da6ff; text-decoration: none; font-weight: bold;">返回登入</a>
+    </div>
 
-      <div class="modal-buttons">
-        <button id="regBtn" class="btn-primary" onclick="submitRegister()">註冊</button>
-        <button class="btn-secondary" onclick="closeModals()">取消</button>
-      </div>
+    <div class="modal-buttons">
+      <button id="regBtn" class="btn-primary" onclick="submitRegister()">註冊</button>
+      <button class="btn-secondary" onclick="closeModals()">取消</button>
     </div>
   </div>
+</div>
 
-  <div id="forgotPasswordModal" class="modal-overlay" style="display: none;">
-    <div class="login-container">
-      <span class="close-btn" onclick="closeModals()">&times;</span>
-      <h2 style="text-align: left; margin-bottom: 20px;">忘記密碼</h2>
-      
-      <div class="input-group">
-        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">您的帳號</label>
-        <input id="forgot-username" placeholder="請輸入您的帳號">
-      </div>
+<!-- 3. 忘記密碼 Modal -->
+<div id="forgotPasswordModal" class="modal-overlay" style="display: none;" onclick="closeModals()">
+  <div class="login-container" onclick="event.stopPropagation()">
+    <span class="close-btn" onclick="closeModals()">&times;</span>
+    <h2 style="text-align: left; margin-bottom: 20px;">忘記密碼</h2>
+    
+    <div class="input-group">
+      <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">您的帳號</label>
+      <input id="forgot-username" placeholder="請輸入您的帳號">
+    </div>
 
-      <div class="input-group">
-        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">註冊手機號碼</label>
-        <input id="forgot-phone" placeholder="請輸入註冊時的手機號碼" maxlength="10">
-      </div>
+    <div class="input-group">
+      <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">註冊手機號碼</label>
+      <input id="forgot-phone" placeholder="請輸入註冊時的手機號碼" maxlength="10">
+    </div>
 
-      <div class="input-group">
-        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">設定新密碼</label>
-        <input id="forgot-password" type="password" placeholder="請設定您的新密碼">
-        <div id="forgotPasswordHint" class="hint">必須為 4~10 個英數字</div>
-      </div>
+    <div class="input-group">
+      <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">設定新密碼</label>
+      <input id="forgot-password" type="password" placeholder="請設定您的新密碼">
+      <div id="forgotPasswordHint" class="hint">必須為 4~10 個英數字</div>
+    </div>
 
-      <div style="text-align: right; margin-bottom: 20px; font-size: 0.9rem;">
-        <a href="javascript:void(0)" onclick="switchToLogin()" style="color: #4da6ff; text-decoration: none; font-weight: bold;">記起密碼了？返回登入</a>
-      </div>
+    <div style="text-align: right; margin-bottom: 20px; font-size: 0.9rem;">
+      <a href="javascript:void(0)" onclick="switchToLogin()" style="color: #4da6ff; text-decoration: none; font-weight: bold;">記起密碼了？返回登入</a>
+    </div>
 
-      <div class="modal-buttons">
-        <button id="forgotBtn" class="btn-primary" onclick="submitForgotPassword()">重設密碼</button>
-        <button class="btn-secondary" onclick="closeModals()">取消</button>
-      </div>
+    <div class="modal-buttons">
+      <button id="forgotBtn" class="btn-primary" onclick="submitForgotPassword()">重設密碼</button>
+      <button class="btn-secondary" onclick="closeModals()">取消</button>
     </div>
   </div>
+</div>
 
   <div id="noteModal" class="modal-overlay" style="display: none;">
     <div class="modal-content" style="max-width: 400px;">
