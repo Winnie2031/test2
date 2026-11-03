@@ -1577,24 +1577,24 @@ function openAiFavoritesModal() {
   const aiHistoryModal = document.getElementById("aiHistoryModal");
   if (!aiHistoryModal) return;
 
+  // 搬至 body 最外層，確保置頂
   if (aiHistoryModal.parentNode !== document.body) {
     document.body.appendChild(aiHistoryModal);
   }
 
-  if (typeof aiHistoryModal.showModal === "function") {
-    try {
-      if (!aiHistoryModal.open) {
-        aiHistoryModal.showModal();
-      }
-    } catch (e) {
-      aiHistoryModal.style.display = "flex";
+  try {
+    if (!aiHistoryModal.open && typeof aiHistoryModal.showModal === "function") {
+      aiHistoryModal.showModal();
+    } else {
+      aiHistoryModal.style.display = "block";
     }
-  } else {
-    aiHistoryModal.style.display = "flex";
+  } catch (e) {
+    aiHistoryModal.style.display = "block";
   }
 
   document.body.classList.add("no-scroll");
 
+  // 載入資料
   if (typeof loadAiHistories === "function") {
     loadAiHistories("favorites");
   }
@@ -1604,26 +1604,27 @@ function openAiFavoritesModal() {
 function closeAiFavoritesModal() {
   const modal = document.getElementById("aiHistoryModal");
   if (modal) {
-    if (modal.open) {
-      modal.close(); // 銷毀 ::backdrop 原生遮罩
+    try {
+      if (modal.open) {
+        modal.close(); // 銷毀原生 ::backdrop
+      }
+    } catch (e) {
+      console.warn("關閉 dialog 失敗", e);
     }
     modal.style.display = "none";
   }
 
-  // 🔓 解除背景與頁面點擊限制
+  // 🔓 徹底解除 body 與全頁鎖定
   document.body.classList.remove("no-scroll");
   document.body.style.overflow = "";
   document.body.style.pointerEvents = "auto";
 
-  // 🎯 強制復原對話框輸入狀態
-  setTimeout(() => {
-    const aiInput = document.getElementById("aiInput");
-    if (aiInput) {
-      aiInput.disabled = false;
-      aiInput.style.pointerEvents = "auto";
-      aiInput.focus(); // 自動聚焦到輸入框，方便直接打字
-    }
-  }, 50);
+  // 🎯 解鎖對話框與輸入按鈕
+  const aiInput = document.getElementById("aiInput");
+  if (aiInput) {
+    aiInput.disabled = false;
+    aiInput.style.pointerEvents = "auto";
+  }
 }
 
 // ==================== AI 歷史紀錄與收藏功能 ====================
@@ -1683,16 +1684,13 @@ document.getElementById('aiActiveStarBtn')?.addEventListener('click', () => {
 
 // 3. 載入對話清單 (更新：加入分頁切換與對話預覽UI)
 async function loadAiHistories(filter = 'all') {
-  currentHistoryFilter = filter; // 更新目前的分頁狀態
+  currentHistoryFilter = filter;
   const token = getToken();
-  
+
   if (!token) {
     alert("請先登入才能查看收藏庫與歷史紀錄喔！");
-    
-    // 🔒 使用統一關閉函式，徹底銷毀原生 <dialog> 遮罩並解除 body 鎖定
     closeAiFavoritesModal();
-    
-    switchToLogin();
+    if (typeof switchToLogin === "function") switchToLogin();
     return;
   }
 
@@ -1700,6 +1698,7 @@ async function loadAiHistories(filter = 'all') {
   if (!listContainer) return;
 
   listContainer.innerHTML = '<p style="color: #888; text-align: center;">讀取紀錄中...</p>';
+  
   try {
     const res = await fetch("/api/ai/conversations", {
       headers: { Authorization: `Bearer ${token}` }
@@ -1707,17 +1706,13 @@ async function loadAiHistories(filter = 'all') {
     const data = await res.json();
 
     if (data.ok) {
-      let conversations = data.data;
-
-      // 根據時間排序所有的歷史紀錄 (無上限保留)
+      let conversations = data.data || [];
       conversations = conversations.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-      // 根據目前點擊的分頁來過濾要顯示的清單
       const displayConvs = currentHistoryFilter === 'favorites' 
         ? conversations.filter(c => c.is_favorite) 
         : conversations;
 
-      // 建立上方的分頁按鈕與清除按鈕
       let htmlContent = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
           <div style="display: flex; gap: 8px;">
@@ -1740,7 +1735,6 @@ async function loadAiHistories(filter = 'all') {
         return;
       }
 
-      // 產生對話預覽卡片
       for (const conv of displayConvs) {
         const starColor = conv.is_favorite ? '#ffc107' : '#ccc';
         const starIcon = conv.is_favorite ? '⭐' : '☆';
@@ -1749,7 +1743,7 @@ async function loadAiHistories(filter = 'all') {
         if (aiPreviewText.length > 35) aiPreviewText = aiPreviewText.substring(0, 35) + "...";
 
         let convHtml = `
-          <div style="width: 100%; box-sizing: border-box; text-align: left; padding: 12px; margin-bottom: 12px; border: 1px solid #eaeaea; border-radius: 10px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.03); cursor: pointer; transition: transform 0.1s;" onclick="loadSingleConversation(${conv.id}, ${conv.is_favorite})" onmouseover="this.style.transform='scale(1.01)'" onmouseout="this.style.transform='scale(1)'">
+          <div style="width: 100%; box-sizing: border-box; text-align: left; padding: 12px; margin-bottom: 12px; border: 1px solid #eaeaea; border-radius: 10px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.03); cursor: pointer;" onclick="loadSingleConversation(${conv.id}, ${conv.is_favorite})">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
               <strong style="color: #333; font-size: 0.95rem; line-height: 1.4; flex: 1;">🧑 你：${escapeHtml(conv.title)}</strong>
               <button onclick="event.stopPropagation(); toggleAiFavorite(${conv.id}, ${conv.is_favorite})" style="background:none; border:none; font-size: 1.3rem; color: ${starColor}; cursor: pointer; margin-left: 10px;" title="加入/取消收藏">${starIcon}</button>
@@ -1765,7 +1759,7 @@ async function loadAiHistories(filter = 'all') {
     }
   } catch (err) {
     console.error("載入歷史紀錄失敗", err);
-    listContainer.innerHTML = '<p style="color: red; text-align: center;">載入失敗</p>';
+    listContainer.innerHTML = '<p style="color: red; text-align: center;">載入失敗，請重試</p>';
   }
 }
 
@@ -1774,13 +1768,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const aiHistoryModal = document.getElementById("aiHistoryModal");
   if (aiHistoryModal) {
     aiHistoryModal.addEventListener("click", (e) => {
-      const rect = aiHistoryModal.getBoundingClientRect();
-      // 判斷點擊的位置是否在 <dialog> 內容框外面 (即點到半透明遮罩區域)
-      const isInDialog = (
-        rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
-        rect.left <= e.clientX && e.clientX <= rect.left + rect.width
-      );
-      if (!isInDialog) {
+      // 只有當點擊的對象「就是 dialog 本身」（即點到 backdrop 遮罩）時才關閉
+      if (e.target === aiHistoryModal) {
         closeAiFavoritesModal();
       }
     });
