@@ -1577,24 +1577,33 @@ function openAiFavoritesModal() {
   const aiHistoryModal = document.getElementById("aiHistoryModal");
   if (!aiHistoryModal) return;
 
-  // 搬至 body 最外層，確保置頂
+  // 1. 只在未掛載至 body 時才搬移，避免重複 appendChild 重置 DOM 狀態
   if (aiHistoryModal.parentNode !== document.body) {
     document.body.appendChild(aiHistoryModal);
   }
 
+  // 2. 徹底清空殘留的 display 樣式
+  aiHistoryModal.style.display = "";
+
+  // 3. 安全呼叫 showModal()，若已經是 open 狀態先 close() 防死鎖
   try {
-    if (!aiHistoryModal.open && typeof aiHistoryModal.showModal === "function") {
+    if (typeof aiHistoryModal.showModal === "function") {
+      if (aiHistoryModal.open) {
+        aiHistoryModal.close();
+      }
       aiHistoryModal.showModal();
     } else {
       aiHistoryModal.style.display = "block";
     }
   } catch (e) {
+    console.warn("showModal 觸發降級處理", e);
     aiHistoryModal.style.display = "block";
   }
 
+  // 4. 鎖定背景滾動
   document.body.classList.add("no-scroll");
 
-  // 載入資料
+  // 5. 載入資料
   if (typeof loadAiHistories === "function") {
     loadAiHistories("favorites");
   }
@@ -1605,26 +1614,31 @@ function closeAiFavoritesModal() {
   const modal = document.getElementById("aiHistoryModal");
   if (modal) {
     try {
+      // 關閉原生 dialog
       if (modal.open) {
-        modal.close(); // 銷毀原生 ::backdrop
+        modal.close();
       }
     } catch (e) {
-      console.warn("關閉 dialog 失敗", e);
+      console.warn("close dialog 異常", e);
     }
+    // 重置內聯樣式
     modal.style.display = "none";
+    modal.removeAttribute("open");
   }
 
-  // 🔓 徹底解除 body 與全頁鎖定
+  // 🔓 解除 body 與頁面點擊限制
   document.body.classList.remove("no-scroll");
   document.body.style.overflow = "";
   document.body.style.pointerEvents = "auto";
 
-  // 🎯 解鎖對話框與輸入按鈕
-  const aiInput = document.getElementById("aiInput");
-  if (aiInput) {
-    aiInput.disabled = false;
-    aiInput.style.pointerEvents = "auto";
-  }
+  // 🎯 點擊權限歸還：確保對話框與輸入按鈕完全可點擊
+  setTimeout(() => {
+    const aiInput = document.getElementById("aiInput");
+    if (aiInput) {
+      aiInput.disabled = false;
+      aiInput.style.pointerEvents = "auto";
+    }
+  }, 50);
 }
 
 // ==================== AI 歷史紀錄與收藏功能 ====================
