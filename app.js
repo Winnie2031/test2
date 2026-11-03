@@ -1575,17 +1575,12 @@ function openAiFavoritesModal() {
   }
 
   const aiHistoryModal = document.getElementById("aiHistoryModal");
-  if (!aiHistoryModal) {
-    console.error("找不到 #aiHistoryModal 元素");
-    return;
-  }
+  if (!aiHistoryModal) return;
 
-  // 1. 確保搬至 body 最外層 (擺脫所有對話框視窗的容器限制)
   if (aiHistoryModal.parentNode !== document.body) {
     document.body.appendChild(aiHistoryModal);
   }
 
-  // 2. 呼叫瀏覽器原生 showModal()，直接送入 Top Layer 最頂層
   if (typeof aiHistoryModal.showModal === "function") {
     try {
       if (!aiHistoryModal.open) {
@@ -1598,7 +1593,8 @@ function openAiFavoritesModal() {
     aiHistoryModal.style.display = "flex";
   }
 
-  // 3. 載入收藏內容
+  document.body.classList.add("no-scroll");
+
   if (typeof loadAiHistories === "function") {
     loadAiHistories("favorites");
   }
@@ -1608,18 +1604,26 @@ function openAiFavoritesModal() {
 function closeAiFavoritesModal() {
   const modal = document.getElementById("aiHistoryModal");
   if (modal) {
-    // 🔒 關鍵：只要 dialog 還處於 open 狀態，就必須呼叫原生的 close() 來銷毀 ::backdrop 遮罩！
     if (modal.open) {
-      modal.close();
+      modal.close(); // 銷毀 ::backdrop 原生遮罩
     }
-    // 雙重防呆：確保 display 被重置
     modal.style.display = "none";
   }
 
-  // 🔓 解除 body 的鎖定與點擊限制
+  // 🔓 解除背景與頁面點擊限制
   document.body.classList.remove("no-scroll");
   document.body.style.overflow = "";
-  document.body.style.pointerEvents = "";
+  document.body.style.pointerEvents = "auto";
+
+  // 🎯 強制復原對話框輸入狀態
+  setTimeout(() => {
+    const aiInput = document.getElementById("aiInput");
+    if (aiInput) {
+      aiInput.disabled = false;
+      aiInput.style.pointerEvents = "auto";
+      aiInput.focus(); // 自動聚焦到輸入框，方便直接打字
+    }
+  }, 50);
 }
 
 // ==================== AI 歷史紀錄與收藏功能 ====================
@@ -4413,10 +4417,8 @@ function resetAiChat() {
   currentConversationId = null;
   currentConversationIsFavorite = false;
 
-   // 清空 AI 對話記憶
+  // 清空 AI 對話記憶與推薦紀錄
   aiHistoryMessages = [];
-
-  // 清空上一輪推薦的餐廳
   lastRecommendedNames = [];
   activeMenuRestaurantName = "";
   lastFocusedNames = [];
@@ -4428,10 +4430,12 @@ function resetAiChat() {
     aiOutput.innerHTML = "";
   }
 
-  // 3. 清空輸入框
+  // 3. 重置並徹底啟用輸入框（防止被鎖定）
   const aiInput = document.getElementById("aiInput");
   if (aiInput) {
     aiInput.value = "";
+    aiInput.disabled = false; // 🔓 確保未被停用
+    aiInput.style.pointerEvents = "auto";
   }
 
   // 4. 隱藏頂部標籤與恢復狀態
@@ -4440,7 +4444,11 @@ function resetAiChat() {
     topStar.style.display = "none";
   }
 
-  // 5. 提示使用者已重置
+  // 5. 確保 body 的鎖定與點擊限制已被解除
+  document.body.classList.remove("no-scroll");
+  document.body.style.pointerEvents = "auto";
+
+  // 6. 提示使用者已重置
   if (aiOutput) {
     aiOutput.innerHTML = `<p style="color: #888; text-align: center; margin-top: 10px; font-size: 0.85rem;">✨ 已開啟新對話，請隨時提出新的美食問題！</p><hr>`;
   }
