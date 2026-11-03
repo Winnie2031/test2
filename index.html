@@ -4016,7 +4016,8 @@ dialog.ai-history-dialog .modal-content {
 <!-- 🎯 原生 <dialog> 彈窗 -->
 <dialog id="aiHistoryModal" class="ai-history-dialog">
   <div class="modal-content" style="max-width: 400px; width: 100%; position: relative; box-sizing: border-box;">
-    <span class="close-btn" onclick="document.getElementById('aiHistoryModal').close()">&times;</span>
+    <!-- 🎯 點擊 X 按鈕統一執行 closeAiFavoritesModal() -->
+    <span class="close-btn" onclick="closeAiFavoritesModal()">&times;</span>
     <h2 style="color: #ff5722; margin-top: 0;">⭐ 收藏對話紀錄</h2>
     <div id="aiHistoryList" style="max-height: 60vh; overflow-y: auto; overflow-x: hidden; text-align: left;">
       <p style="color: #888; text-align: center;">載入中...</p>

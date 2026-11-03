@@ -1604,17 +1604,22 @@ function openAiFavoritesModal() {
   }
 }
 
-// 🎯 徹底關閉歷史紀錄 Modal 並解除全頁鎖定
+// 🎯 徹底關閉原生 <dialog> 歷史紀錄 Modal 並解除全頁鎖定
 function closeAiFavoritesModal() {
   const modal = document.getElementById("aiHistoryModal");
   if (modal) {
-    modal.style.display = "none"; // 1. 確保 Modal 隱藏
+    // 🔒 關鍵：只要 dialog 還處於 open 狀態，就必須呼叫原生的 close() 來銷毀 ::backdrop 遮罩！
+    if (modal.open) {
+      modal.close();
+    }
+    // 雙重防呆：確保 display 被重置
+    modal.style.display = "none";
   }
-  
-  // 2. 🔓 關鍵修復：解除背景鎖定，恢復畫面所有按鈕點擊與打字
+
+  // 🔓 解除 body 的鎖定與點擊限制
   document.body.classList.remove("no-scroll");
-  document.body.style.overflow = "auto";
-  document.body.style.pointerEvents = "auto";
+  document.body.style.overflow = "";
+  document.body.style.pointerEvents = "";
 }
 
 // ==================== AI 歷史紀錄與收藏功能 ====================
@@ -1680,8 +1685,8 @@ async function loadAiHistories(filter = 'all') {
   if (!token) {
     alert("請先登入才能查看收藏庫與歷史紀錄喔！");
     
-    const modal = document.getElementById("aiHistoryModal");
-    if (modal) modal.style.display = 'none';
+    // 🔒 使用統一關閉函式，徹底銷毀原生 <dialog> 遮罩並解除 body 鎖定
+    closeAiFavoritesModal();
     
     switchToLogin();
     return;
@@ -1759,6 +1764,24 @@ async function loadAiHistories(filter = 'all') {
     listContainer.innerHTML = '<p style="color: red; text-align: center;">載入失敗</p>';
   }
 }
+
+// 🎯 點擊原生 <dialog> 背景遮罩時自動關閉 (建議貼在 app.js 最底部)
+document.addEventListener('DOMContentLoaded', () => {
+  const aiHistoryModal = document.getElementById("aiHistoryModal");
+  if (aiHistoryModal) {
+    aiHistoryModal.addEventListener("click", (e) => {
+      const rect = aiHistoryModal.getBoundingClientRect();
+      // 判斷點擊的位置是否在 <dialog> 內容框外面 (即點到半透明遮罩區域)
+      const isInDialog = (
+        rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+        rect.left <= e.clientX && e.clientX <= rect.left + rect.width
+      );
+      if (!isInDialog) {
+        closeAiFavoritesModal();
+      }
+    });
+  }
+});
 
 // 4. 清除所有 AI 對話紀錄 (只刪除一般對話，並將畫面留白隱藏收藏)
 async function clearAllAiHistory() {
