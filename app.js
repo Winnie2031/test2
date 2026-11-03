@@ -1604,21 +1604,17 @@ function openAiFavoritesModal() {
   }
 }
 
-// ==================== 🎯 關閉 AI 收藏庫 Modal (徹底解除畫面鎖定) ====================
+// 🎯 徹底關閉歷史紀錄 Modal 並解除全頁鎖定
 function closeAiFavoritesModal() {
-  const aiHistoryModal = document.getElementById("aiHistoryModal");
-  if (aiHistoryModal) {
-    // 1. 原生 Dialog 關閉
-    if (typeof aiHistoryModal.close === "function" && aiHistoryModal.open) {
-      aiHistoryModal.close();
-    }
-    // 2. 備用 CSS 隱藏
-    aiHistoryModal.style.display = "none";
+  const modal = document.getElementById("aiHistoryModal");
+  if (modal) {
+    modal.style.display = "none"; // 1. 確保 Modal 隱藏
   }
-
-  // 3. 🎯 關鍵修復：強制把 pointer-events 與 overflow 復原，徹底解決畫面卡死問題
-  document.body.style.pointerEvents = "auto";
+  
+  // 2. 🔓 關鍵修復：解除背景鎖定，恢復畫面所有按鈕點擊與打字
+  document.body.classList.remove("no-scroll");
   document.body.style.overflow = "auto";
+  document.body.style.pointerEvents = "auto";
 }
 
 // ==================== AI 歷史紀錄與收藏功能 ====================
