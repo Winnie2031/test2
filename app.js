@@ -446,7 +446,7 @@ function render() {
 
 async function loadStores() {
   try {
-    const res = await fetch("/api/restaurants?limit=500");
+    const res = await fetch("/api/restaurants?limit=1000");
     const payload = await res.json();
 
     if (!payload.ok) throw new Error(payload.error);
@@ -814,7 +814,8 @@ async function sendAiMessage() {
     !/[？?，,。！!\n]/.test(question) &&
     !isFoodRequest &&
     !isGeneralRestaurantRequest &&
-    !/(評分|評價|評論|營業|價格|價位|菜單|招牌|介紹|其他)/.test(question);
+    // 「那現在有甚麼」屬於一般餐廳查詢，不是店名；避免誤走精準店名搜尋。
+    !/(評分|評價|評論|營業|價格|價位|菜單|招牌|介紹|其他|現在|目前|有什麼|有甚麼|哪些|開著)/.test(question);
     
   const mentionsStoreName = namedStores.length > 0;
   
@@ -887,7 +888,9 @@ async function sendAiMessage() {
     !/(重新推薦全部|重新搜尋|找新的餐廳)/.test(question);
   const newRecommendation = /(推薦|找.*餐廳|介紹.*餐廳)/.test(question) &&
     !explicitFollowUp && !alternativeFollowUp;
-  const isFollowUp = !menuContextFollowUp && !directNameQuery && !namedRestaurantInfo &&
+  // 「那現在有什麼」表示重新搜尋所有營業店家，不限上一輪早餐或其他分類。
+  const asksAllOpenRestaurants = /(?:現在|目前|這時候).*(?:有什麼|有甚麼|吃什麼|能吃|可以吃|哪些店)|(?:有什麼|有甚麼).*(?:營業|開著)/.test(question);
+  const isFollowUp = !asksAllOpenRestaurants && !menuContextFollowUp && !directNameQuery && !namedRestaurantInfo &&
     lastRecommendedNames.length > 0 &&
     (alternativeFollowUp || (!newRecommendation &&
       (explicitFollowUp || comparisonFollowUp)));
@@ -942,7 +945,9 @@ async function sendAiMessage() {
 
       return matchName || matchFoodType || matchIntent;
     });
-    selectedStores = matched.length ? matched : stores;
+    // 指定食物類別卻無匹配時，不可退回全部餐廳冒充符合類別。
+    const explicitFoodCategory = foodTypes.some(type => question.includes(type)) || intentTags.length > 0;
+    selectedStores = matched.length ? matched : (explicitFoodCategory ? [] : stores);
     if (wantsOther && lastRecommendedNames.length) {
       selectedStores = selectedStores.filter(store => !lastRecommendedNames.includes(store.name));
     }

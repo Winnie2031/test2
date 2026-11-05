@@ -368,12 +368,32 @@ app.post('/api/gpt', route(async (req, res) => {
     allowedStores = allowedStores.filter(store => !excludeNames.has(store.name) && isRestaurantOpenNow(store));
   }
 
-  const generalCandidates = !isFollowUp ? (() => {
+  // 候選店家從資料庫重新核對，避免前端時區、資料快取或判斷不同步造成誤報。
+  let generalCandidates = [];
+  if (!isFollowUp) {
+    let frontendCandidates = [];
     try {
       const rows = JSON.parse(context);
-      return Array.isArray(rows) ? rows.slice(0, 100).filter(s => s.open_status === "open") : [];
-    } catch { return []; }
-  })() : [];
+      if (Array.isArray(rows)) frontendCandidates = rows.slice(0, 100);
+    } catch { /* 格式不符，回傳空候選 */ }
+    if (frontendCandidates.length) {
+      const names = [...new Set(frontendCandidates.map(r => r.name).filter(Boolean))];
+      const verified = await pg.query(`SELECT name,rating,user_ratings_total,price_level,address,tags,
+        business_status,opening_hours_json,opening_now FROM restaurants WHERE name=ANY($1::text[])`, [names]);
+      const byName = new Map(verified.rows.map(row => [row.name, row]));
+      generalCandidates = frontendCandidates.map(candidate => byName.get(candidate.name))
+        .filter(store => store && isRestaurantOpenNow(store)).slice(0, 100);
+    }
+    // 使用者問「現在有什麼」時，重新搜尋全資料庫，不受上輪候選限制。
+    // 僅針對沒有指定菜系/店名的廣泛查詢啟用。
+    const broadNowQuestion = /(?:現在|目前|這時候).*(?:有什麼|有甚麼|吃什麼|能吃|可以吃|哪些店)|(?:有什麼|有甚麼).*(?:營業|開著)/.test(question);
+    if (broadNowQuestion) {
+      const all = await pg.query(`SELECT name,rating,user_ratings_total,price_level,address,tags,
+        business_status,opening_hours_json,opening_now FROM restaurants
+        ORDER BY rating DESC NULLS LAST, user_ratings_total DESC NULLS LAST`);
+      generalCandidates = all.rows.filter(isRestaurantOpenNow).slice(0, 100);
+    }
+  }
 
   
 
@@ -619,7 +639,10 @@ app.post('/api/gpt', route(async (req, res) => {
       const match = rawText.match(/<<<PICKS:([^>]*)>>>/);
       if (!match) {
         // 網路工具以外的非推薦文字若缺少 PICKS，不應以 502 讓使用者看到格式錯誤。
-        replyText = '目前沒有營業的店家';
+        const fallbackNames = [...new Set(generalCandidates.slice(0, 5).map(r => r.name))];
+        replyText = fallbackNames.length
+          ? `已找到營業中的餐廳，請查看主畫面。<<<SEARCH:${fallbackNames.join('|')}>>>`
+          : '目前沒有營業的店家';
       } else {
       const indices = [...new Set(match[1].split('|').map(s => s.trim())
         .filter(s => /^\d+$/.test(s)).map(Number))]
@@ -627,7 +650,7 @@ app.post('/api/gpt', route(async (req, res) => {
       // 無額外 slice(0, 5/10/20)：最多可選出所有 100 間候選的符合店家
       const suggestedNames = [...new Set(indices.map(i => generalCandidates[i].name))];
       const visible = Array.from(rawText.replace(/<<<PICKS:[^>]*>>>/g, '').trim()).slice(0, 50).join('');
-      replyText = suggestedNames.length ? visible + `\n<<<SEARCH:${suggestedNames.join('|')}>>>` : '目前沒有營業的店家';
+      replyText = suggestedNames.length ? visible + `\n<<<SEARCH:${suggestedNames.join('|')}>>>` : '目前沒有符合需求的營業中餐廳';
       }
     }
   }
