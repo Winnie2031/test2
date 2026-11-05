@@ -1017,7 +1017,7 @@ async function sendAiMessage() {
         // 即使是空陣列也傳送，避免錯誤地改推薦不符合類別的店家。
         allMatchIds: (!isFollowUp && !directNameQuery && !namedRestaurantInfo &&
           !menuContextFollowUp && !menuQuestion)
-          ? selectedStores.map(store => store.id)
+          ? stores.filter(store => getAiOpenStatus(store) === "open").map(store => store.id)
           : null,
         alternativeFollowUp,
         excludeNames: rejectedRestaurantNames,
