@@ -322,6 +322,44 @@ function isRestaurantOpenNow(store) {
   return false;
 }
 
+// 目前沒有符合條件的營業店家時，僅建議「明天白天」有明確排定營業的店家。
+// 這不代表明日一定正常營業（臨時公休等可能未反映），也不把備選當成現在營業。
+function hasScheduledOpeningTomorrowDaytime(store) {
+  if (['CLOSED_PERMANENTLY', 'CLOSED_TEMPORARILY'].includes(store.business_status)) return false;
+  let data = store.opening_hours_json;
+  if (typeof data === 'string') { try { data = JSON.parse(data); } catch { return false; } }
+  const periods = Array.isArray(data) ? data : data?.periods;
+  if (!Array.isArray(periods) || !periods.length) return false;
+  const weekday = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Taipei', weekday: 'short'
+  }).format(new Date());
+  const today = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(weekday);
+  if (today < 0) return false;
+  const tomorrow = (today + 1) % 7;
+  return periods.some(period => {
+    const opening = period?.open;
+    if (!opening || Number(opening.day) !== tomorrow) return false;
+    const time = String(opening.time || '');
+    if (!/^\d{4}$/.test(time)) return false;
+    const minutes = Number(time.slice(0, 2)) * 60 + Number(time.slice(2));
+    // 明日 05:00 至 14:59 開始營業（包含多數早餐、便當及午餐店）
+    return minutes >= 5 * 60 && minutes < 15 * 60;
+  });
+}
+
+function tomorrowAlternativeReply(rows, intent, excludeNames, scoreSort) {
+  const tomorrow = rows.filter(store =>
+    !excludeNames.has(store.name) && !isRestaurantOpenNow(store) &&
+    hasScheduledOpeningTomorrowDaytime(store) &&
+    (!intent.tags.length || intent.tags.some(tag => Array.isArray(store.tags) && store.tags.includes(tag))) &&
+    restaurantMatchesBudget(store, intent)
+  ).sort(scoreSort);
+  if (!tomorrow.length) return null;
+  const name = tomorrow[0].name;
+  // 字數限制仍由回傳前的統一 50 字元處理，不輸出假的「目前營業中」推薦卡片。
+  return `目前沒有符合這次條件的營業中店家，明天白天可考慮「${name}」，請先確認營業時間。`;
+}
+
 // AI 先理解使用者要求，再由資料庫對所有營業中的店家執行篩選，避免模型只挑 3 間。
 function adjustedRestaurantScore(row) {
   const n = Math.max(0, Number(row.user_ratings_total) || 0);
@@ -663,7 +701,8 @@ app.post('/api/gpt', route(async (req, res) => {
     const displayed=matches.slice(0,intent.single?1:(intent.count||matches.length));
     recommendationIds=displayed.map(row=>Number(row.id));
     if(displayed.length===0){
-      replyText=allOpen.length ? '目前沒有符合這次條件的營業中店家' : '目前沒有營業的店家';
+      replyText=tomorrowAlternativeReply(result.rows, intent, excludeNames, scoreSort) ||
+        (allOpen.length ? '目前沒有符合這次條件的營業中店家' : '目前沒有營業的店家');
     }else{
       const wording=expanded?`${question}（上一批店家沒有符合條件的，已重新搜尋整個資料庫）`:question;
       replyText=await generateNaturalRestaurantReply({question:wording,history:fullHistory,
