@@ -972,7 +972,7 @@ async function sendAiMessage() {
   // 追問也只使用營業中的店家；未知營業時間不視為營業中。
   selectedStores = selectedStores.filter(store => getAiOpenStatus(store) === "open");
 
-  // AI 最多查看前 100 間候選，最終推薦不另設固定數量上限
+  // 模型的前 100 間只供文字分析；完整符合名單另傳 ID，絕不在此截斷。
   const contextStores = JSON.stringify(selectedStores.slice(0, 100).map(store => ({
     name: store.name,
     rating: store.rating,
@@ -1005,6 +1005,12 @@ async function sendAiMessage() {
         history: historyMessages,              // 傳送之前的上下文對話
         isFollowUp,
         onlyOpenNow: true,
+        // 明確的推薦／分類查詢：傳送所有匹配餐廳 ID，後端再核對營業中。
+        // 即使是空陣列也傳送，避免錯誤地改推薦不符合類別的店家。
+        allMatchIds: (!isFollowUp && !directNameQuery && !namedRestaurantInfo &&
+          !menuContextFollowUp && !menuQuestion)
+          ? selectedStores.map(store => store.id)
+          : null,
         alternativeFollowUp,
         excludeNames: rejectedRestaurantNames,
         directNameQuery: directNameQuery ? question : null,
@@ -1047,6 +1053,7 @@ async function sendAiMessage() {
     let replyText = String(data.reply || "");
     const searchMatch = replyText.match(/<<<SEARCH:([^>]*)>>>/);
     const recommendedName = searchMatch ? searchMatch[1].trim() : "";
+    const hasVerifiedFullList = Array.isArray(data.recommendationIds);
 
     // 內部保留完整 SEARCH 名單，聊天視窗不顯示控制標記。
     aiHistoryMessages.push(
@@ -1069,14 +1076,16 @@ async function sendAiMessage() {
 
     const replyContainer = document.getElementById(`reply_${msgId}`);
     if (replyContainer) {
-      if (recommendedName) {
-        // AI 已推薦的名單：可能只有 5 間，但不代表資料庫只有 5 間符合需求。
+      if (hasVerifiedFullList || recommendedName) {
+        // 完整名單以後端核對營業時間的 ID 為準，不採用模型選的 3～5 間。
         const aiNames = [...new Set(
           recommendedName.split("|").map(name => name.trim()).filter(Boolean)
         )];
-        const aiStores = aiNames
-          .map(name => stores.find(store => store.name === name))
-          .filter(store => store && getAiOpenStatus(store) === "open");
+        const aiStores = hasVerifiedFullList
+          ? data.recommendationIds.map(id => stores.find(store => Number(store.id) === Number(id)))
+              .filter(Boolean)
+          : aiNames.map(name => stores.find(store => store.name === name))
+              .filter(store => store && getAiOpenStatus(store) === "open");
 
         // 對於明確餐點／標籤查詢，主畫面使用「全部符合標籤及既有條件」
         // 的 selectedStores，避免被 AI PICKS 選取數量限制。
@@ -1088,11 +1097,17 @@ async function sendAiMessage() {
           !menuContextFollowUp && !menuQuestion &&
           (hasFoodTag || hasMappedIntent);
 
-        const allRecommendedStores = isCategoryRecommendation
-          ? [...selectedStores]
-          : aiStores;
+        // 廣泛詢問「現在有什麼」時，展示所有已確認營業中的候選，
+        // 不受模型只回傳 3 個 PICKS 索引的影響；特定比較或指定數量仍依 AI 選取。
+        const hasRequestedCount = /(?:\d+|[一二三四五六七八九十兩])\s*(?:間|家|個)/.test(question);
+        const showAllOpenNow = asksAllOpenRestaurants && !hasRequestedCount &&
+          !isFollowUp && !directNameQuery && !namedRestaurantInfo &&
+          !menuContextFollowUp && !menuQuestion;
+        const allRecommendedStores = hasVerifiedFullList
+          ? aiStores
+          : ((isCategoryRecommendation || showAllOpenNow) ? [...selectedStores] : aiStores);
 
-        // 主畫面保留全部符合需求的店家；聊天室最多列出 5 家。
+        // 主畫面顯示全部核實符合的店家，與 AI 在文字中提及幾間無關。
         randomStores = allRecommendedStores.filter(store => getAiOpenStatus(store) === "open");
         aiResultsActive = true;
         const displayStores = aiStores.length
