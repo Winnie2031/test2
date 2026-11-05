@@ -835,17 +835,8 @@ async function sendAiMessage() {
     question.includes(keyword)
   );
 
-  if (!isRestaurantQuestion && aiHistoryMessages.length === 0) {
-    aiOutput.innerHTML += `
-      <p style="color:red;">
-        🤖 AI：與餐廳無關，請重新提問
-      </p>
-      <hr>
-    `;
-    aiInput.value = "";
-    if (aiChat) aiChat.scrollTop = aiChat.scrollHeight;
-    return;
-  }
+  // 由後端 AI 對完整問句分類；不能用關鍵字或既有歷史錯判無關問題。
+  // 混合問句（例如蒙娜麗莎＋晚餐）仍交給後端抽取餐飲部分。
 
   isSending = true;
   aiSend.disabled = true;
@@ -1064,6 +1055,15 @@ async function sendAiMessage() {
     } else if (!menuContextFollowUp && !menuQuestion && !namedRestaurantInfo && !directNameQuery) {
       activeMenuRestaurantName = "";
     }
+    if (data.unrelated === true) {
+      document.getElementById(`reply_${msgId}`).innerHTML =
+        `<p style="margin:0;line-height:1.8;"><strong>🤖 AI：</strong>${escapeHtml(data.reply || '問題與餐廳無關，請重新發問。')}</p>`;
+      // 不覆蓋主畫面的推薦結果與母集合。
+      aiSend.disabled = false;
+      aiSend.textContent = "送出";
+      isSending = false;
+      return;
+    }
     let replyText = String(data.reply || "");
     const searchMatch = replyText.match(/<<<SEARCH:([^>]*)>>>/);
     const recommendedName = searchMatch ? searchMatch[1].trim() : "";
@@ -1129,8 +1129,7 @@ async function sendAiMessage() {
           ? aiStores.slice(0, 5)
           : allRecommendedStores.slice(0, 5);
 
-        if (!isFollowUp && !selectionFollowUp && !rankingIntent && !namedRestaurantInfo &&
-            !menuContextFollowUp && !menuQuestion) {
+        if (data.poolUpdated === true) {
           // 只在新的一般推薦時更換母集合。
           lastRecommendedNames = allRecommendedStores.map(store => store.name);
           lastBroadRecommendationIds = allRecommendedStores.map(store => Number(store.id));
@@ -1164,8 +1163,8 @@ async function sendAiMessage() {
         // 優先保留後端自然語氣的回覆（50 字內）；店家數另外由實際卡片數計算。
         // 不讓固定的「找到 X 間」覆蓋掉 AI 的回答。
         const boxReply = randomStores.length === 0
-          ? "目前沒有營業的店家"
-          : (shortReply || "幫你找好目前營業中的選擇啦，快看看喜歡哪間吧！");
+          ? (shortReply || "目前沒有符合條件且營業中的店家")
+          : (shortReply || "已幫你找到符合條件的營業中店家！");
         replyContainer.innerHTML = `
           <p style="margin:0;color:#333;line-height:1.8;">
             <strong>🤖 AI：</strong>${escapeHtml(boxReply)}
@@ -1197,7 +1196,7 @@ async function sendAiMessage() {
           aiResultsActive = true;
           render();
           lastFocusedNames = [];
-          if (!isFollowUp && !selectionFollowUp && !rankingIntent) {
+          if (data.poolUpdated === true) {
             lastRecommendedNames = [];
             lastBroadRecommendationIds = [];
           }

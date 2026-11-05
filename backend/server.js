@@ -386,9 +386,58 @@ priceLevels 表示店家整體價位級距，不代表單品售價；不可假�
   };
 }
 
+// 單次 AI 意圖判斷：獨立於前端關鍵字，能辨認跨題追問及混合內容。
+async function analyzeFoodIntent(question, history, hasPool, availableTags) {
+  const cleanHistory = history.filter(m => ['user', 'assistant'].includes(m.role))
+    .slice(-12).map(m => ({role:m.role,content:String(m.content||'')
+      .replace(/<<<(?:SEARCH|POOL|PICKS):[^>]*>>>/g,'').slice(0,250)}));
+  const prompt = `你是餐廳助理的路由與條件解析器，僅輸出有效 JSON，不要 Markdown。
+輸出欄位：domain('restaurant'或'unrelated')、query(只保留使用者本輪餐飲相關問句)、followup(boolean)、tags(字串陣列)、priceLevels(1-4陣列)、minBudget(number|null)、maxBudget(number|null)、sort('relevance'|'rating'|'reviews'|'cheap'|'expensive'|'best')、single(boolean)、count(正整數|null)。
+有晚餐/宵夜/吃什麼/飲料/餐廳/店家/前一輪餐廳比較等需求，domain=restaurant。
+完全無關的問題（例如只問蒙娜麗莎是誰、數學、政治、笑話）domain=unrelated，絕對不要因有聊天歷史就說它是餐廳問題。
+混合問題（例如「你知道蒙娜麗莎嗎？還有我晚餐要吃甚麼？」），忽略無關部分，query只保留「我晚餐要吃甚麼？」。
+「哪間便宜」、「評價高一點的有嗎」、「那100左右的有嗎」、「我想吃200以上的」如果前一輪有推薦集合，followup=true；新的一般推薦 followup=false。
+保留前一輪餐廳類型/用餐時段於 followup 的查詢範圍；不要根據先前單店結果把範圍縮小。
+「100左右」設定 maxBudget=100 或符合「100左右」的近似級距；「200以下」maxBudget=200；「200以上」minBudget=200；沒有價格要求為null。
+有「哪間／哪家／最推薦／最高／最低」的單店比較，single=true；要求數間用count；其他情況列出所有合適店家。
+只使用以下合法 tags，不要臆造新 tags。價格級距只是近似，不能當作單道菜的真實售價。`;
+  const response = await client.responses.create({model:'gpt-4.1-mini',temperature:0,
+    max_output_tokens:750,input:[{role:'system',content:prompt},{role:'user',content:JSON.stringify({
+      question,hasPool,recentHistory:cleanHistory,availableTags
+    })}]});
+  const raw = (response.output_text||'').replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim();
+  const x=JSON.parse(raw),legal=new Set(availableTags);
+  return {
+    domain:x.domain==='unrelated'?'unrelated':'restaurant',
+    query:typeof x.query==='string'&&x.query.trim()?x.query.trim():question,
+    followup:Boolean(x.followup)&&hasPool,
+    tags:Array.isArray(x.tags)?[...new Set(x.tags.filter(t=>legal.has(t)))]:[],
+    priceLevels:Array.isArray(x.priceLevels)?[...new Set(x.priceLevels.map(Number).filter(n=>[1,2,3,4].includes(n)))]:[],
+    minBudget:Number.isFinite(Number(x.minBudget))&&x.minBudget!==null?Number(x.minBudget):null,
+    maxBudget:Number.isFinite(Number(x.maxBudget))&&x.maxBudget!==null?Number(x.maxBudget):null,
+    sort:['relevance','rating','reviews','cheap','expensive','best'].includes(x.sort)?x.sort:'relevance',
+    single:Boolean(x.single),
+    count:Number.isInteger(x.count)&&x.count>0?Math.min(x.count,1000):null
+  };
+}
+
+// 這些價格級距只有範圍資訊，100 元左右只代表第一級「可能」符合，不能斷言單品價格。
+function restaurantMatchesBudget(row,intent){
+  const level=Number(row.price_level);
+  if(intent.priceLevels.length && !intent.priceLevels.includes(level)) return false;
+  if(intent.minBudget===null && intent.maxBudget===null) return true;
+  const ranges={1:[100,200],2:[200,400],3:[400,600],4:[600,Infinity]};
+  const range=ranges[level];
+  if(!range) return false;
+  // 價格級距與要求有交集才列入可能選擇；不宣稱可精準滿足單餐預算。
+  if(intent.minBudget!==null && range[1]<intent.minBudget) return false;
+  if(intent.maxBudget!==null && range[0]>intent.maxBudget) return false;
+  return true;
+}
+
 app.post('/api/gpt', route(async (req, res) => {
   if (!client) fail(503, 'AI 尚未設定，請確認 OPENAI_API_KEY');
-  const question = textOf(req.body.question, 1, 5000, '問題');
+  let question = textOf(req.body.question, 1, 5000, '問題');
   const userId = optionalUser(req)?.userId || null;
   
   // 1. 從前端取得歷史對話紀錄 (預設為空陣列)
@@ -411,6 +460,17 @@ app.post('/api/gpt', route(async (req, res) => {
   const poolMatch = String(latestPoolMessage?.content || '').match(/<<<POOL:([\d|]*)>>>/);
   const parentPoolIds = poolMatch ? [...new Set(poolMatch[1].split('|').map(Number)
     .filter(id => Number.isSafeInteger(id) && id > 0))] : [];
+  // 優先讓 AI 判斷是否與餐飲相關，避免前端的關鍵字誤判。
+  const tagRows = await pg.query('SELECT DISTINCT unnest(tags) AS tag FROM restaurants WHERE tags IS NOT NULL');
+  const availableTags = tagRows.rows.map(r => r.tag).filter(t => typeof t === 'string' && t.length <= 35).slice(0,200);
+  const intent = await analyzeFoodIntent(question, fullHistory, parentPoolIds.length > 0, availableTags);
+  if (intent.domain === 'unrelated') {
+    return res.json({ok:true, reply:'問題與餐廳無關，請重新發問。',
+      conversationId:currentConvId, unrelated:true, recommendationIds:null, restaurants:[]});
+  }
+  // 混合提問只處理餐飲部分；完整原文仍在使用者端展示。
+  const originalQuestion = question;
+  question = intent.query;
   const context = typeof req.body.contextStores === 'string' ? req.body.contextStores : JSON.stringify(req.body.contextStores || []);
 
   // 僅使用資料庫可驗證的餐廳資料進行比較，不信任前端自行提供的評分
@@ -512,10 +572,11 @@ app.post('/api/gpt', route(async (req, res) => {
   let replyText;
   let resolvedMenuRestaurantName = null;
   let recommendationIds = null; // null 表示非一般推薦；[] 表示已確認無符合店家
+  let poolUpdated = false;
 
   // 指定店家的餐點問題採用網路搜尋；普通餐廳推薦仍走原本的 PICKS 流程。
   // 注意：沒有店名時不隨意猜測，避免搜尋到其他分店或品牌。
-  const menuQuestion = asksMenuQuestion || req.body.menuQuestion === true || menuFollowUp;
+  let menuQuestion = asksMenuQuestion || req.body.menuQuestion === true || menuFollowUp;
 
   // 前端沒有找到店名時，後端再次從資料庫辨識「墨竹亭有什麼推薦餐點？」等問句。
   // 不依賴前端是否載入全部餐廳，也不讓模型猜測不存在的店家。
@@ -541,6 +602,8 @@ app.post('/api/gpt', route(async (req, res) => {
 
   // 指定店家查詢與餐點追問也不得出現休息中或營業未知的店家。
   matchedRestaurants = matchedRestaurants.filter(isRestaurantOpenNow);
+  // 「晚餐要吃什麼？」不是指定店家菜單查詢，應走完整餐廳推薦。
+  if (!matchedRestaurants.length && !menuFollowUp) menuQuestion = false;
 
   const menuTargets = matchedRestaurants.length
     ? matchedRestaurants
@@ -570,7 +633,49 @@ app.post('/api/gpt', route(async (req, res) => {
   const selectionIntent = req.body.selectionFollowUp === true || priceSelectionQuestion;
   const selectingFromParent = parentPoolIds.length > 0 &&
     (selectionIntent || rankingIntent || /(?:評分最高|評論最多|人氣最高)/.test(question));
-  if (priceSelectionQuestion && selectingFromParent) {
+  // 所有一般推薦與母集合追問走同一流程：先母集合，無符合才全資料庫。
+  // 有指定店家且詢問菜單時保留原本的網頁查證流程。
+  if (!menuQuestion && !directNameQuery && !namedRestaurantInfo) {
+    const result = await pg.query(`SELECT id,name,rating,user_ratings_total,price_level,tags,
+      opening_hours_json,business_status,address FROM restaurants`);
+    const allOpen = result.rows.filter(isRestaurantOpenNow);
+    const poolSet = new Set(parentPoolIds);
+    const useParent = intent.followup && poolSet.size > 0;
+    const filter = rows => rows.filter(store => {
+      if(excludeNames.has(store.name))return false;
+      if(intent.tags.length && !intent.tags.some(tag=>Array.isArray(store.tags)&&store.tags.includes(tag)))return false;
+      return restaurantMatchesBudget(store,intent);
+    });
+    let matches=useParent?filter(allOpen.filter(store=>poolSet.has(Number(store.id)))):filter(allOpen);
+    const expanded=useParent && matches.length===0;
+    if(expanded) matches=filter(allOpen); // 只有母集合完全不符時才擴大搜尋
+    const scoreSort=(a,b)=>adjustedRestaurantScore(b)-adjustedRestaurantScore(a)||
+      Number(b.user_ratings_total||0)-Number(a.user_ratings_total||0);
+    if(intent.sort==='cheap')matches.sort((a,b)=>Number(a.price_level||99)-Number(b.price_level||99)||scoreSort(a,b));
+    else if(intent.sort==='expensive')matches.sort((a,b)=>Number(b.price_level||0)-Number(a.price_level||0)||scoreSort(a,b));
+    else if(intent.sort==='reviews')matches.sort((a,b)=>Number(b.user_ratings_total||0)-Number(a.user_ratings_total||0)||scoreSort(a,b));
+    else if(intent.sort==='rating')matches.sort((a,b)=>Number(b.rating||0)-Number(a.rating||0)||scoreSort(a,b));
+    else matches.sort(scoreSort);
+    // 追問「哪間」挑一間，其餘保持全部符合條件的店家。
+    const displayed=matches.slice(0,intent.single?1:(intent.count||matches.length));
+    recommendationIds=displayed.map(row=>Number(row.id));
+    if(displayed.length===0){
+      replyText='目前沒有符合條件且營業中的店家';
+    }else{
+      const wording=expanded?`${question}（上一批店家沒有符合條件的，已重新搜尋整個資料庫）`:question;
+      replyText=await generateNaturalRestaurantReply({question:wording,history:fullHistory,
+        stores:displayed,purpose:intent.single?'ranking':'recommend'});
+      if(intent.single && !replyText.includes(displayed[0].name)) {
+        replyText=`這次推薦「${displayed[0].name}」，符合你剛提出的比較條件。`;
+      }
+      replyText+=`<<<SEARCH:${displayed.map(r=>r.name).join('|')}>>>`;
+    }
+    // 新一般推薦與擴大搜尋成功都更新母集合；單店比較不改變母集合。
+    if(!useParent || (expanded && matches.length>0)){
+      poolUpdated = true;
+      replyText+=`<<<POOL:${matches.map(r=>Number(r.id)).join('|')}>>>`;
+    }
+  } else if (priceSelectionQuestion && selectingFromParent) {
     const result = await pg.query(`SELECT id,name,rating,user_ratings_total,price_level,tags,
       opening_hours_json,business_status FROM restaurants WHERE id=ANY($1::int[])`, [parentPoolIds]);
     const candidates = result.rows.filter(row => isRestaurantOpenNow(row) &&
@@ -843,6 +948,7 @@ app.post('/api/gpt', route(async (req, res) => {
   
   res.json({ ok: true, reply: replyText, conversationId: currentConvId,
     recommendationIds,
+    poolUpdated,
     restaurants: matchedRestaurants,
     menuRestaurantName: resolvedMenuRestaurantName });
 }));
