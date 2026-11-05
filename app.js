@@ -9,6 +9,7 @@ let currentConversationId = null;
 let aiHistoryMessages = [];
 
 let lastRecommendedNames = [];
+let lastBroadRecommendationIds = []; // 保存最近一次「一般推薦」完整名單；單店追問不可覆蓋
 let activeMenuRestaurantName = ""; // 最近正在討論餐點的店家；與餐廳推薦名單分開
 let lastFocusedNames = []; // 最近一次追問實際顯示的餐廳（與完整推薦名單分開）
 let rejectedRestaurantNames = []; // 對話中使用者明確拒絕的餐廳；後續追問持續排除
@@ -890,12 +891,14 @@ async function sendAiMessage() {
     !explicitFollowUp && !alternativeFollowUp;
   // 「那現在有什麼」表示重新搜尋所有營業店家，不限上一輪早餐或其他分類。
   const asksAllOpenRestaurants = /(?:現在|目前|這時候).*(?:有什麼|有甚麼|吃什麼|能吃|可以吃|哪些店)|(?:有什麼|有甚麼).*(?:營業|開著)/.test(question);
+  // 價格／評分／人氣追問以最近一次一般推薦為母集合，不因單店顯示而縮小。
+  const selectionFollowUp = /(?:哪(?:一)?(?:間|家)|其中|哪個|最)(?:.*?)(?:便宜|省錢|平價|價格最低|最貴|評分最高|評論最多|評價最高|最推薦|最好吃)|(?:便宜|最貴|評分|評論|推薦).*?(?:哪(?:一)?(?:間|家))/.test(question);
   // 「最推薦哪間」是比較／排序意圖，不能當成「全部店家」的普通推薦。
   const rankingIntent = /(最推薦|最值得|最好吃|評分最高|評價最高|評論最多|人氣最高|最熱門|哪(?:一)?(?:間|家).*?(?:推薦|好吃|最好)|哪.*?(?:評分|評論).*?最)/.test(question);
-  const hasPreviousResults = aiResultsActive && randomStores.length > 0;
+  const hasPreviousResults = lastBroadRecommendationIds.length > 0;
   const isFollowUp = !asksAllOpenRestaurants && !menuContextFollowUp && !directNameQuery && !namedRestaurantInfo &&
     lastRecommendedNames.length > 0 &&
-    (rankingIntent || alternativeFollowUp || (!newRecommendation &&
+    (selectionFollowUp || rankingIntent || alternativeFollowUp || (!newRecommendation &&
       (explicitFollowUp || comparisonFollowUp)));
 
   // 當使用者拒絕「這間」時，持續保存該餐廳；不應下一輪又出現。
@@ -907,9 +910,11 @@ async function sendAiMessage() {
   }
   const asksOpenNow = true; // 所有 AI 推薦只接受目前營業中的店家
   let selectedStores;
-  if (rankingIntent) {
-    // 針對目前顯示的全部推薦結果排序，不限前 100 間，也不受模型 PICKS 限制。
-    selectedStores = hasPreviousResults ? [...randomStores] : [...stores];
+  if (selectionFollowUp || rankingIntent) {
+    // 永遠回到最近一次完整推薦名單，不使用上一題單店 randomStores。
+    selectedStores = hasPreviousResults
+      ? lastBroadRecommendationIds.map(id => stores.find(store => Number(store.id) === Number(id))).filter(Boolean)
+      : [...stores];
   } else if (isFollowUp) {
     // 比較「那其他便宜的餐廳」要沿用上一輪替代名單，而非全部 29 間。
     const refersToFocusedSet =
@@ -1012,7 +1017,8 @@ async function sendAiMessage() {
         isFollowUp,
         onlyOpenNow: true,
         rankingIntent,
-        rankCandidateIds: rankingIntent ? selectedStores.map(store => store.id) : null,
+        selectionFollowUp,
+        rankCandidateIds: (rankingIntent || selectionFollowUp) ? selectedStores.map(store => store.id) : null,
         // 明確的推薦／分類查詢：傳送所有匹配餐廳 ID，後端再核對營業中。
         // 即使是空陣列也傳送，避免錯誤地改推薦不符合類別的店家。
         allMatchIds: (!isFollowUp && !directNameQuery && !namedRestaurantInfo &&
@@ -1071,6 +1077,7 @@ async function sendAiMessage() {
     // 保留同一對話的全部訊息，不裁切歷史
 
     const cleanReply = replyText
+      .replace(/<<<POOL:[^>]*>>>/gi, "")
       .replace(/<<<SEARCH:[^>]*>>>/gi, "")
       .replace(/<<<PICKS:[^>]*>>>/gi, "")
       .replace(/\[?\{?\s*PICKS\s*[:：]\s*[\d|\s]*[\]\}]?/gi, "")
@@ -1122,9 +1129,11 @@ async function sendAiMessage() {
           ? aiStores.slice(0, 5)
           : allRecommendedStores.slice(0, 5);
 
-        if (!isFollowUp && !namedRestaurantInfo &&
+        if (!isFollowUp && !selectionFollowUp && !rankingIntent && !namedRestaurantInfo &&
             !menuContextFollowUp && !menuQuestion) {
+          // 只在新的一般推薦時更換母集合。
           lastRecommendedNames = allRecommendedStores.map(store => store.name);
+          lastBroadRecommendationIds = allRecommendedStores.map(store => Number(store.id));
         }
         lastFocusedNames = displayStores.map(store => store.name)
           .filter(name => !rejectedRestaurantNames.includes(name));
@@ -1188,7 +1197,10 @@ async function sendAiMessage() {
           aiResultsActive = true;
           render();
           lastFocusedNames = [];
-          lastRecommendedNames = [];
+          if (!isFollowUp && !selectionFollowUp && !rankingIntent) {
+            lastRecommendedNames = [];
+            lastBroadRecommendationIds = [];
+          }
           const resetBtn = document.getElementById("resetRandomBtn");
           if (resetBtn) resetBtn.style.display = "none";
           // 主畫面保留原始搜尋結果，AI Box 明確說明目前沒有營業店家。
@@ -1800,7 +1812,7 @@ async function loadAiHistories(filter = 'all') {
         const starColor = conv.is_favorite ? '#ffc107' : '#ccc';
         const starIcon = conv.is_favorite ? '⭐' : '☆';
         
-        let aiPreviewText = (conv.ai_reply || "無回應").replace(/<<<SEARCH:(.*?)>>>/, "").trim();
+        let aiPreviewText = (conv.ai_reply || "無回應").replace(/<<<(?:SEARCH|POOL|PICKS):[^>]*>>>/g, "").trim();
         if (aiPreviewText.length > 35) aiPreviewText = aiPreviewText.substring(0, 35) + "...";
 
         let convHtml = `
@@ -1874,6 +1886,7 @@ async function clearAllAiHistory() {
       currentConversationId = null;
       aiHistoryMessages = [];
       lastRecommendedNames = [];
+      lastBroadRecommendationIds = [];
       activeMenuRestaurantName = "";
       lastFocusedNames = [];
       rejectedRestaurantNames = [];
@@ -1933,6 +1946,19 @@ async function loadSingleConversation(id, isFavorite = false) {
       lastFocusedNames = [];
       rejectedRestaurantNames = [];
 
+      // 從最後一次「一般推薦」的 POOL 標記還原完整母集合。
+      // 追問單店只儲存 SEARCH，不會覆蓋母集合。
+      for (const msg of messages) {
+        if (msg.role !== "assistant") continue;
+        const saved = String(msg.content || msg.ai_reply || "").match(/<<<POOL:([\d|]*)>>>/);
+        if (saved) lastBroadRecommendationIds = saved[1].split("|")
+          .map(Number).filter(id => Number.isSafeInteger(id) && id > 0);
+      }
+      if (lastBroadRecommendationIds.length) {
+        lastRecommendedNames = lastBroadRecommendationIds
+          .map(id => stores.find(store => Number(store.id) === id)?.name).filter(Boolean);
+      }
+
       // 依對話順序恢復被拒絕的餐廳（被拒絕前最近一次顯示的店家）。
       let priorFocused = [];
       for (const msg of messages) {
@@ -1960,11 +1986,11 @@ async function loadSingleConversation(id, isFavorite = false) {
         if (match && match[1].trim()) {
           const names = match[1].split("|").map(name => name.trim()).filter(Boolean);
           if (!lastFocusedNames.length) lastFocusedNames = [...names];
-          if (names.length > 1) {
+          if (names.length > 1 && !lastBroadRecommendationIds.length) {
             lastRecommendedNames = names;
             break;
           }
-          if (!lastRecommendedNames.length) lastRecommendedNames = names;
+          if (!lastRecommendedNames.length && !lastBroadRecommendationIds.length) lastRecommendedNames = names;
         }
       }
 
@@ -1998,7 +2024,7 @@ async function loadSingleConversation(id, isFavorite = false) {
             `;
           } else {
             // 清理標籤文字
-            let cleanText = (msg.content || msg.ai_reply || "").replace(/<<<SEARCH:(.*?)>>>/, "").trim();
+            let cleanText = (msg.content || msg.ai_reply || "").replace(/<<<(?:SEARCH|POOL|PICKS):[^>]*>>>/g, "").trim();
 
             // 🎯 2. 多重相容解析：支援所有可能的餐廳資料欄位名稱 (restaurants / recommendations / items)
             let restaurants = msg.restaurants || msg.recommendations || msg.items || [];
@@ -4470,6 +4496,7 @@ function resetAiChat() {
   // 清空 AI 對話記憶與推薦紀錄
   aiHistoryMessages = [];
   lastRecommendedNames = [];
+  lastBroadRecommendationIds = [];
   activeMenuRestaurantName = "";
   lastFocusedNames = [];
   rejectedRestaurantNames = [];
