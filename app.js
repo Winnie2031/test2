@@ -95,96 +95,36 @@ function timeToMinutes(timeStr) {
   return hour * 60 + minute;
 }  // 營業時間判斷
 
-function isOpenNow(openingHoursJson) {
-  if (!openingHoursJson) return null;
-
-  let data;
-
-  try {
-    data =
-      typeof openingHoursJson === "string"
-        ? JSON.parse(openingHoursJson)
-        : openingHoursJson;
-  } catch (err) {
-    console.error("opening_hours_json 解析失敗：", err);
-    return null;
-  }
-
-  // ⭐⭐⭐ 支援兩種格式 ⭐⭐⭐
-const periods = Array.isArray(data)
-  ? data
-  : data?.periods;
-
-if (!Array.isArray(periods)) {
-  return null;
-}
-
-// Google 全週 24 小時營業格式：
-// 星期日 00:00 開始，沒有關店時間。
-if (
-  periods.length === 1 &&
-  periods[0]?.open?.day === 0 &&
-  periods[0].open.time === "0000" &&
-  periods[0].close == null
-) {
-  return true;
-}
-
-  const now = new Date();
-  const today = now.getDay();
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-
-  for (const period of periods) {
-    if (!period.open) continue;
-    if (Number(period.open.day) !== today) continue;
-
-    const openMinutes = timeToMinutes(period.open.time);
-
-    if (openMinutes === null) continue;
-
-    if (!period.close) {
-      return true;
+function isOpenNow(openingHoursJson, openingNow = null) {
+  let data = openingHoursJson;
+  if (typeof data === 'string') { try { data = JSON.parse(data); } catch { data = null; } }
+  const periods = Array.isArray(data) ? data : data?.periods;
+  if (!Array.isArray(periods) || periods.length === 0) return openingNow === true ? true : null;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Taipei', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  }).formatToParts(new Date());
+  const get = key => parts.find(x => x.type === key)?.value;
+  const today = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(get('weekday'));
+  const now = +get('hour')*60 + +get('minute');
+  const mins = v => /^\d{4}$/.test(String(v)) ? +String(v).slice(0,2)*60 + +String(v).slice(2,4) : null;
+  const current = today*1440+now, week=7*1440;
+  for (const p of periods) {
+    if (!p?.open) continue;
+    const day=Number(p.open.day), from=mins(p.open.time);
+    if (!Number.isInteger(day) || day<0 || day>6 || from===null) continue;
+    if (!p.close) {
+      if (periods.length===1 && day===0 && from===0) return true;
+      if (day===today && now>=from) return true;
+      continue;
     }
-
-    const closeMinutes = timeToMinutes(period.close.time);
-    const closeDay = Number(period.close.day);
-
-    if (closeMinutes === null) continue;
-
-    if (closeDay === today) {
-      if (
-        nowMinutes >= openMinutes &&
-        nowMinutes < closeMinutes
-      ) {
-        return true;
-      }
-    } else {
-      if (nowMinutes >= openMinutes) {
-        return true;
-      }
-    }
+    const closeDay=Number(p.close.day), to=mins(p.close.time);
+    if (!Number.isInteger(closeDay) || closeDay<0 || closeDay>6 || to===null) continue;
+    const first=day*1440+from;
+    let last=closeDay*1440+to;
+    if (last<=first) last+=week;
+    if (periods.length===1 && last-first===week) return true;
+    if ((current>=first && current<last) || (current+week>=first && current+week<last)) return true;
   }
-
-  const yesterday = (today + 6) % 7;
-
-  for (const period of periods) {
-    if (!period.open || !period.close) continue;
-
-    if (
-      Number(period.open.day) === yesterday &&
-      Number(period.close.day) === today
-    ) {
-      const closeMinutes = timeToMinutes(period.close.time);
-
-      if (
-        closeMinutes !== null &&
-        nowMinutes < closeMinutes
-      ) {
-        return true;
-      }
-    }
-  }
-
   return false;
 }
 
@@ -194,7 +134,7 @@ const AI_MIN_REVIEW_COUNT = 20; // 優先門檻；若全部低於 20 則，仍�
 function getAiOpenStatus(store) {
   if (store.business_status === "CLOSED_PERMANENTLY") return "permanently_closed";
   if (store.business_status === "CLOSED_TEMPORARILY") return "temporarily_closed";
-  const result = isOpenNow(store.opening_hours_json);
+  const result = isOpenNow(store.opening_hours_json, store.opening_now);
   return result === true ? "open" : result === false ? "closed" : "unknown";
 }
 
@@ -219,7 +159,7 @@ function getOpenStatusHtml(store) {
     return `<p class="open-status closed">🟡 暫時停業</p>`;
   }
 
-  const openStatus = isOpenNow(store.opening_hours_json);
+  const openStatus = isOpenNow(store.opening_hours_json, store.opening_now);
 
   if (openStatus === true) {
     return `<p class="open-status open">🟢 營業中</p>`;
@@ -289,8 +229,8 @@ function render() {
         return 0;
       }
 
-      const aOpen = isOpenNow(a.opening_hours_json);
-      const bOpen = isOpenNow(b.opening_hours_json);
+      const aOpen = isOpenNow(a.opening_hours_json, a.opening_now);
+      const bOpen = isOpenNow(b.opening_hours_json, b.opening_now);
 
       const aScore = openScore(aOpen);
       const bScore = openScore(bOpen);
@@ -447,7 +387,7 @@ function render() {
 
 async function loadStores() {
   try {
-    const res = await fetch("/api/restaurants?limit=1000");
+    const res = await fetch("/api/restaurants?limit=5000");
     const payload = await res.json();
 
     if (!payload.ok) throw new Error(payload.error);
@@ -605,10 +545,10 @@ if (randomBtn) {
 
     // 2. 將名單分為「營業中」與「非營業中」兩組
     let openStores = baseStores.filter(
-      store => isOpenNow(store.opening_hours_json) === true
+      store => isOpenNow(store.opening_hours_json, store.opening_now) === true
     );
     let closedStores = baseStores.filter(
-      store => isOpenNow(store.opening_hours_json) !== true
+      store => isOpenNow(store.opening_hours_json, store.opening_now) !== true
     );
 
     // 3. 兩組名單各自洗牌打亂
@@ -1123,7 +1063,7 @@ async function sendAiMessage() {
           : ((isCategoryRecommendation || showAllOpenNow) ? [...selectedStores] : aiStores);
 
         // 主畫面顯示全部核實符合的店家，與 AI 在文字中提及幾間無關。
-        randomStores = allRecommendedStores.filter(store => getAiOpenStatus(store) === "open");
+        randomStores = hasVerifiedFullList ? allRecommendedStores : allRecommendedStores.filter(store => getAiOpenStatus(store) === "open");
         aiResultsActive = true;
         const displayStores = aiStores.length
           ? aiStores.slice(0, 5)

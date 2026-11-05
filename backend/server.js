@@ -288,38 +288,36 @@ const SYSTEM_PROMPT = `你是「食在中原」的台灣美食朋友，使用繁
 
 // 使用台灣時間判斷目前是否營業；未知營業資訊一律視為未營業。
 function isRestaurantOpenNow(store) {
-  if (store.business_status === 'CLOSED_PERMANENTLY' ||
-      store.business_status === 'CLOSED_TEMPORARILY') return false;
+  if (['CLOSED_PERMANENTLY', 'CLOSED_TEMPORARILY'].includes(store.business_status)) return false;
   let data = store.opening_hours_json;
-  if (!data) return false;
-  if (typeof data === 'string') {
-    try { data = JSON.parse(data); } catch { return false; }
-  }
+  if (typeof data === 'string') { try { data = JSON.parse(data); } catch { data = null; } }
   const periods = Array.isArray(data) ? data : data?.periods;
-  if (!Array.isArray(periods)) return false;
-  if (periods.length === 1 && Number(periods[0]?.open?.day) === 0 &&
-      periods[0]?.open?.time === '0000' && periods[0]?.close == null) return true;
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Taipei', weekday: 'short', hour: '2-digit', minute: '2-digit',
-    hourCycle: 'h23'
+  // Only fall back to Google's recorded opening_now when the weekly schedule is unavailable.
+  // This is a snapshot, not a live verification; a stale snapshot may be wrong.
+  if (!Array.isArray(periods) || periods.length === 0) return store.opening_now === true;
+  const clock = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Taipei', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
   }).formatToParts(new Date());
-  const pick = type => parts.find(part => part.type === type)?.value;
-  const today = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(pick('weekday'));
-  const minutes = Number(pick('hour')) * 60 + Number(pick('minute'));
-  const timeMin = value => /^\d{4}$/.test(String(value))
-    ? Number(String(value).slice(0, 2))*60 + Number(String(value).slice(2)) : null;
-  for (const period of periods) {
-    if (!period?.open) continue;
-    const openDay = Number(period.open.day);
-    const from = timeMin(period.open.time);
-    if (from === null) continue;
-    if (!period.close) { if (openDay === today && minutes >= from) return true; continue; }
-    const closeDay = Number(period.close.day);
-    const to = timeMin(period.close.time);
-    if (to === null) continue;
-    if (openDay === closeDay && openDay === today && minutes >= from && minutes < to) return true;
-    if (openDay !== closeDay && ((openDay === today && minutes >= from) ||
-        (closeDay === today && minutes < to))) return true;
+  const part = key => clock.find(p => p.type === key)?.value;
+  const today = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(part('weekday'));
+  const now = Number(part('hour')) * 60 + Number(part('minute'));
+  const mins = v => /^\d{4}$/.test(String(v)) ? +String(v).slice(0,2)*60 + +String(v).slice(2,4) : null;
+  const week = 7*1440, current = today*1440+now;
+  for (const p of periods) {
+    if (!p?.open) continue;
+    const day = Number(p.open.day), from = mins(p.open.time);
+    if (!Number.isInteger(day) || day < 0 || day > 6 || from === null) continue;
+    if (!p.close) {
+      if (periods.length === 1 && day === 0 && from === 0) return true;
+      if (day === today && now >= from) return true;
+      continue;
+    }
+    const toDay = Number(p.close.day), to = mins(p.close.time);
+    if (!Number.isInteger(toDay) || toDay < 0 || toDay > 6 || to === null) continue;
+    let first = day*1440+from, last=toDay*1440+to;
+    if (last <= first) last += week;
+    if (periods.length === 1 && last-first === week) return true;
+    if ((current >= first && current < last) || (current+week >= first && current+week < last)) return true;
   }
   return false;
 }
@@ -481,7 +479,7 @@ app.post('/api/gpt', route(async (req, res) => {
   let allowedStores = [];
   if (isFollowUp && allowedNames.length) {
     const found = await pg.query(
-      'SELECT name,rating,user_ratings_total,price_level,address,opening_hours_json,business_status FROM restaurants WHERE name = ANY($1::text[])',
+      'SELECT name,rating,user_ratings_total,price_level,address,opening_hours_json,business_status,opening_now FROM restaurants WHERE name = ANY($1::text[])',
       [allowedNames]
     );
     allowedStores = allowedNames.map(name => found.rows.find(store => store.name === name)).filter(Boolean);
@@ -640,8 +638,9 @@ app.post('/api/gpt', route(async (req, res) => {
   // 有指定店家且詢問菜單時保留原本的網頁查證流程。
   if (!menuQuestion && !directNameQuery && !namedRestaurantInfo) {
     const result = await pg.query(`SELECT id,name,rating,user_ratings_total,price_level,tags,
-      opening_hours_json,business_status,address FROM restaurants`);
+      opening_hours_json,business_status,opening_now,address FROM restaurants`);
     const allOpen = result.rows.filter(isRestaurantOpenNow);
+    console.info(`[AI_OPEN] database=${result.rows.length}, open=${allOpen.length}, intent=${JSON.stringify({tags:intent.tags,priceLevels:intent.priceLevels,minBudget:intent.minBudget,maxBudget:intent.maxBudget,followup:intent.followup})}`);
     const poolSet = new Set(parentPoolIds);
     const useParent = intent.followup && poolSet.size > 0;
     const filter = rows => rows.filter(store => {
@@ -652,6 +651,7 @@ app.post('/api/gpt', route(async (req, res) => {
     let matches=useParent?filter(allOpen.filter(store=>poolSet.has(Number(store.id)))):filter(allOpen);
     const expanded=useParent && matches.length===0;
     if(expanded) matches=filter(allOpen); // 只有母集合完全不符時才擴大搜尋
+    console.info(`[AI_OPEN] parent=${parentPoolIds.length}, matches=${matches.length}, expanded=${expanded}`);
     const scoreSort=(a,b)=>adjustedRestaurantScore(b)-adjustedRestaurantScore(a)||
       Number(b.user_ratings_total||0)-Number(a.user_ratings_total||0);
     if(intent.sort==='cheap')matches.sort((a,b)=>Number(a.price_level||99)-Number(b.price_level||99)||scoreSort(a,b));
@@ -663,7 +663,7 @@ app.post('/api/gpt', route(async (req, res) => {
     const displayed=matches.slice(0,intent.single?1:(intent.count||matches.length));
     recommendationIds=displayed.map(row=>Number(row.id));
     if(displayed.length===0){
-      replyText='目前沒有符合條件且營業中的店家';
+      replyText=allOpen.length ? '目前沒有符合這次條件的營業中店家' : '目前沒有營業的店家';
     }else{
       const wording=expanded?`${question}（上一批店家沒有符合條件的，已重新搜尋整個資料庫）`:question;
       replyText=await generateNaturalRestaurantReply({question:wording,history:fullHistory,
@@ -680,7 +680,7 @@ app.post('/api/gpt', route(async (req, res) => {
     }
   } else if (priceSelectionQuestion && selectingFromParent) {
     const result = await pg.query(`SELECT id,name,rating,user_ratings_total,price_level,tags,
-      opening_hours_json,business_status FROM restaurants WHERE id=ANY($1::int[])`, [parentPoolIds]);
+      opening_hours_json,business_status,opening_now FROM restaurants WHERE id=ANY($1::int[])`, [parentPoolIds]);
     const candidates = result.rows.filter(row => isRestaurantOpenNow(row) &&
       row.price_level != null && [1,2,3,4].includes(Number(row.price_level)) &&
       !excludeNames.has(row.name));
@@ -711,7 +711,7 @@ app.post('/api/gpt', route(async (req, res) => {
     let ranked = [];
     if (ids.length) {
       const result = await pg.query(`SELECT id,name,rating,user_ratings_total,
-        opening_hours_json,business_status FROM restaurants WHERE id=ANY($1::int[])`, [ids]);
+        opening_hours_json,business_status,opening_now FROM restaurants WHERE id=ANY($1::int[])`, [ids]);
       ranked = result.rows.filter(isRestaurantOpenNow);
     }
     const byReviews = /(評論最多|人氣最高|最熱門)/.test(question);
@@ -829,7 +829,7 @@ app.post('/api/gpt', route(async (req, res) => {
              !directNameQuery && !lookupNames.length && !menuQuestion) {
     // AI 解析自然語言條件，但所有店家都由資料庫獨立過濾，不由 AI 限制推薦筆數。
     const result = await pg.query(`SELECT id,name,rating,user_ratings_total,price_level,
-      tags,opening_hours_json,business_status,address FROM restaurants
+      tags,opening_hours_json,business_status,opening_now,address FROM restaurants
       ORDER BY rating DESC NULLS LAST,user_ratings_total DESC NULLS LAST`);
     const openStores = result.rows.filter(isRestaurantOpenNow);
     const tags = [...new Set(openStores.flatMap(store => Array.isArray(store.tags) ? store.tags : []))]
