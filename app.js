@@ -3,6 +3,7 @@ let currentPriceLevels = [];
 let stores = [];
 let likedStores = [];
 let randomStores = [];
+let aiResultsActive = false; // AI 推薦模式：無營業結果時不要回退顯示全部餐廳
 let currentConversationId = null; 
 
 let aiHistoryMessages = [];
@@ -252,7 +253,7 @@ function render() {
 
   container.innerHTML = "";
 
-  const displayStores = randomStores.length > 0 ? randomStores : stores;
+  const displayStores = aiResultsActive ? randomStores : (randomStores.length > 0 ? randomStores : stores);
 
   displayStores
     .filter((s) => {
@@ -501,6 +502,7 @@ async function loadFavorites() {
 // 分類標籤：支援複選
 function filterByTag(tag, btn) {
   randomStores = [];
+  aiResultsActive = false;
 
   const container = document.getElementById("categoryContainer");
   if (!container || !btn) return;
@@ -562,12 +564,14 @@ function filterByPrice(level) {
   }
 
   randomStores = [];
+  aiResultsActive = false;
 
   render();
 }
 
 document.getElementById("search")?.addEventListener("input", () => {
   randomStores = [];
+  aiResultsActive = false;
   render();
 });
 
@@ -579,6 +583,7 @@ const resetRandomBtn = document.getElementById("resetRandomBtn");
 if (randomBtn) {
   randomBtn.addEventListener("click", () => {
     randomStores = [];
+    aiResultsActive = false;
     
     // 1. 先根據「目前分類」初步篩選所有餐廳 (🌟 修正這裡：使用 currentCategories 陣列)
     let baseStores = [...stores];
@@ -631,6 +636,7 @@ if (resetRandomBtn) {
   resetRandomBtn.addEventListener("click", () => {
     // 1. 清空隨機抽籤的陣列
     randomStores = []; 
+    aiResultsActive = false;
     
     // 2. 隱藏自己 (復原按鈕)
     resetRandomBtn.style.display = "none"; 
@@ -853,7 +859,7 @@ async function sendAiMessage() {
   const msgId = "msg_" + Date.now(); 
   
   // 1. 抓取目前畫面上已有的對話紀錄（上下文記憶）
-  const historyMessages = aiHistoryMessages.slice(-20);
+  const historyMessages = [...aiHistoryMessages]; // 同一對話全部歷史，不再只取 20 則
   
   aiOutput.innerHTML += `
     <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #eee;">
@@ -893,8 +899,7 @@ async function sendAiMessage() {
       ...lastFocusedNames
     ])];
   }
-  const asksOpenNow = /(現在.*(營業|有開)|目前.*(營業|有開)|還有營業|還有開|營業中)/.test(question) &&
-    !/(不限.*(營業|開)|不管.*(營業|開)|無論.*(營業|開))/.test(question);
+  const asksOpenNow = true; // 所有 AI 推薦只接受目前營業中的店家
   let selectedStores;
   if (isFollowUp) {
     // 比較「那其他便宜的餐廳」要沿用上一輪替代名單，而非全部 29 間。
@@ -959,6 +964,9 @@ async function sendAiMessage() {
     );
   }
 
+  // 追問也只使用營業中的店家；未知營業時間不視為營業中。
+  selectedStores = selectedStores.filter(store => getAiOpenStatus(store) === "open");
+
   // AI 最多查看前 100 間候選，最終推薦不另設固定數量上限
   const contextStores = JSON.stringify(selectedStores.slice(0, 100).map(store => ({
     name: store.name,
@@ -991,6 +999,7 @@ async function sendAiMessage() {
         conversationId: currentConversationId, // 傳送目前的對話 ID
         history: historyMessages,              // 傳送之前的上下文對話
         isFollowUp,
+        onlyOpenNow: true,
         alternativeFollowUp,
         excludeNames: rejectedRestaurantNames,
         directNameQuery: directNameQuery ? question : null,
@@ -1039,13 +1048,14 @@ async function sendAiMessage() {
       { role: "user", content: question },
       { role: "assistant", content: replyText }
     );
-    aiHistoryMessages = aiHistoryMessages.slice(-20);
+    // 保留同一對話的全部訊息，不裁切歷史
 
     const cleanReply = replyText
       .replace(/<<<SEARCH:[^>]*>>>/gi, "")
       .replace(/<<<PICKS:[^>]*>>>/gi, "")
       .replace(/\[?\{?\s*PICKS\s*[:：]\s*[\d|\s]*[\]\}]?/gi, "")
       .trim();
+    const shortReply = Array.from(cleanReply).slice(0, 50).join("");
 
     const starContainer = document.getElementById(`star_${msgId}`);
     if (starContainer && data.conversationId) {
@@ -1061,7 +1071,7 @@ async function sendAiMessage() {
         )];
         const aiStores = aiNames
           .map(name => stores.find(store => store.name === name))
-          .filter(Boolean);
+          .filter(store => store && getAiOpenStatus(store) === "open");
 
         // 對於明確餐點／標籤查詢，主畫面使用「全部符合標籤及既有條件」
         // 的 selectedStores，避免被 AI PICKS 選取數量限制。
@@ -1078,7 +1088,8 @@ async function sendAiMessage() {
           : aiStores;
 
         // 主畫面保留全部符合需求的店家；聊天室最多列出 5 家。
-        randomStores = [...allRecommendedStores];
+        randomStores = allRecommendedStores.filter(store => getAiOpenStatus(store) === "open");
+        aiResultsActive = true;
         const displayStores = aiStores.length
           ? aiStores.slice(0, 5)
           : allRecommendedStores.slice(0, 5);
@@ -1113,18 +1124,12 @@ async function sendAiMessage() {
           return shortened || String(name || "");
         };
 
-        const listHtml = displayStores.map(store =>
-          `<li style="margin-bottom:5px;">${escapeHtml(shortRestaurantName(store.name))}</li>`
-        ).join("");
-
-        replyContainer.innerHTML = `
-          <div style="color:#333;line-height:1.8;">
-            <strong>🤖 AI：</strong>${escapeHtml(intro)}
-            <ol style="margin:6px 0 0;padding-left:35px;">
-              ${listHtml}
-            </ol>
-          </div>
-        `;
+        // AI Box 不使用編號、條列或逐店名列舉，統一以 50 字內的短句呈現。
+        // 餐廳卡片仍在主畫面顯示，不受文字字數限制。
+        const boxReply = randomStores.length === 0
+          ? "目前沒有營業的店家"
+          : `找到 ${randomStores.length} 間營業中的餐廳，請查看主畫面。`;
+        replyContainer.innerHTML = `<p style="margin:0;color:#333;line-height:1.8;"><strong>🤖 AI：</strong>${escapeHtml(boxReply)}</p>`;
 
         const searchInput = document.getElementById("search");
         if (searchInput) searchInput.value = "";
@@ -1138,17 +1143,23 @@ async function sendAiMessage() {
           .forEach(b => b.classList.remove("active"));
         render();
 
-        replyContainer.innerHTML += `
-          <p style="color:#1f9d55;font-size:0.82rem;margin:6px 0 0;">
-            ✅ 已在主畫面顯示 ${randomStores.length} 間餐廳
-          </p>
-        `;
         const resetBtn = document.getElementById("resetRandomBtn");
         if (resetBtn) resetBtn.style.display = "flex";
       } else {
+        if (cleanReply === "目前沒有營業的店家") {
+          // 空結果不應繼續顯示上一次的推薦卡片。
+          randomStores = [];
+          aiResultsActive = true;
+          render();
+          lastFocusedNames = [];
+          lastRecommendedNames = [];
+          const resetBtn = document.getElementById("resetRandomBtn");
+          if (resetBtn) resetBtn.style.display = "none";
+          // 主畫面保留原始搜尋結果，AI Box 明確說明目前沒有營業店家。
+        }
         replyContainer.innerHTML = `
           <p style="margin:0;color:#333;line-height:1.8;">
-            <strong>🤖 AI：</strong>${escapeHtml(cleanReply)}
+            <strong>🤖 AI：</strong>${escapeHtml(shortReply)}
           </p>
         `;
       }
@@ -1877,7 +1888,7 @@ async function loadSingleConversation(id, isFavorite = false) {
                    msg.ai_reply || ""
         }))
         .filter(msg => msg.content)
-        .slice(-20);
+        ; // 恢復完整歷史紀錄
 
       // ===== 恢復上一輪推薦的餐廳 =====
 
@@ -1976,8 +1987,8 @@ async function loadSingleConversation(id, isFavorite = false) {
                       <img src="${r.image_url || r.image || 'images/default-restaurant.jpg'}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px;" alt="${escapeHtml(r.name || '餐廳')}">
                       <div style="flex: 1; text-align: left;">
                         <div style="font-weight: bold; color: #333; font-size: 0.9rem;">${escapeHtml(r.name || r.restaurant_name || '推薦餐廳')}</div>
-                        <div style="font-size: 0.75rem; color: #ff9800;">⭐ ${r.rating || '4.5'} (${r.review_count || 100}人評分)</div>
-                        <div style="font-size: 0.75rem; color: #666;">💰 ${r.price_range || r.price || 'NT$100~200'}</div>
+                        <div style="font-size: 0.75rem; color: #ff9800;">⭐ ${r.rating ?? '未知'} (${r.review_count ?? r.user_ratings_total ?? '未知'}人評分)</div>
+                        <div style="font-size: 0.75rem; color: #666;">💰 ${r.price_range || r.price || '未知'}</div>
                       </div>
                     </div>
                   `).join("")}

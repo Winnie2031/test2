@@ -278,12 +278,52 @@ app.delete('/api/favorites/:restaurantId', authMiddleware, route(async (req, res
 }));
 
 // AI 推薦與歷史對話：保留卡片搜尋標記及前端回傳欄位
-const SYSTEM_PROMPT = `你是「食在中原」餐廳助手，請使用繁體中文，僅依提供的候選餐廳資料回答，不得編造店家、評分、評論、價格或營業資訊。
-一般推薦請根據使用者的餐點類型、價格、地點和營業需求選出所有真正符合條件的餐廳，不要預設只選3到5間，也不設定固定選店數量。符合條件的候選越多，可以選越多，但不得為湊數選不相關店家。使用者指定數量時盡量遵守。
-已知停業店家不得推薦。使用者要求現在營業時，只能選 open_status 為 open 的店家；沒有要求時，休息中的店家仍可推薦，但營業中的優先。unknown 不等於營業中。
-先以需求相關性為準，再參考 recommendation_score 排序；評論較少或低於20則的店家仍可選，不可只因評論少就剔除，但應考慮其評分可信度。
-一般推薦只要一段簡短說明，不必逐一列店名，並在最後附上 <<<PICKS:0|2|5>>>；編號為候選清單從0起算的index，順序即推薦順序，可包含所有符合的候選編號，不可重複或使用不存在的編號。無合適店家時輸出 <<<PICKS:>>>。
-追問時只討論指定候選店家，評分依 rating、評論數依 user_ratings_total；追問不需 PICKS。`;// ⭕ 修改後：支援對話歷史（連貫記憶）
+const SYSTEM_PROMPT = `你是「食在中原」餐廳助手，只用繁體中文回答。
+1. 僅能推薦 open_status 為 open 的餐廳；closed、unknown、暫時或永久停業的餐廳全部排除。
+2. 若符合條件且目前營業中的餐廳為零，回答必須完全相同：「目前沒有營業的店家」。
+3. 回覆文字嚴格限制在 50 個中文字元以內（包含標點），不可條列、編號或逐行列出店名，請以一段自然語句回答。
+4. 僅依提供的餐廳資料回答，不得編造店家、評分、評論、價格、營業時間或菜單。
+5. 優先依使用者需求及推薦分數選店；不為湊數添加不相關店家。追問需參考同一對話的完整上下文。
+6. 一般推薦回覆末尾必須附上機器可解析的 <<<PICKS:0|2|5>>>（索引由 0 開始，允許多個）；無結果則 <<<PICKS:>>>。此內部控制標記不計入 50 字且不顯示給使用者。追問不需要 PICKS。`;
+
+// 使用台灣時間判斷目前是否營業；未知營業資訊一律視為未營業。
+function isRestaurantOpenNow(store) {
+  if (store.business_status === 'CLOSED_PERMANENTLY' ||
+      store.business_status === 'CLOSED_TEMPORARILY') return false;
+  let data = store.opening_hours_json;
+  if (!data) return false;
+  if (typeof data === 'string') {
+    try { data = JSON.parse(data); } catch { return false; }
+  }
+  const periods = Array.isArray(data) ? data : data?.periods;
+  if (!Array.isArray(periods)) return false;
+  if (periods.length === 1 && Number(periods[0]?.open?.day) === 0 &&
+      periods[0]?.open?.time === '0000' && periods[0]?.close == null) return true;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Taipei', weekday: 'short', hour: '2-digit', minute: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(new Date());
+  const pick = type => parts.find(part => part.type === type)?.value;
+  const today = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(pick('weekday'));
+  const minutes = Number(pick('hour')) * 60 + Number(pick('minute'));
+  const timeMin = value => /^\d{4}$/.test(String(value))
+    ? Number(String(value).slice(0, 2))*60 + Number(String(value).slice(2)) : null;
+  for (const period of periods) {
+    if (!period?.open) continue;
+    const openDay = Number(period.open.day);
+    const from = timeMin(period.open.time);
+    if (from === null) continue;
+    if (!period.close) { if (openDay === today && minutes >= from) return true; continue; }
+    const closeDay = Number(period.close.day);
+    const to = timeMin(period.close.time);
+    if (to === null) continue;
+    if (openDay === closeDay && openDay === today && minutes >= from && minutes < to) return true;
+    if (openDay !== closeDay && ((openDay === today && minutes >= from) ||
+        (closeDay === today && minutes < to))) return true;
+  }
+  return false;
+}
+
 app.post('/api/gpt', route(async (req, res) => {
   if (!client) fail(503, 'AI 尚未設定，請確認 OPENAI_API_KEY');
   const question = textOf(req.body.question, 1, 5000, '問題');
@@ -297,6 +337,11 @@ app.post('/api/gpt', route(async (req, res) => {
     if (!(await pg.query('SELECT id FROM ai_conversations WHERE id=$1 AND user_id=$2', [currentConvId, userId])).rowCount)
       fail(403, '無權限使用這筆對話');
   }
+  // 已登入：以資料庫的完整歷史為準，防止頁面刷新後漏掉早期訊息。
+  // 未登入：使用前端記憶體中的完整歷史；關閉頁面後無法恢復。
+  const fullHistory = userId && currentConvId
+    ? (await pg.query('SELECT role,content FROM ai_messages WHERE conversation_id=$1 ORDER BY id ASC', [currentConvId])).rows
+    : history;
   const context = typeof req.body.contextStores === 'string' ? req.body.contextStores : JSON.stringify(req.body.contextStores || []);
 
   // 僅使用資料庫可驗證的餐廳資料進行比較，不信任前端自行提供的評分
@@ -307,7 +352,7 @@ app.post('/api/gpt', route(async (req, res) => {
   let allowedStores = [];
   if (isFollowUp && allowedNames.length) {
     const found = await pg.query(
-      'SELECT name,rating,user_ratings_total,price_level,address FROM restaurants WHERE name = ANY($1::text[])',
+      'SELECT name,rating,user_ratings_total,price_level,address,opening_hours_json,business_status FROM restaurants WHERE name = ANY($1::text[])',
       [allowedNames]
     );
     allowedStores = allowedNames.map(name => found.rows.find(store => store.name === name)).filter(Boolean);
@@ -320,13 +365,13 @@ app.post('/api/gpt', route(async (req, res) => {
 
   // 無論追問採用程式比較或 AI 回答，都必須剔除使用者已拒絕的店家。
   if (isFollowUp) {
-    allowedStores = allowedStores.filter(store => !excludeNames.has(store.name));
+    allowedStores = allowedStores.filter(store => !excludeNames.has(store.name) && isRestaurantOpenNow(store));
   }
 
   const generalCandidates = !isFollowUp ? (() => {
     try {
       const rows = JSON.parse(context);
-      return Array.isArray(rows) ? rows.slice(0, 100) : [];
+      return Array.isArray(rows) ? rows.slice(0, 100).filter(s => s.open_status === "open") : [];
     } catch { return []; }
   })() : [];
 
@@ -404,6 +449,9 @@ app.post('/api/gpt', route(async (req, res) => {
     matchedRestaurants = found.rows;
   }
 
+  // 指定店家查詢與餐點追問也不得出現休息中或營業未知的店家。
+  matchedRestaurants = matchedRestaurants.filter(isRestaurantOpenNow);
+
   const menuTargets = matchedRestaurants.length
     ? matchedRestaurants
     : (isFollowUp && allowedStores.length === 1 ? allowedStores : []);
@@ -423,10 +471,13 @@ app.post('/api/gpt', route(async (req, res) => {
     return selected;
   }
 
-  if (menuQuestion) {
+  if ((!isFollowUp && generalCandidates.length === 0 && matchedRestaurants.length === 0) ||
+      (isFollowUp && allowedStores.length === 0 && matchedRestaurants.length === 0)) {
+    replyText = '目前沒有營業的店家';
+  } else if (menuQuestion) {
     // 此分支只處理「有實際店名的餐點／菜單問題」，不使用整間店的 price_level 充當菜單價格。
     if (distinctMenuTargets.length === 0) {
-      replyText = '請先提供想查詢的餐廳名稱，我才能核對該店的菜單資訊。';
+      replyText = '目前沒有營業的店家';
     } else {
       // 兩家或多家明確提及的餐廳可直接比較；不要一律要求選擇分店。
       // 只提及同品牌、卻對應多個分店時，才請使用者確認。
@@ -443,7 +494,7 @@ app.post('/api/gpt', route(async (req, res) => {
           `店名：${t.name}；地址：${t.address || '未知'}`
         ).join('\n');
         const menuPrompt = `你是食在中原的餐點資訊助手，必須先利用網路搜尋核對指定餐廳與分店的公開菜單、官方公告和評論。
-只回答使用者正在問的餐點問題，繁體中文，約 50～130 字，無需前言，禁止輸出網址、引用格式、Markdown、來源清單、PICKS 或 SEARCH。
+只回答使用者正在問的餐點問題，繁體中文，50 字以內，無需前言，禁止輸出網址、引用格式、Markdown、來源清單、PICKS 或 SEARCH。
 嚴格區分「店家 price_level（餐廳價格級距）」和「每一道菜的實際標價」；price_level 不能當作菜單售價。
 若詢問所有餐點的今日確切價格，除非能確認完整且當日有效的官方菜單，否則直接說無法核實完整的當日價格，不可編造、不可靠資料不要列出。
 若詢問去年或任何年度哪道銷量最多及實際銷量，除非找到店家或可信官方發布的該期間銷售數據，否則明確說沒有可核實的銷售數據，不得用評論數或聲量冒充銷量。
@@ -459,7 +510,7 @@ app.post('/api/gpt', route(async (req, res) => {
             tool_choice: 'required',
             input: [
               { role: 'system', content: menuPrompt },
-              { role: 'user', content: `待確認的餐廳：\n${targetDescription}\n最近對話：${history.slice(-6).map(m => `${m.role}: ${String(m.content || '').replace(/<<<SEARCH:[^>]*>>>/g, '')}`).join('\n')}\n使用者現在的問題：${question}` }
+              { role: 'user', content: `待確認的餐廳：\n${targetDescription}\n最近對話：${fullHistory.map(m => `${m.role}: ${String(m.content || '').replace(/<<<SEARCH:[^>]*>>>/g, '')}`).join('\n')}\n使用者現在的問題：${question}` }
             ],
             max_output_tokens: 900
           });
@@ -482,7 +533,7 @@ app.post('/api/gpt', route(async (req, res) => {
     }
   } else if (!isFollowUp && directNameQuery) {
     if (!matchedRestaurants.length) {
-      replyText = `找不到名稱包含「${directNameQuery}」的餐廳，請確認店名或換個關鍵字。<<<SEARCH:>>>`;
+      replyText = '目前沒有營業的店家';
     } else {
       replyText = `找到 ${matchedRestaurants.length} 間名稱包含「${directNameQuery}」的餐廳，已在主畫面顯示。` +
         `<<<SEARCH:${matchedRestaurants.map(s => s.name).join('|')}>>>`;
@@ -504,7 +555,7 @@ app.post('/api/gpt', route(async (req, res) => {
     }
     replyText += `<<<SEARCH:${matchedRestaurants.map(s => s.name).join('|')}>>>`;
   } else if (!isFollowUp && generalCandidates.length === 0) {
-    replyText = '目前沒有符合條件的餐廳，請嘗試放寬搜尋條件。<<<SEARCH:>>>';
+    replyText = '目前沒有營業的店家';
   } else if (alternativeFollowUp) {
     // 從上一輪「完整推薦名單」中選擇替代方案，而非重新搜尋整份資料庫。
     const remaining = allowedStores.filter(store => !excludeNames.has(store.name));
@@ -550,8 +601,8 @@ app.post('/api/gpt', route(async (req, res) => {
       : JSON.stringify(generalCandidates.map((store, index) => ({ index, ...store })));
     const inputMessages = [
       { role: 'system', content: SYSTEM_PROMPT },
-      ...history.slice(-20).filter(msg => msg && ['assistant', 'user'].includes(msg.role) && typeof msg.content === 'string')
-        .map(msg => ({ role: msg.role, content: msg.content.slice(0, 4000) })),
+      ...fullHistory.filter(msg => msg && ['assistant', 'user'].includes(msg.role) && typeof msg.content === 'string')
+        .map(msg => ({ role: msg.role, content: msg.content })),
       { role: 'user', content: `【${isFollowUp ? '只能討論以下餐廳' : '候選餐廳清單'}】：\n${candidatesText}\n【問題】：${question}` }
     ];
     const response = await client.responses.create({
@@ -562,24 +613,29 @@ app.post('/api/gpt', route(async (req, res) => {
 
     if (isFollowUp) {
       // 追問保留文字回答，不強制改變原有的單店比較功能。
-      const visible = rawText.replace(/<<<PICKS:[^>]*>>>/g, '').trim();
+      const visible = Array.from(rawText.replace(/<<<PICKS:[^>]*>>>/g, '').trim()).slice(0, 50).join('');
       replyText = visible;
     } else {
       const match = rawText.match(/<<<PICKS:([^>]*)>>>/);
       if (!match) {
         // 網路工具以外的非推薦文字若缺少 PICKS，不應以 502 讓使用者看到格式錯誤。
-        replyText = '目前無法確認符合條件的餐廳，請調整需求後再試。';
+        replyText = '目前沒有營業的店家';
       } else {
       const indices = [...new Set(match[1].split('|').map(s => s.trim())
         .filter(s => /^\d+$/.test(s)).map(Number))]
         .filter(i => Number.isSafeInteger(i) && i >= 0 && i < generalCandidates.length);
       // 無額外 slice(0, 5/10/20)：最多可選出所有 100 間候選的符合店家
       const suggestedNames = [...new Set(indices.map(i => generalCandidates[i].name))];
-      const visible = rawText.replace(/<<<PICKS:[^>]*>>>/g, '').trim().slice(0, 500);
-      replyText = visible + `\n<<<SEARCH:${suggestedNames.join('|')}>>>`;
+      const visible = Array.from(rawText.replace(/<<<PICKS:[^>]*>>>/g, '').trim()).slice(0, 50).join('');
+      replyText = suggestedNames.length ? visible + `\n<<<SEARCH:${suggestedNames.join('|')}>>>` : '目前沒有營業的店家';
       }
     }
   }
+
+  // 所有回覆（包括程式比較、菜單搜尋）均限制可見部分 50 字，保留內部搜尋標記。
+  const internalTags = [...replyText.matchAll(/<<<(?:SEARCH|PICKS):[^>]*>>>/g)].map(m => m[0]).join('');
+  const visibleReply = replyText.replace(/<<<(?:SEARCH|PICKS):[^>]*>>>/g, '').trim();
+  replyText = Array.from(visibleReply).slice(0, 50).join('') + (internalTags ? '\n' + internalTags : '');
 
   // 寫入資料庫
   if (userId) currentConvId = await transaction(async db => {
