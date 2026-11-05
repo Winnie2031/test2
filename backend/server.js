@@ -281,7 +281,7 @@ app.delete('/api/favorites/:restaurantId', authMiddleware, route(async (req, res
 const SYSTEM_PROMPT = `你是「食在中原」餐廳助手，只用繁體中文回答。
 1. 僅能推薦 open_status 為 open 的餐廳；closed、unknown、暫時或永久停業的餐廳全部排除。
 2. 若符合條件且目前營業中的餐廳為零，回答必須完全相同：「目前沒有營業的店家」。
-3. 回覆文字嚴格限制在 50 個中文字元以內（包含標點），不可條列、編號或逐行列出店名，請以一段自然語句回答。
+3. 回覆文字嚴格限制在 50 個中文字元以內（包含標點），不可條列、編號或逐行列出店名；語氣自然、親切、有溫度，像朋友幫忙找美食，可以適度使用「幫你找找」、「不妨看看」、「這幾間值得考慮」等說法，避免機械式重複「找到幾間餐廳」。
 4. 僅依提供的餐廳資料回答，不得編造店家、評分、評論、價格、營業時間或菜單。
 5. 優先依使用者需求及推薦分數選店；在未指定推薦數量時，選出所有符合需求且營業中的候選餐廳，不可習慣性只推薦 3～5 間；使用者指定數量時遵守數量，不為湊數添加不相關店家。追問需參考同一對話的完整上下文。
 6. 一般推薦回覆末尾必須附上機器可解析的 <<<PICKS:0|2|5>>>（索引由 0 開始，允許多個）；無結果則 <<<PICKS:>>>。此內部控制標記不計入 50 字且不顯示給使用者。追問不需要 PICKS。`;
@@ -593,9 +593,20 @@ app.post('/api/gpt', route(async (req, res) => {
       || question.match(/(\d{1,3})\s*(?:間|家)(?:餐廳|店)/);
     if (countMatch) verified = verified.slice(0, Math.max(1, Number(countMatch[1])));
     recommendationIds = verified.map(row => row.id);
-    replyText = verified.length
-      ? `找到 ${verified.length} 間符合需求且營業中的餐廳，請查看主畫面。`
-      : '目前沒有營業的店家';
+    // 此流程不呼叫語言模型選店；依使用者詢問類型生成自然、簡短的回覆。
+    // 店家實際數量由前端獨立以綠字呈現，不佔用 50 字回答。
+    const food = [
+      '義大利麵', '牛肉麵', '拉麵', '火鍋', '韓式', '日式', '早餐', '早午餐',
+      '麵食', '麵', '飯類', '便當', '咖哩', '甜點', '咖啡', '飲料',
+      '燒烤', '牛排', '素食', '小吃', '雞排', '披薩', '宵夜'
+    ].find(word => question.includes(word));
+    replyText = !verified.length
+      ? '目前沒有營業的店家'
+      : food
+        ? `想吃${food}呀！幫你找好目前營業、符合需求的店家囉，快看看吧！`
+        : /(評分|最好吃|高分|評價)/.test(question)
+          ? '想吃評價好的嗎？幫你整理了目前營業的選擇，可以慢慢挑喜歡的！'
+          : '肚子餓了嗎？幫你整理好目前營業的店家，看看有沒有合胃口的吧！';
     // 保留完整推薦清單，讓舊版前端與歷史追問能恢復店名。
     if (verified.length) replyText += `<<<SEARCH:${verified.map(row => row.name).join('|')}>>>`;
   } else if (!isFollowUp && generalCandidates.length === 0) {

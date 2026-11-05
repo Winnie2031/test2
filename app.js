@@ -1144,12 +1144,20 @@ async function sendAiMessage() {
           return shortened || String(name || "");
         };
 
-        // AI Box 不使用編號、條列或逐店名列舉，統一以 50 字內的短句呈現。
-        // 餐廳卡片仍在主畫面顯示，不受文字字數限制。
+        // 優先保留後端自然語氣的回覆（50 字內）；店家數另外由實際卡片數計算。
+        // 不讓固定的「找到 X 間」覆蓋掉 AI 的回答。
         const boxReply = randomStores.length === 0
           ? "目前沒有營業的店家"
-          : `找到 ${randomStores.length} 間營業中的餐廳，請查看主畫面。`;
-        replyContainer.innerHTML = `<p style="margin:0;color:#333;line-height:1.8;"><strong>🤖 AI：</strong>${escapeHtml(boxReply)}</p>`;
+          : (shortReply || "幫你找好目前營業中的選擇啦，快看看喜歡哪間吧！");
+        replyContainer.innerHTML = `
+          <p style="margin:0;color:#333;line-height:1.8;">
+            <strong>🤖 AI：</strong>${escapeHtml(boxReply)}
+          </p>
+          ${randomStores.length > 0 ? `
+            <p class="ai-result-count" style="margin:8px 0 0;color:#15945b;font-weight:700;line-height:1.6;">
+              ✅ 為您列出：${randomStores.length} 間餐廳
+            </p>` : ""}
+        `;
 
         const searchInput = document.getElementById("search");
         if (searchInput) searchInput.value = "";
