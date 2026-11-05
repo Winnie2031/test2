@@ -492,7 +492,49 @@ app.post('/api/gpt', route(async (req, res) => {
     return selected;
   }
 
-  if ((!isFollowUp && generalCandidates.length === 0 && matchedRestaurants.length === 0) ||
+  const rankingIntent = req.body.rankingIntent === true &&
+    /(最推薦|最值得|最好吃|評分最高|評價最高|評論最多|人氣最高|最熱門|哪(?:一)?(?:間|家).*?(?:推薦|好吃|最好)|哪.*?(?:評分|評論).*?最)/.test(question);
+
+  if (rankingIntent) {
+    // 以前一輪實際顯示的全部餐廳 ID 作為比較範圍，重新向資料庫核對營業狀態。
+    // 「最好吃」屬主觀問題，以有評論數校正的評分當參考，避免冒充客觀事實。
+    const ids = [...new Set((Array.isArray(req.body.rankCandidateIds) ? req.body.rankCandidateIds : [])
+      .map(Number).filter(id => Number.isSafeInteger(id) && id > 0))].slice(0, 5000);
+    let ranked = [];
+    if (ids.length) {
+      const result = await pg.query(`SELECT id,name,rating,user_ratings_total,
+        opening_hours_json,business_status FROM restaurants WHERE id=ANY($1::int[])`, [ids]);
+      ranked = result.rows.filter(isRestaurantOpenNow);
+    }
+    const byReviews = /(評論最多|人氣最高|最熱門)/.test(question);
+    const byRawRating = /(評分最高|評價最高)/.test(question);
+    const adjustedScore = row => {
+      const count = Math.max(0, Number(row.user_ratings_total) || 0);
+      const rating = row.rating == null ? 4 : Number(row.rating);
+      return (count * rating + 30 * 4) / (count + 30);
+    };
+    // 缺少評分時不能稱其「最高分」；未有評論的店家不能稱為最熱門。
+    if (byRawRating) ranked = ranked.filter(row => row.rating != null && Number.isFinite(Number(row.rating)));
+    if (byReviews) ranked = ranked.filter(row => row.user_ratings_total != null);
+    ranked.sort((a,b) => byReviews
+      ? Number(b.user_ratings_total)-Number(a.user_ratings_total) || adjustedScore(b)-adjustedScore(a)
+      : byRawRating
+        ? Number(b.rating)-Number(a.rating) || Number(b.user_ratings_total||0)-Number(a.user_ratings_total||0)
+        : adjustedScore(b)-adjustedScore(a) || Number(b.user_ratings_total||0)-Number(a.user_ratings_total||0));
+    if (!ranked.length) {
+      replyText = ids.length ? '目前沒有可比較且營業中的餐廳。' : '目前沒有營業的店家';
+      recommendationIds = [];
+    } else {
+      const best = ranked[0];
+      recommendationIds = [best.id];
+      replyText = byReviews
+        ? `想找人氣店嗎？「${best.name}」的評論數最多，推薦先看看！`
+        : byRawRating
+          ? `「${best.name}」的評分最高！很適合先放入口袋名單。`
+          : `我會先推「${best.name}」！綜合評分與評論數表現不錯，可以試試！`;
+      replyText += `<<<SEARCH:${best.name}>>>`;
+    }
+  } else if ((!isFollowUp && generalCandidates.length === 0 && matchedRestaurants.length === 0) ||
       (isFollowUp && allowedStores.length === 0 && matchedRestaurants.length === 0)) {
     replyText = '目前沒有營業的店家';
   } else if (menuQuestion) {
@@ -606,7 +648,11 @@ app.post('/api/gpt', route(async (req, res) => {
         ? `想吃${food}呀！幫你找好目前營業、符合需求的店家囉，快看看吧！`
         : /(評分|最好吃|高分|評價)/.test(question)
           ? '想吃評價好的嗎？幫你整理了目前營業的選擇，可以慢慢挑喜歡的！'
-          : '肚子餓了嗎？幫你整理好目前營業的店家，看看有沒有合胃口的吧！';
+          : /(現在|目前|這時候)/.test(question)
+          ? '現在想吃點什麼呢？營業中的選擇都整理好了，慢慢挑吧！'
+          : /(推薦|介紹)/.test(question)
+            ? '想找好吃的呀！幫你篩好符合需求的營業店家，看看哪間合胃口！'
+            : '幫你找好符合需求的營業店家啦！一起看看有哪些好選擇！';
     // 保留完整推薦清單，讓舊版前端與歷史追問能恢復店名。
     if (verified.length) replyText += `<<<SEARCH:${verified.map(row => row.name).join('|')}>>>`;
   } else if (!isFollowUp && generalCandidates.length === 0) {

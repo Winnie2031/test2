@@ -890,9 +890,12 @@ async function sendAiMessage() {
     !explicitFollowUp && !alternativeFollowUp;
   // 「那現在有什麼」表示重新搜尋所有營業店家，不限上一輪早餐或其他分類。
   const asksAllOpenRestaurants = /(?:現在|目前|這時候).*(?:有什麼|有甚麼|吃什麼|能吃|可以吃|哪些店)|(?:有什麼|有甚麼).*(?:營業|開著)/.test(question);
+  // 「最推薦哪間」是比較／排序意圖，不能當成「全部店家」的普通推薦。
+  const rankingIntent = /(最推薦|最值得|最好吃|評分最高|評價最高|評論最多|人氣最高|最熱門|哪(?:一)?(?:間|家).*?(?:推薦|好吃|最好)|哪.*?(?:評分|評論).*?最)/.test(question);
+  const hasPreviousResults = aiResultsActive && randomStores.length > 0;
   const isFollowUp = !asksAllOpenRestaurants && !menuContextFollowUp && !directNameQuery && !namedRestaurantInfo &&
     lastRecommendedNames.length > 0 &&
-    (alternativeFollowUp || (!newRecommendation &&
+    (rankingIntent || alternativeFollowUp || (!newRecommendation &&
       (explicitFollowUp || comparisonFollowUp)));
 
   // 當使用者拒絕「這間」時，持續保存該餐廳；不應下一輪又出現。
@@ -904,7 +907,10 @@ async function sendAiMessage() {
   }
   const asksOpenNow = true; // 所有 AI 推薦只接受目前營業中的店家
   let selectedStores;
-  if (isFollowUp) {
+  if (rankingIntent) {
+    // 針對目前顯示的全部推薦結果排序，不限前 100 間，也不受模型 PICKS 限制。
+    selectedStores = hasPreviousResults ? [...randomStores] : [...stores];
+  } else if (isFollowUp) {
     // 比較「那其他便宜的餐廳」要沿用上一輪替代名單，而非全部 29 間。
     const refersToFocusedSet =
       /(那其他|其他便宜|這些|這幾間|這幾家|上述這些|剛才推薦)/.test(question);
@@ -1005,6 +1011,8 @@ async function sendAiMessage() {
         history: historyMessages,              // 傳送之前的上下文對話
         isFollowUp,
         onlyOpenNow: true,
+        rankingIntent,
+        rankCandidateIds: rankingIntent ? selectedStores.map(store => store.id) : null,
         // 明確的推薦／分類查詢：傳送所有匹配餐廳 ID，後端再核對營業中。
         // 即使是空陣列也傳送，避免錯誤地改推薦不符合類別的店家。
         allMatchIds: (!isFollowUp && !directNameQuery && !namedRestaurantInfo &&
