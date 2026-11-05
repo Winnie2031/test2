@@ -559,6 +559,9 @@ app.post('/api/gpt', route(async (req, res) => {
   }
   
 
+  // 已由資料庫核對並匹配指定餐廳；避免引用未定義變數而造成 HTTP 500。
+  const namedRestaurantInfo = lookupNames.length > 0 && matchedRestaurants.length > 0;
+
   const menuFollowUp = req.body.menuFollowUp === true &&
     typeof req.body.menuRestaurantName === 'string' &&
     req.body.menuRestaurantName.trim().length > 0;
