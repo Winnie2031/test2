@@ -354,6 +354,7 @@ function tomorrowAlternativeReply(rows, intent, excludeNames, scoreSort) {
     !excludeNames.has(store.name) && !isRestaurantOpenNow(store) &&
     hasScheduledOpeningTomorrowDaytime(store) &&
     matchesFoodTags(store, intent.tags) &&
+    !matchesFoodTagsAny(store, intent.excludedTags || []) &&
     restaurantMatchesBudget(store, intent)
   ).sort(scoreSort);
   if (!tomorrow.length) return null;
@@ -419,20 +420,20 @@ async function generateNaturalRestaurantReply({ question, history, stores, purpo
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: JSON.stringify({
         question, purpose, count: stores.length, examples: sample, qualityContext,
-        recent_context: history.slice(-8).map(m => ({ role: m.role, content: String(m.content || '').replace(/<<<(?:SEARCH|PICKS|POOL):[^>]*>>>/g, '').slice(0, 250) })),
-        previous_reply_to_avoid: recentReply.replace(/<<<(?:SEARCH|PICKS|POOL):[^>]*>>>/g, '').slice(0, 120),
+        recent_context: history.slice(-8).map(m => ({ role: m.role, content: String(m.content || '').replace(/<<<(?:SEARCH|PICKS|POOL|AVOID):[^>]*>>>/g, '').slice(0, 250) })),
+        previous_reply_to_avoid: recentReply.replace(/<<<(?:SEARCH|PICKS|POOL|AVOID):[^>]*>>>/g, '').slice(0, 120),
         requirement: '只輸出本次自然回覆，不要回傳 JSON、控制標記或條列；不得把全部店名逐一列出。'
       }) }
     ]
   });
-  const reply = (result.output_text || '').replace(/<<<(?:SEARCH|PICKS|POOL):[^>]*>>>/g, '')
+  const reply = (result.output_text || '').replace(/<<<(?:SEARCH|PICKS|POOL|AVOID):[^>]*>>>/g, '')
     .replace(/^[\s\"「]+|[\s\"」]+$/g, '').trim();
   return Array.from(reply).slice(0, 50).join('') || '這些營業中的店家都可以參考，看看哪間符合今天的心情！';
 }
 
 async function interpretRestaurantRequest({ question, history, possibleTags }) {
   const historyText = history.filter(m => ['user', 'assistant'].includes(m.role))
-    .map(m => `${m.role}: ${String(m.content || '').replace(/<<<(?:SEARCH|PICKS|POOL):[^>]*>>>/g, '')}`)
+    .map(m => `${m.role}: ${String(m.content || '').replace(/<<<(?:SEARCH|PICKS|POOL|AVOID):[^>]*>>>/g, '')}`)
     .join('\n');
   const instruction = `你是台灣餐廳搜尋條件解析器。理解本輪問題和前面對話，輸出一個 JSON 物件，禁止任何額外文字。
 欄位：tags(字串陣列，從提供的標籤中選取，OR 聯集)、nameKeyword(使用者明確指定的店名片段，否則空字串)、priceLevels(1/2/3/4 數字陣列，未指定則空陣列)、count(明確指定幾間才給正整數，否則 null)、sort('relevance'|'rating'|'reviews'|'cheap'|'expensive')。
@@ -464,14 +465,14 @@ priceLevels 表示店家整體價位級距，不代表單品售價；不可假�
 async function analyzeFoodIntent(question, history, hasPool, availableTags) {
   const cleanHistory = history.filter(m => ['user', 'assistant'].includes(m.role))
     .slice(-12).map(m => ({role:m.role,content:String(m.content||'')
-      .replace(/<<<(?:SEARCH|POOL|PICKS):[^>]*>>>/g,'').slice(0,250)}));
+      .replace(/<<<(?:SEARCH|POOL|PICKS|AVOID):[^>]*>>>/g,'').slice(0,250)}));
   const prompt = `你是餐廳助理的路由與條件解析器，僅輸出有效 JSON，不要 Markdown。
-輸出欄位：domain('restaurant'或'unrelated')、query(只保留使用者本輪餐飲相關問句)、followup(boolean)、tags(字串陣列)、priceLevels(1-4陣列)、minBudget(number|null)、maxBudget(number|null)、sort('relevance'|'rating'|'reviews'|'cheap'|'expensive'|'best')、single(boolean)、count(正整數|null)。
+輸出欄位：domain('restaurant'或'unrelated')、query(只保留使用者本輪餐飲相關問句)、followup(boolean)、tags(字串陣列)、priceLevels(1-4陣列)、minBudget(number|null)、maxBudget(number|null)、sort('relevance'|'rating'|'reviews'|'cheap'|'expensive'|'best')、single(boolean)、count(正整數|null)、excludedTags(使用者明確拒絕的餐點分類陣列)。
 有晚餐/宵夜/吃什麼/飲料/餐廳/店家/前一輪餐廳比較等需求，domain=restaurant。
 完全無關的問題（例如只問蒙娜麗莎是誰、數學、政治、笑話）domain=unrelated，絕對不要因有聊天歷史就說它是餐廳問題。
 混合問題（例如「你知道蒙娜麗莎嗎？還有我晚餐要吃甚麼？」），忽略無關部分，query只保留「我晚餐要吃甚麼？」。
 「哪間便宜」、「評價高一點的有嗎」、「那100左右的有嗎」、「我想吃200以上的」如果前一輪有推薦集合，followup=true；新的一般推薦 followup=false。
-保留前一輪餐廳類型/用餐時段於 followup 的查詢範圍；不要根據先前單店結果把範圍縮小。
+保留前一輪餐廳類型/用餐時段於 followup 的查詢範圍；不要根據先前單店結果把範圍縮小。\n「不想吃便當」、「不要火鍋」是排除條件：excludedTags 應包含對應分類；如果使用者只有提出不要某種類型，tags=[]，不可把被拒絕類別當成正向 tags。這類問句是餐廳相關的追問；有母集合時 followup=true。
 「100左右」設定 maxBudget=100 或符合「100左右」的近似級距；「200以下」maxBudget=200；「200以上」minBudget=200；沒有價格要求為null。
 有「哪間／哪家／最推薦／最高／最低」的單店比較，single=true；要求數間用count；其他情況列出所有合適店家。
 只使用以下合法 tags，不要臆造新 tags。價格級距只是近似，不能當作單道菜的真實售價。`;
@@ -486,6 +487,7 @@ async function analyzeFoodIntent(question, history, hasPool, availableTags) {
     query:typeof x.query==='string'&&x.query.trim()?x.query.trim():question,
     followup:Boolean(x.followup)&&hasPool,
     tags:Array.isArray(x.tags)?[...new Set(x.tags.filter(t=>legal.has(t)))]:[],
+    excludedTags:Array.isArray(x.excludedTags)?[...new Set(x.excludedTags.filter(t=>legal.has(t)))]:[],
     priceLevels:Array.isArray(x.priceLevels)?[...new Set(x.priceLevels.map(Number).filter(n=>[1,2,3,4].includes(n)))]:[],
     minBudget:Number.isFinite(Number(x.minBudget))&&x.minBudget!==null?Number(x.minBudget):null,
     maxBudget:Number.isFinite(Number(x.maxBudget))&&x.maxBudget!==null?Number(x.maxBudget):null,
@@ -503,6 +505,22 @@ function matchesFoodTags(store, requestedTags) {
   return requestedTags.some(raw => {
     const tag = String(raw).replace(/\s+/g, '').toLowerCase();
     return tags.includes(tag) || (tag.length >= 2 && name.includes(tag));
+  });
+}
+
+// 排除條件是硬限制，不能再把「不想吃便當」中的「便當」當作正向分類。
+function matchesFoodTagsAny(store, excludedTags) {
+  return excludedTags.length > 0 && matchesFoodTags(store, excludedTags);
+}
+function getExplicitExcludedFoodTags(question, availableTags) {
+  const text = String(question || '').replace(/\s+/g, '');
+  // 精確比對常見否定用語；即使 AI 將否定句解析錯，也能確實排除該分類。
+  const negation = /(?:不想吃|不想喝|不吃|不喝|不要吃|不要喝|不要|不考慮|排除|避開|不喜歡|換掉)/;
+  const escapeRe = value => value.replace(/[.*+?^${}()|\[\]\\]/g, '\\$&');
+  return [...new Set([...availableTags, '便當', '火鍋', '麵食', '早餐', '早午餐', '飲料', '小吃', '韓式', '日式', '素食'])].filter(tag => {
+    if (typeof tag !== 'string' || tag.length < 2) return false;
+    const pattern = new RegExp(negation.source + '[^，。！？!?、]{0,4}?' + escapeRe(tag));
+    return pattern.test(text);
   });
 }
 
@@ -549,6 +567,20 @@ app.post('/api/gpt', route(async (req, res) => {
   const tagRows = await pg.query('SELECT DISTINCT unnest(tags) AS tag FROM restaurants WHERE tags IS NOT NULL');
   const availableTags = tagRows.rows.map(r => r.tag).filter(t => typeof t === 'string' && t.length <= 35).slice(0,200);
   const intent = await analyzeFoodIntent(question, fullHistory, parentPoolIds.length > 0, availableTags);
+  // 優先以本輪明確否定詞為準；下一輪追問若沒有新排除條件，沿用前次排除。
+  const priorAssistant = [...fullHistory].reverse().find(m => m.role === 'assistant');
+  const previousAvoid = String(priorAssistant?.content || '').match(/<<<AVOID:([^>]*)>>>/);
+  const carriedAvoid = previousAvoid && intent.followup
+    ? previousAvoid[1].split('|').filter(t => availableTags.includes(t)) : [];
+  const explicitAvoid = getExplicitExcludedFoodTags(question, availableTags);
+  intent.excludedTags = [...new Set([...carriedAvoid, ...intent.excludedTags, ...explicitAvoid])];
+  if (explicitAvoid.length && parentPoolIds.length) intent.followup = true;
+  // 若本輪只有排除要求，不能延用 AI 誤判的正向餐點標籤。
+  intent.tags = intent.tags.filter(tag => !intent.excludedTags.includes(tag));
+  if (explicitAvoid.length && /^(?:我)?(?:現在)?(?:不想吃|不想喝|不吃|不喝|不要吃|不要喝|不要|不考慮|排除|避開|不喜歡)/.test(question.trim()) &&
+      !/(?:想吃|想喝|改吃|換吃|推薦)(?![^，。！？!?]*(?:不想吃|不想喝|不要吃|不要喝))/.test(question.replace(/^(?:我)?(?:現在)?(?:不想吃|不想喝|不吃|不喝|不要吃|不要喝|不要|不考慮|排除|避開|不喜歡)[^，。！？!?]*/, ''))) {
+    intent.tags = [];
+  }
   // 「便宜的便當」沒有給金額：改按價位排序，而非猜測成 100 元以下。
   // 若使用者明確指定「100元內」，則保留硬性預算條件。
   const foodQuery = String(intent.query || question);
@@ -560,9 +592,9 @@ app.post('/api/gpt', route(async (req, res) => {
     if (intent.sort === 'relevance') intent.sort = 'cheap';
   }
   // 避免語意模型漏掉「便當」分類，導致不相關的所有店家進入結果。
-  if (/便當/.test(foodQuery) && !intent.tags.includes('便當')) intent.tags.push('便當');
+  if (/便當/.test(foodQuery) && !intent.excludedTags.includes('便當') && !intent.tags.includes('便當')) intent.tags.push('便當');
   console.info('[AI_FILTER_INTENT]', JSON.stringify({query:foodQuery,tags:intent.tags,
-    priceLevels:intent.priceLevels,minBudget:intent.minBudget,maxBudget:intent.maxBudget,sort:intent.sort}));
+    priceLevels:intent.priceLevels,minBudget:intent.minBudget,maxBudget:intent.maxBudget,sort:intent.sort,excludedTags:intent.excludedTags}));
   if (intent.domain === 'unrelated') {
     return res.json({ok:true, reply:'問題與餐廳無關，請重新發問。',
       conversationId:currentConvId, unrelated:true, recommendationIds:null, restaurants:[]});
@@ -747,6 +779,7 @@ app.post('/api/gpt', route(async (req, res) => {
     const filter = rows => rows.filter(store => {
       if(excludeNames.has(store.name))return false;
       if(!matchesFoodTags(store, intent.tags))return false;
+      if(matchesFoodTagsAny(store,intent.excludedTags))return false;
       return restaurantMatchesBudget(store,intent);
     });
     let matches=useParent?filter(allOpen.filter(store=>poolSet.has(Number(store.id)))):filter(allOpen);
@@ -782,7 +815,8 @@ app.post('/api/gpt', route(async (req, res) => {
       replyText=tomorrowAlternativeReply(result.rows, intent, excludeNames, scoreSort) ||
         (allOpen.length ? '目前沒有符合這次條件的營業中店家' : '目前沒有營業的店家');
     }else{
-      const wording=expanded?`${question}（上一批店家沒有符合條件的，已重新搜尋整個資料庫）`:question;
+      const avoidHint=intent.excludedTags.length ? `（必須避免以下類型：${intent.excludedTags.join('、')}，不可推薦這些店家）` : '';
+      const wording=(expanded?`${question}（上一批店家沒有符合條件的，已重新搜尋整個資料庫）`:question)+avoidHint;
       replyText=await generateNaturalRestaurantReply({question:wording,history:fullHistory,
         stores:displayed,purpose:intent.single?'ranking':'recommend',qualityContext});
       if(intent.single && !replyText.includes(displayed[0].name)) {
@@ -790,6 +824,8 @@ app.post('/api/gpt', route(async (req, res) => {
       }
       replyText+=`<<<SEARCH:${displayed.map(r=>r.name).join('|')}>>>`;
     }
+    // 持續儲存排除的分類，讓下一輪『還有其他的嗎』仍遵守使用者不吃的類型。
+    if(intent.excludedTags.length)replyText+=`<<<AVOID:${intent.excludedTags.join('|')}>>>`;
     // 新一般推薦與擴大搜尋成功都更新母集合；單店比較不改變母集合。
     if(!useParent || (expanded && matches.length>0)){
       poolUpdated = true;
@@ -1051,8 +1087,8 @@ app.post('/api/gpt', route(async (req, res) => {
   }
 
   // 所有回覆（包括程式比較、菜單搜尋）均限制可見部分 50 字，保留內部搜尋標記。
-  const internalTags = [...replyText.matchAll(/<<<(?:SEARCH|PICKS|POOL):[^>]*>>>/g)].map(m => m[0]).join('');
-  const visibleReply = replyText.replace(/<<<(?:SEARCH|PICKS|POOL):[^>]*>>>/g, '').trim();
+  const internalTags = [...replyText.matchAll(/<<<(?:SEARCH|PICKS|POOL|AVOID):[^>]*>>>/g)].map(m => m[0]).join('');
+  const visibleReply = replyText.replace(/<<<(?:SEARCH|PICKS|POOL|AVOID):[^>]*>>>/g, '').trim();
   replyText = Array.from(visibleReply).slice(0, 50).join('') + (internalTags ? '\n' + internalTags : '');
 
   // 寫入資料庫

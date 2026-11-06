@@ -1018,6 +1018,7 @@ async function sendAiMessage() {
 
     const cleanReply = replyText
       .replace(/<<<POOL:[^>]*>>>/gi, "")
+      .replace(/<<<AVOID:[^>]*>>>/gi, "")
       .replace(/<<<SEARCH:[^>]*>>>/gi, "")
       .replace(/<<<PICKS:[^>]*>>>/gi, "")
       .replace(/\[?\{?\s*PICKS\s*[:：]\s*[\d|\s]*[\]\}]?/gi, "")
@@ -1751,7 +1752,7 @@ async function loadAiHistories(filter = 'all') {
         const starColor = conv.is_favorite ? '#ffc107' : '#ccc';
         const starIcon = conv.is_favorite ? '⭐' : '☆';
         
-        let aiPreviewText = (conv.ai_reply || "無回應").replace(/<<<(?:SEARCH|POOL|PICKS):[^>]*>>>/g, "").trim();
+        let aiPreviewText = (conv.ai_reply || "無回應").replace(/<<<(?:SEARCH|POOL|PICKS|AVOID):[^>]*>>>/g, "").trim();
         if (aiPreviewText.length > 35) aiPreviewText = aiPreviewText.substring(0, 35) + "...";
 
         let convHtml = `
@@ -1963,7 +1964,7 @@ async function loadSingleConversation(id, isFavorite = false) {
             `;
           } else {
             // 清理標籤文字
-            let cleanText = (msg.content || msg.ai_reply || "").replace(/<<<(?:SEARCH|POOL|PICKS):[^>]*>>>/g, "").trim();
+            let cleanText = (msg.content || msg.ai_reply || "").replace(/<<<(?:SEARCH|POOL|PICKS|AVOID):[^>]*>>>/g, "").trim();
 
             // 🎯 2. 多重相容解析：支援所有可能的餐廳資料欄位名稱 (restaurants / recommendations / items)
             let restaurants = msg.restaurants || msg.recommendations || msg.items || [];
