@@ -284,6 +284,8 @@ const SYSTEM_PROMPT = `你是「食在中原」的台灣美食朋友，使用繁
 只能根據資料庫提供的結果描述，不得虛構店家、價錢、菜單、評分與營業情況；「最好吃」是主觀意見，不能當作事實。
 只推薦已確認營業中的店家；無符合店家時，回答「目前沒有營業的店家」。
 回覆最多 50 個字元，限一段自然文字，不列點、不編號、不列餐廳清單。
+當 qualityContext 表示評價搜尋時，依系統提供的星數、評論數與可信度結果解釋推薦，不要用少量評論的五星店冒稱口碑有代表性。
+若 qualityContext.fallback 為 true，簡短說明「較少評論可供參考，先以高星等作為備選」；不能虛構評論人數。
 主畫面的推薦數量會由系統另外以綠字顯示，回答裡不需要再報數字。`;
 
 // 使用台灣時間判斷目前是否營業；未知營業資訊一律視為未營業。
@@ -351,7 +353,7 @@ function tomorrowAlternativeReply(rows, intent, excludeNames, scoreSort) {
   const tomorrow = rows.filter(store =>
     !excludeNames.has(store.name) && !isRestaurantOpenNow(store) &&
     hasScheduledOpeningTomorrowDaytime(store) &&
-    (!intent.tags.length || intent.tags.some(tag => Array.isArray(store.tags) && store.tags.includes(tag))) &&
+    matchesFoodTags(store, intent.tags) &&
     restaurantMatchesBudget(store, intent)
   ).sort(scoreSort);
   if (!tomorrow.length) return null;
@@ -366,7 +368,43 @@ function adjustedRestaurantScore(row) {
   const r = Number.isFinite(Number(row.rating)) && row.rating != null ? Number(row.rating) : 4;
   return (n * r + 30 * 4) / (n + 30);
 }
-async function generateNaturalRestaurantReply({ question, history, stores, purpose = 'recommend' }) {
+// 評價可信度分組：門檻可依測試結果調整。
+// 這是推薦排序的參考標準，不代表 20 則以下評論「毫無價值」。
+const HIGH_RATING_MIN_STARS = 4.5;
+const HIGH_RATING_MIN_REVIEWS = 20;
+function verifiedRating(row) {
+  const rating = row.rating == null ? NaN : Number(row.rating);
+  return Number.isFinite(rating) && rating >= 0 && rating <= 5 ? rating : null;
+}
+function verifiedReviewCount(row) {
+  const reviews = row.user_ratings_total == null ? NaN : Number(row.user_ratings_total);
+  return Number.isFinite(reviews) && reviews >= 0 ? reviews : null;
+}
+function isHighRatingRequest(question) {
+  // 不把「評論最多」當作「高評價」，也不干擾使用者要求的其他客觀最高項。
+  return /(高評價|評價高|評分高|高評分|好評|口碑好|評價不錯|評價好)/.test(question) &&
+    !/(評論最多|評論數最多|評價人數最多)/.test(question);
+}
+function trustedRatingSort(a, b) {
+  return adjustedRestaurantScore(b) - adjustedRestaurantScore(a) ||
+    (verifiedReviewCount(b) ?? -1) - (verifiedReviewCount(a) ?? -1) ||
+    (verifiedRating(b) ?? -1) - (verifiedRating(a) ?? -1);
+}
+// 先保留「評分高且評論數充足」的所有店家；若一間也沒有，才改用高星等店家備援。
+function selectHighRatedRestaurants(rows) {
+  const known = rows.filter(row => verifiedRating(row) !== null);
+  const trusted = known.filter(row => verifiedRating(row) >= HIGH_RATING_MIN_STARS &&
+    (verifiedReviewCount(row) ?? 0) >= HIGH_RATING_MIN_REVIEWS);
+  if (trusted.length) return { rows: trusted.sort(trustedRatingSort), fallback: false };
+  const highStars = known.filter(row => verifiedRating(row) >= HIGH_RATING_MIN_STARS);
+  if (highStars.length) return { rows: highStars.sort((a,b) =>
+    verifiedRating(b)-verifiedRating(a) || trustedRatingSort(a,b)), fallback: true };
+  // 找不到 4.5 星以上時，退而求其次選目前候選中星數最高者（可並列）。
+  const maxRating = Math.max(-1, ...known.map(row => verifiedRating(row)));
+  return { rows: known.filter(row => verifiedRating(row) === maxRating)
+    .sort(trustedRatingSort), fallback: true };
+}
+async function generateNaturalRestaurantReply({ question, history, stores, purpose = 'recommend', qualityContext = null }) {
   if (purpose === 'recommend' && !stores.length) return '目前沒有營業的店家';
   const sample = stores.slice(0, 12).map(x => ({
     name: x.name, rating: x.rating, reviews: x.user_ratings_total,
@@ -380,7 +418,7 @@ async function generateNaturalRestaurantReply({ question, history, stores, purpo
     input: [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: JSON.stringify({
-        question, purpose, count: stores.length, examples: sample,
+        question, purpose, count: stores.length, examples: sample, qualityContext,
         recent_context: history.slice(-8).map(m => ({ role: m.role, content: String(m.content || '').replace(/<<<(?:SEARCH|PICKS|POOL):[^>]*>>>/g, '').slice(0, 250) })),
         previous_reply_to_avoid: recentReply.replace(/<<<(?:SEARCH|PICKS|POOL):[^>]*>>>/g, '').slice(0, 120),
         requirement: '只輸出本次自然回覆，不要回傳 JSON、控制標記或條列；不得把全部店名逐一列出。'
@@ -457,6 +495,17 @@ async function analyzeFoodIntent(question, history, hasPool, availableTags) {
   };
 }
 
+// 分類比對同時查標籤與餐廳名稱；名稱明確含「便當」也應命中便當查詢。
+function matchesFoodTags(store, requestedTags) {
+  if (!requestedTags?.length) return true;
+  const name = String(store.name || '').replace(/\s+/g, '').toLowerCase();
+  const tags = Array.isArray(store.tags) ? store.tags.map(t => String(t).replace(/\s+/g, '').toLowerCase()) : [];
+  return requestedTags.some(raw => {
+    const tag = String(raw).replace(/\s+/g, '').toLowerCase();
+    return tags.includes(tag) || (tag.length >= 2 && name.includes(tag));
+  });
+}
+
 // 這些價格級距只有範圍資訊，100 元左右只代表第一級「可能」符合，不能斷言單品價格。
 function restaurantMatchesBudget(row,intent){
   const level=Number(row.price_level);
@@ -500,6 +549,20 @@ app.post('/api/gpt', route(async (req, res) => {
   const tagRows = await pg.query('SELECT DISTINCT unnest(tags) AS tag FROM restaurants WHERE tags IS NOT NULL');
   const availableTags = tagRows.rows.map(r => r.tag).filter(t => typeof t === 'string' && t.length <= 35).slice(0,200);
   const intent = await analyzeFoodIntent(question, fullHistory, parentPoolIds.length > 0, availableTags);
+  // 「便宜的便當」沒有給金額：改按價位排序，而非猜測成 100 元以下。
+  // 若使用者明確指定「100元內」，則保留硬性預算條件。
+  const foodQuery = String(intent.query || question);
+  const hasExplicitPrice = /\d+\s*(?:元|塊)|(?:\d+)\s*(?:以內|以下|以上|左右|~|～|-)/.test(foodQuery);
+  if (/(便宜|平價|省錢|低價)/.test(foodQuery) && !hasExplicitPrice) {
+    intent.minBudget = null;
+    intent.maxBudget = null;
+    intent.priceLevels = [];
+    if (intent.sort === 'relevance') intent.sort = 'cheap';
+  }
+  // 避免語意模型漏掉「便當」分類，導致不相關的所有店家進入結果。
+  if (/便當/.test(foodQuery) && !intent.tags.includes('便當')) intent.tags.push('便當');
+  console.info('[AI_FILTER_INTENT]', JSON.stringify({query:foodQuery,tags:intent.tags,
+    priceLevels:intent.priceLevels,minBudget:intent.minBudget,maxBudget:intent.maxBudget,sort:intent.sort}));
   if (intent.domain === 'unrelated') {
     return res.json({ok:true, reply:'問題與餐廳無關，請重新發問。',
       conversationId:currentConvId, unrelated:true, recommendationIds:null, restaurants:[]});
@@ -683,16 +746,31 @@ app.post('/api/gpt', route(async (req, res) => {
     const useParent = intent.followup && poolSet.size > 0;
     const filter = rows => rows.filter(store => {
       if(excludeNames.has(store.name))return false;
-      if(intent.tags.length && !intent.tags.some(tag=>Array.isArray(store.tags)&&store.tags.includes(tag)))return false;
+      if(!matchesFoodTags(store, intent.tags))return false;
       return restaurantMatchesBudget(store,intent);
     });
     let matches=useParent?filter(allOpen.filter(store=>poolSet.has(Number(store.id)))):filter(allOpen);
     const expanded=useParent && matches.length===0;
     if(expanded) matches=filter(allOpen); // 只有母集合完全不符時才擴大搜尋
-    console.info(`[AI_OPEN] parent=${parentPoolIds.length}, matches=${matches.length}, expanded=${expanded}`);
+    // 「評價高」需兼顧星數與評論數，確定有足夠高可信候選時排除少評價五星店。
+    const highRatingRequest = isHighRatingRequest(question);
+    let qualityContext = null;
+    if (highRatingRequest && matches.length) {
+      const ranking = selectHighRatedRestaurants(matches);
+      matches = ranking.rows;
+      qualityContext = {
+        minStars: HIGH_RATING_MIN_STARS, minReviews: HIGH_RATING_MIN_REVIEWS,
+        fallback: ranking.fallback,
+        rule: ranking.fallback ? '無足夠評論且高分的店家，改依星等提供備選' : '高分且評論數充足的店家優先'
+      };
+    }
+    console.info(`[AI_OPEN] parent=${parentPoolIds.length}, matches=${matches.length}, expanded=${expanded}, highRating=${highRatingRequest}, fallback=${qualityContext?.fallback ?? false}`);
     const scoreSort=(a,b)=>adjustedRestaurantScore(b)-adjustedRestaurantScore(a)||
       Number(b.user_ratings_total||0)-Number(a.user_ratings_total||0);
-    if(intent.sort==='cheap')matches.sort((a,b)=>Number(a.price_level||99)-Number(b.price_level||99)||scoreSort(a,b));
+    if(highRatingRequest)matches.sort(qualityContext?.fallback
+      ? (a,b)=>verifiedRating(b)-verifiedRating(a)||trustedRatingSort(a,b)
+      : trustedRatingSort);
+    else if(intent.sort==='cheap')matches.sort((a,b)=>Number(a.price_level||99)-Number(b.price_level||99)||scoreSort(a,b));
     else if(intent.sort==='expensive')matches.sort((a,b)=>Number(b.price_level||0)-Number(a.price_level||0)||scoreSort(a,b));
     else if(intent.sort==='reviews')matches.sort((a,b)=>Number(b.user_ratings_total||0)-Number(a.user_ratings_total||0)||scoreSort(a,b));
     else if(intent.sort==='rating')matches.sort((a,b)=>Number(b.rating||0)-Number(a.rating||0)||scoreSort(a,b));
@@ -706,7 +784,7 @@ app.post('/api/gpt', route(async (req, res) => {
     }else{
       const wording=expanded?`${question}（上一批店家沒有符合條件的，已重新搜尋整個資料庫）`:question;
       replyText=await generateNaturalRestaurantReply({question:wording,history:fullHistory,
-        stores:displayed,purpose:intent.single?'ranking':'recommend'});
+        stores:displayed,purpose:intent.single?'ranking':'recommend',qualityContext});
       if(intent.single && !replyText.includes(displayed[0].name)) {
         replyText=`這次推薦「${displayed[0].name}」，符合你剛提出的比較條件。`;
       }
