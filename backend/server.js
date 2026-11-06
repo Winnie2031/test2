@@ -570,10 +570,43 @@ app.post('/api/gpt', route(async (req, res) => {
   // 優先以本輪明確否定詞為準；下一輪追問若沒有新排除條件，沿用前次排除。
   const priorAssistant = [...fullHistory].reverse().find(m => m.role === 'assistant');
   const previousAvoid = String(priorAssistant?.content || '').match(/<<<AVOID:([^>]*)>>>/);
-  const carriedAvoid = previousAvoid && intent.followup
+  const carriedAvoid = previousAvoid && intent.followup && !newExactFoodCategory
     ? previousAvoid[1].split('|').filter(t => availableTags.includes(t)) : [];
+  // 明確的獨立餐點類別（例如「牛排」）代表全新搜尋，不能沿用上一題的預算或母集合。
+  // 用餐種類與金額限制不可只依賴模型的非結構化猜測。
+  const foodOnlyQuery = question.trim().replace(/[。！!？?\s]/g, '');
+  const newExactFoodCategory = availableTags.includes(foodOnlyQuery) ||
+    ['牛排','便當','火鍋','麵食','飲料','早餐','早午餐','拉麵','小吃','咖啡','壽司','韓式','日式'].includes(foodOnlyQuery);
+  if (newExactFoodCategory) {
+    intent.followup = false;
+    intent.tags = [foodOnlyQuery];
+    intent.priceLevels = [];
+    intent.minBudget = null;
+    intent.maxBudget = null;
+    intent.count = null;
+    intent.single = false;
+    intent.sort = 'relevance';
+    intent.query = foodOnlyQuery;
+  }
+  // 價格是使用者明示的硬限制，不能由模型默默忽略或擴大。
+  // 例如「50元以下的牛排」一定要求最高 50 元，不可推薦 100～200 元的店家。
+  const explicitCeiling = question.match(/(\d{1,5})\s*(?:元|塊)?\s*(?:以下|以內|內)/);
+  const explicitFloor = question.match(/(\d{1,5})\s*(?:元|塊)?\s*(?:以上|起)/);
+  if (!newExactFoodCategory && explicitCeiling) {
+    intent.maxBudget = Number(explicitCeiling[1]);
+    intent.minBudget = null;
+    intent.priceLevels = [];
+  } else if (!newExactFoodCategory && explicitFloor) {
+    intent.minBudget = Number(explicitFloor[1]);
+    intent.maxBudget = null;
+    intent.priceLevels = [];
+  }
+  // 類型名稱在問句中明確出現時，要同時比對店名和標籤；不能因 AI 遺漏標籤而搜全站。
+  if (!newExactFoodCategory && /牛排/.test(question) && !intent.excludedTags.includes('牛排')) {
+    if (!intent.tags.includes('牛排')) intent.tags.push('牛排');
+  }
   const explicitAvoid = getExplicitExcludedFoodTags(question, availableTags);
-  intent.excludedTags = [...new Set([...carriedAvoid, ...intent.excludedTags, ...explicitAvoid])];
+  intent.excludedTags = newExactFoodCategory ? [] : [...new Set([...carriedAvoid, ...intent.excludedTags, ...explicitAvoid])];
   if (explicitAvoid.length && parentPoolIds.length) intent.followup = true;
   // 若本輪只有排除要求，不能延用 AI 誤判的正向餐點標籤。
   intent.tags = intent.tags.filter(tag => !intent.excludedTags.includes(tag));
@@ -812,8 +845,10 @@ app.post('/api/gpt', route(async (req, res) => {
     const displayed=matches.slice(0,intent.single?1:(intent.count||matches.length));
     recommendationIds=displayed.map(row=>Number(row.id));
     if(displayed.length===0){
-      replyText=tomorrowAlternativeReply(result.rows, intent, excludeNames, scoreSort) ||
-        (allOpen.length ? '目前沒有符合這次條件的營業中店家' : '目前沒有營業的店家');
+      // 有明確預算但找不到符合店家，不推薦超預算或隔天才營業的店家。
+      const strictPriceRequest = explicitCeiling || explicitFloor;
+      replyText=(!strictPriceRequest && tomorrowAlternativeReply(result.rows, intent, excludeNames, scoreSort)) ||
+        '目前沒有符合這次條件的營業中店家';
     }else{
       const avoidHint=intent.excludedTags.length ? `（必須避免以下類型：${intent.excludedTags.join('、')}，不可推薦這些店家）` : '';
       const wording=(expanded?`${question}（上一批店家沒有符合條件的，已重新搜尋整個資料庫）`:question)+avoidHint;
