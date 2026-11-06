@@ -567,26 +567,33 @@ app.post('/api/gpt', route(async (req, res) => {
   const tagRows = await pg.query('SELECT DISTINCT unnest(tags) AS tag FROM restaurants WHERE tags IS NOT NULL');
   const availableTags = tagRows.rows.map(r => r.tag).filter(t => typeof t === 'string' && t.length <= 35).slice(0,200);
   const intent = await analyzeFoodIntent(question, fullHistory, parentPoolIds.length > 0, availableTags);
-  // 優先以本輪明確否定詞為準；下一輪追問若沒有新排除條件，沿用前次排除。
+  // 判斷新類別問句必須先於沿用歷史限制，避免前輪預算殘留。
+  // 「牛排」、「牛排呢」、「那牛排呢？」、「想吃牛排」、「有牛排嗎」都視為新的類別搜尋。
+  // 「那100元的牛排呢」有明確新預算，不能套用本段的無條件重置。
+  const foodCategories = [...new Set([...availableTags,
+    '牛排','便當','火鍋','麵食','飲料','早餐','早午餐','拉麵','小吃','咖啡','壽司','韓式','日式'])]
+    .filter(t => typeof t === 'string' && t.length >= 2)
+    .sort((a,b) => b.length - a.length);
+  const normalizedFoodQuery = question.trim()
+    .replace(/[\s。！!？?，,～~]/g, '')
+    .replace(/^(?:那如果|那麼|我想吃|我要吃|我想喝|請推薦|有沒有|換成|改成|想吃|想喝|推薦|來點|那|有|找)/, '')
+    .replace(/(?:呢|呀|啊|嗎|咧|吧|有嗎|可以嗎|如何|怎麼樣|有哪些|有什麼|有甚麼)$/, '');
+  const newExactFoodCategory = !/\d+\s*(?:元|塊)|(?:以下|以內|以上|左右|最便宜|最貴|最高|比較|評分|評論|評價)/.test(question) &&
+    foodCategories.includes(normalizedFoodQuery);
   const priorAssistant = [...fullHistory].reverse().find(m => m.role === 'assistant');
   const previousAvoid = String(priorAssistant?.content || '').match(/<<<AVOID:([^>]*)>>>/);
   const carriedAvoid = previousAvoid && intent.followup && !newExactFoodCategory
     ? previousAvoid[1].split('|').filter(t => availableTags.includes(t)) : [];
-  // 明確的獨立餐點類別（例如「牛排」）代表全新搜尋，不能沿用上一題的預算或母集合。
-  // 用餐種類與金額限制不可只依賴模型的非結構化猜測。
-  const foodOnlyQuery = question.trim().replace(/[。！!？?\s]/g, '');
-  const newExactFoodCategory = availableTags.includes(foodOnlyQuery) ||
-    ['牛排','便當','火鍋','麵食','飲料','早餐','早午餐','拉麵','小吃','咖啡','壽司','韓式','日式'].includes(foodOnlyQuery);
   if (newExactFoodCategory) {
     intent.followup = false;
-    intent.tags = [foodOnlyQuery];
+    intent.tags = [normalizedFoodQuery];
     intent.priceLevels = [];
     intent.minBudget = null;
     intent.maxBudget = null;
     intent.count = null;
     intent.single = false;
     intent.sort = 'relevance';
-    intent.query = foodOnlyQuery;
+    intent.query = normalizedFoodQuery;
   }
   // 價格是使用者明示的硬限制，不能由模型默默忽略或擴大。
   // 例如「50元以下的牛排」一定要求最高 50 元，不可推薦 100～200 元的店家。
