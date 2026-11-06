@@ -1023,7 +1023,7 @@ async function sendAiMessage() {
       .replace(/<<<PICKS:[^>]*>>>/gi, "")
       .replace(/\[?\{?\s*PICKS\s*[:：]\s*[\d|\s]*[\]\}]?/gi, "")
       .trim();
-    const shortReply = Array.from(cleanReply).slice(0, 50).join("");
+    const shortReply = Array.from(cleanReply).slice(0, data.detailAnswer === true ? 600 : 50).join("");
 
     const starContainer = document.getElementById(`star_${msgId}`);
     if (starContainer && data.conversationId) {
@@ -1032,7 +1032,10 @@ async function sendAiMessage() {
 
     const replyContainer = document.getElementById(`reply_${msgId}`);
     if (replyContainer) {
-      if (hasVerifiedFullList || recommendedName) {
+      if (data.detailAnswer === true) {
+        // 細節追問只回答文字，保留首頁原有餐廳推薦卡片。
+        replyContainer.innerHTML = `<p style="margin:0;color:#333;line-height:1.8;white-space:pre-wrap;"><strong>🤖 AI：</strong>${escapeHtml(cleanReply)}</p>`;
+      } else if (hasVerifiedFullList || recommendedName) {
         // 完整名單以後端核對營業時間的 ID 為準，不採用模型選的 3～5 間。
         const aiNames = [...new Set(
           recommendedName.split("|").map(name => name.trim()).filter(Boolean)

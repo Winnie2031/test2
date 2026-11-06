@@ -567,6 +567,37 @@ app.post('/api/gpt', route(async (req, res) => {
   const tagRows = await pg.query('SELECT DISTINCT unnest(tags) AS tag FROM restaurants WHERE tags IS NOT NULL');
   const availableTags = tagRows.rows.map(r => r.tag).filter(t => typeof t === 'string' && t.length <= 35).slice(0,200);
   const intent = await analyzeFoodIntent(question, fullHistory, parentPoolIds.length > 0, availableTags);
+  // 對話中的餐廳細節追問：交給 AI 判斷，不依賴固定餐點關鍵字。
+  // 只引用後端過去真正顯示的店名，不能推測任意分店。
+  const previousSearch = [...fullHistory].reverse().find(m => m.role === 'assistant' &&
+    /<<<SEARCH:[^>]+>>>/.test(String(m.content || '')));
+  const previousSearchMatch = String(previousSearch?.content || '').match(/<<<SEARCH:([^>]*)>>>/);
+  const previousSearchNames = previousSearchMatch
+    ? [...new Set(previousSearchMatch[1].split('|').map(x => x.trim()).filter(Boolean))] : [];
+  const lastFocusedNames = Array.isArray(req.body.lastFocusedNames)
+    ? req.body.lastFocusedNames.filter(x => typeof x === 'string').slice(0, 10) : [];
+  let detailRequest = false;
+  let detailTargetHint = '';
+  try {
+    const classify = await client.responses.create({
+      model: 'gpt-4.1-mini', temperature: 0, max_output_tokens: 140,
+      input: [
+        { role: 'system', content: `判斷這一句是不是追問特定餐廳的資訊（菜單、飲品、招牌、口味、座位、交通、營業、服務、實際價格、評論等）。只回傳 JSON：{"detail":boolean,"target":""}。詢問哪間好、要推薦新餐廳、想吃什麼、比較哪間等屬於搜尋/推薦，detail=false。若使用「這間／那間／它」等代名詞，或延續上一句的單店話題，detail=true。target 只能填本句明確提到的完整店名，或最近一次回覆確實只有一間餐廳時的該店名；不能自行猜店名。若多間餐廳不清楚指哪間，target 留空。` },
+        { role: 'user', content: JSON.stringify({question, priorRestaurants:previousSearchNames.slice(0, 12), lastFocusedNames,
+          lastTurns:fullHistory.slice(-4).map(m => ({role:m.role,content:String(m.content||'').replace(/<<<[^>]*>>>/g,'').slice(0,180)}))}) }
+      ]
+    });
+    const parsed = JSON.parse((classify.output_text || '').replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim());
+    detailRequest = parsed.detail === true;
+    detailTargetHint = typeof parsed.target === 'string' ? parsed.target.trim() : '';
+  } catch(err) {
+    console.warn('[AI_DETAIL_CLASSIFY]', err.message);
+    detailRequest = /(?:這間|那間|這家|那家|它).*(?:有什麼|有甚麼|賣什麼|好喝|好吃|菜單|推薦喝|推薦吃|價錢|特色|招牌|怎麼樣|環境|座位)/.test(question);
+  }
+  // 後端自行解析指代，僅在上一輪明確只指向一家時繼承。
+  if (detailRequest && !detailTargetHint && previousSearchNames.length === 1) {
+    detailTargetHint = previousSearchNames[0];
+  }
   // 判斷新類別問句必須先於沿用歷史限制，避免前輪預算殘留。
   // 「牛排」、「牛排呢」、「那牛排呢？」、「想吃牛排」、「有牛排嗎」都視為新的類別搜尋。
   // 「那100元的牛排呢」有明確新預算，不能套用本段的無條件重置。
@@ -733,10 +764,9 @@ app.post('/api/gpt', route(async (req, res) => {
   // 已由資料庫核對並匹配指定餐廳；避免引用未定義變數而造成 HTTP 500。
   const namedRestaurantInfo = lookupNames.length > 0 && matchedRestaurants.length > 0;
 
-  const menuFollowUp = req.body.menuFollowUp === true &&
-    typeof req.body.menuRestaurantName === 'string' &&
-    req.body.menuRestaurantName.trim().length > 0;
-  const menuRestaurantName = menuFollowUp ? req.body.menuRestaurantName.trim().slice(0, 200) : '';
+  const menuFollowUp = (req.body.menuFollowUp === true || detailRequest) &&
+    Boolean(detailTargetHint || (typeof req.body.menuRestaurantName === 'string' && req.body.menuRestaurantName.trim()));
+  const menuRestaurantName = menuFollowUp ? (detailTargetHint || req.body.menuRestaurantName).trim().slice(0, 200) : '';
   const asksMenuQuestion =
     /(點什麼|吃什麼|必點|招牌|熱門餐點|人氣餐點|推薦餐點|推薦菜色|菜單|餐點推薦|什麼好吃|最多人點|最多人買|銷量|賣最好|實際價格|確切價格|每一道|每道|餐點|菜色|停售|停賣|下架|不吃辣|不辣|辣度|哪家比較適合|適合.*人)/.test(question);
   const byReviews = /(評價人數|評論數|評論人數|最多人|較多人|多少人|人數|點評)/.test(question);
@@ -750,7 +780,7 @@ app.post('/api/gpt', route(async (req, res) => {
 
   // 指定店家的餐點問題採用網路搜尋；普通餐廳推薦仍走原本的 PICKS 流程。
   // 注意：沒有店名時不隨意猜測，避免搜尋到其他分店或品牌。
-  let menuQuestion = asksMenuQuestion || req.body.menuQuestion === true || menuFollowUp;
+  let menuQuestion = detailRequest || asksMenuQuestion || req.body.menuQuestion === true || menuFollowUp;
 
   // 前端沒有找到店名時，後端再次從資料庫辨識「墨竹亭有什麼推薦餐點？」等問句。
   // 不依賴前端是否載入全部餐廳，也不讓模型猜測不存在的店家。
@@ -775,7 +805,7 @@ app.post('/api/gpt', route(async (req, res) => {
   }
 
   // 指定店家查詢與餐點追問也不得出現休息中或營業未知的店家。
-  matchedRestaurants = matchedRestaurants.filter(isRestaurantOpenNow);
+  if (!detailRequest) matchedRestaurants = matchedRestaurants.filter(isRestaurantOpenNow);
   // 「晚餐要吃什麼？」不是指定店家菜單查詢，應走完整餐廳推薦。
   if (!matchedRestaurants.length && !menuFollowUp) menuQuestion = false;
 
@@ -809,7 +839,7 @@ app.post('/api/gpt', route(async (req, res) => {
     (selectionIntent || rankingIntent || /(?:評分最高|評論最多|人氣最高)/.test(question));
   // 所有一般推薦與母集合追問走同一流程：先母集合，無符合才全資料庫。
   // 有指定店家且詢問菜單時保留原本的網頁查證流程。
-  if (!menuQuestion && !directNameQuery && !namedRestaurantInfo) {
+  if (!detailRequest && !menuQuestion && !directNameQuery && !namedRestaurantInfo) {
     const result = await pg.query(`SELECT id,name,rating,user_ratings_total,price_level,tags,
       opening_hours_json,business_status,opening_now,address FROM restaurants`);
     const allOpen = result.rows.filter(isRestaurantOpenNow);
@@ -937,13 +967,15 @@ app.post('/api/gpt', route(async (req, res) => {
       if (!replyText.includes(best.name)) replyText = `從上一批店家來看，「${best.name}」的評價表現最符合這題！`;
       replyText += `<<<SEARCH:${best.name}>>>`;
     }
-  } else if ((!isFollowUp && !Array.isArray(req.body.allMatchIds) && generalCandidates.length === 0 && matchedRestaurants.length === 0) ||
-      (isFollowUp && allowedStores.length === 0 && matchedRestaurants.length === 0)) {
+  } else if (!detailRequest && ((!isFollowUp && !Array.isArray(req.body.allMatchIds) && generalCandidates.length === 0 && matchedRestaurants.length === 0) ||
+      (isFollowUp && allowedStores.length === 0 && matchedRestaurants.length === 0))) {
     replyText = '目前沒有營業的店家';
+  } else if (detailRequest && !menuFollowUp && !matchedRestaurants.length) {
+    replyText = '你想了解哪一間餐廳呢？請告訴我店名，我可以幫你查菜單或其他細節。';
   } else if (menuQuestion) {
     // 此分支只處理「有實際店名的餐點／菜單問題」，不使用整間店的 price_level 充當菜單價格。
     if (distinctMenuTargets.length === 0) {
-      replyText = '目前沒有營業的店家';
+      replyText = detailRequest ? '找不到你指的餐廳，請提供完整店名或分店。' : '目前沒有營業的店家';
     } else {
       // 兩家或多家明確提及的餐廳可直接比較；不要一律要求選擇分店。
       // 只提及同品牌、卻對應多個分店時，才請使用者確認。
@@ -959,42 +991,39 @@ app.post('/api/gpt', route(async (req, res) => {
         const targetDescription = targets.map(t =>
           `店名：${t.name}；地址：${t.address || '未知'}`
         ).join('\n');
-        const menuPrompt = `你是食在中原的餐點資訊助手，必須先利用網路搜尋核對指定餐廳與分店的公開菜單、官方公告和評論。
-只回答使用者正在問的餐點問題，繁體中文，50 字以內，無需前言，禁止輸出網址、引用格式、Markdown、來源清單、PICKS 或 SEARCH。
-嚴格區分「店家 price_level（餐廳價格級距）」和「每一道菜的實際標價」；price_level 不能當作菜單售價。
-若詢問所有餐點的今日確切價格，除非能確認完整且當日有效的官方菜單，否則直接說無法核實完整的當日價格，不可編造、不可靠資料不要列出。
-若詢問去年或任何年度哪道銷量最多及實際銷量，除非找到店家或可信官方發布的該期間銷售數據，否則明確說沒有可核實的銷售數據，不得用評論數或聲量冒充銷量。
-若詢問已停售或下架的品項，只有找到有日期且可核實的店家公告或可靠證據才能斷言停售，否則說明無法確認，不得把菜單上找不到視為停售。
-若比較兩家店對不吃辣者的適合度，分別查兩家店菜單和辣度資訊，只比較已核實的品項，不將不同品牌或分店混在一起；資訊不足就說明不足，不能單憑店名猜測。
-若介紹推薦餐點，最多提供三道有依據的餐點；可用「公開資訊較常推薦」，不能無憑據稱為銷售冠軍。
-如果搜尋不到足夠公開證據，應坦白說不能確認，絕不能迎合使用者要求亂列數字。
-回答中可不顯示來源，但內部必須依搜尋結果查證。`;
+        // 細節問答使用模型自身知識，不要求即時搜尋。
+        // 對常見品項可提供有保留的實用建議，對不確定的資訊避免虛構。
+        const menuPrompt = `你是「食在中原」的台灣在地美食助理。使用者正在追問特定店家的飲品、餐點、菜單、風味或其他細節。
+請直接根據你已有的店家、品牌、餐飲常識與使用者喜好給出有幫助的建議；此功能不呼叫網路搜尋，也不要求先取得公開菜單。
+優先理解問題：如「這間有什麼好喝的？」應推薦你相對有把握的飲品或風味方向，解釋為何適合；不要反問使用者去查看菜單來代替回答。
+如果熟悉該品牌且有把握品項存在，可點名一至三項；如果只知道店型（如手搖飲、咖啡、牛排），就用「可以先考慮茶類／鮮奶茶類」等類型與搭配方向，不要把通用飲品名稱說成這間店實際販售的品項。
+不准憑空捏造確定菜名、招牌排行、單品價格、停售、辣度、過敏原、庫存、營業即時狀態或銷售數據；無法確認時用一句簡短自然的保留說明，不必處處重複免責文字。
+已提供的資料庫欄位（店名、地址、星等、評論數、類型）可直接使用；價位級距不能當成單品價格。主觀推薦需說明是個人建議，不得冒充真實顧客統計。
+回答請使用繁體中文，口吻像熟悉美食的朋友，約 50～160 字，直截了當，避免制式開場，不輸出網址、引用、Markdown 或控制標記。`;
         try {
           const menuResponse = await client.responses.create({
             model: 'gpt-4.1-mini',
-            tools: [{ type: 'web_search', search_context_size: 'medium' }],
-            tool_choice: 'required',
+            temperature: 0.55,
             input: [
               { role: 'system', content: menuPrompt },
-              { role: 'user', content: `待確認的餐廳：\n${targetDescription}\n最近對話：${fullHistory.map(m => `${m.role}: ${String(m.content || '').replace(/<<<SEARCH:[^>]*>>>/g, '')}`).join('\n')}\n使用者現在的問題：${question}` }
+              { role: 'user', content: JSON.stringify({
+                restaurants: targets.map(t => ({ name: t.name, address: t.address, tags: t.tags,
+                  rating: t.rating, user_ratings_total: t.user_ratings_total, price_level: t.price_level })),
+                recentHistory: fullHistory.slice(-8).map(m => ({ role: m.role,
+                  content: String(m.content || '').replace(/<<<(?:SEARCH|POOL|PICKS|AVOID):[^>]*>>>/g, '').slice(0, 250) })),
+                question
+              }) }
             ],
-            max_output_tokens: 900
+            max_output_tokens: 450
           });
-          const raw = menuResponse.output_text?.trim() || '';
-          replyText = raw
-            .replace(/\[[^\]]+\]\(https?:\/\/[^)]+\)/g, m => m.slice(1, m.indexOf(']')))
-            .replace(/https?:\/\/[^\s)]+/gi, '')
-            .replace(/(?:cite[^]+|【[^】]*(?:turn\d+|來源|citation)[^】]*】)/gi, '')
-            .replace(/\*\*/g, '')
-            .replace(/(?:資料來源|參考來源|來源)\s*[:：].*$/gmi, '')
-            .replace(/\n\s*\n+/g, '\n')
-            .trim().slice(0, 280) || '目前無法找到足夠資料確認這項餐點資訊。';
+          replyText = (menuResponse.output_text || '').trim().slice(0, 600) ||
+            '我目前不太熟悉這間店的具體品項，不過可以依你想要的口味推薦適合的類型。';
         } catch (err) {
-          console.error('餐點網路查詢失敗：', err.message);
-          replyText = '目前無法取得可靠的網路菜單資訊，請稍後再試。';
+          console.error('餐點 AI 回答失敗：', err.message);
+          replyText = '目前無法完成這間店的餐點建議，請稍後再試。';
         }
         // 僅更新可確認的餐廳卡片；不以此覆蓋原本的推薦名單。
-        replyText += `\n<<<SEARCH:${targets.map(t => t.name).join('|')}>>>`;
+        if (!detailRequest) replyText += `\n<<<SEARCH:${targets.map(t => t.name).join('|')}>>>`;
       }
     }
   } else if (!isFollowUp && directNameQuery) {
@@ -1128,10 +1157,10 @@ app.post('/api/gpt', route(async (req, res) => {
     }
   }
 
-  // 所有回覆（包括程式比較、菜單搜尋）均限制可見部分 50 字，保留內部搜尋標記。
+  // 一般推薦維持簡短；餐廳細節追問保留完整說明，不附帶推薦卡片。
   const internalTags = [...replyText.matchAll(/<<<(?:SEARCH|PICKS|POOL|AVOID):[^>]*>>>/g)].map(m => m[0]).join('');
   const visibleReply = replyText.replace(/<<<(?:SEARCH|PICKS|POOL|AVOID):[^>]*>>>/g, '').trim();
-  replyText = Array.from(visibleReply).slice(0, 50).join('') + (internalTags ? '\n' + internalTags : '');
+  replyText = Array.from(visibleReply).slice(0, (detailRequest || menuQuestion) ? 600 : 50).join('') + (internalTags ? '\n' + internalTags : '');
 
   // 寫入資料庫
   if (userId) currentConvId = await transaction(async db => {
@@ -1148,7 +1177,7 @@ app.post('/api/gpt', route(async (req, res) => {
     recommendationIds,
     poolUpdated,
     restaurants: matchedRestaurants,
-    menuRestaurantName: resolvedMenuRestaurantName });
+    menuRestaurantName: resolvedMenuRestaurantName, detailAnswer: detailRequest || menuQuestion });
 }));
 
 
