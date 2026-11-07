@@ -8,6 +8,17 @@ let currentConversationId = null;
 
 let aiHistoryMessages = [];
 
+// 控制標記僅供後端追問與餐廳搜尋使用，不顯示給使用者。
+// 包含缺少結尾 >>> 的不完整標記，避免洩漏 POOL 等內部資訊。
+function stripAiControlMarkers(value) {
+  return String(value ?? "")
+    .replace(/<<<(?:SEARCH|POOL|PICKS|AVOID):[^>]*>>>/gi, "")
+    .replace(/<{2,3}\s*(?:SEARCH|POOL|PICKS|AVOID)\s*[:：][^\r\n]*/gi, "")
+    .replace(/\[?\{?\s*PICKS\s*[:：]\s*[\d|\s]*[\]\}]?/gi, "")
+    .trim();
+}
+
+
 let lastRecommendedNames = [];
 let lastBroadRecommendationIds = []; // 保存最近一次「一般推薦」完整名單；單店追問不可覆蓋
 let activeMenuRestaurantName = ""; // 最近正在討論餐點的店家；與餐廳推薦名單分開
@@ -997,7 +1008,7 @@ async function sendAiMessage() {
     }
     if (data.unrelated === true) {
       document.getElementById(`reply_${msgId}`).innerHTML =
-        `<p style="margin:0;line-height:1.8;"><strong>🤖 AI：</strong>${escapeHtml(data.reply || '問題與餐廳無關，請重新發問。')}</p>`;
+        `<p style="margin:0;line-height:1.8;"><strong>🤖 AI：</strong>${escapeHtml(stripAiControlMarkers(data.reply || '問題與餐廳無關，請重新發問。'))}</p>`;
       // 不覆蓋主畫面的推薦結果與母集合。
       aiSend.disabled = false;
       aiSend.textContent = "送出";
@@ -1016,13 +1027,7 @@ async function sendAiMessage() {
     );
     // 保留同一對話的全部訊息，不裁切歷史
 
-    const cleanReply = replyText
-      .replace(/<<<POOL:[^>]*>>>/gi, "")
-      .replace(/<<<AVOID:[^>]*>>>/gi, "")
-      .replace(/<<<SEARCH:[^>]*>>>/gi, "")
-      .replace(/<<<PICKS:[^>]*>>>/gi, "")
-      .replace(/\[?\{?\s*PICKS\s*[:：]\s*[\d|\s]*[\]\}]?/gi, "")
-      .trim();
+    const cleanReply = stripAiControlMarkers(replyText);
     const shortReply = Array.from(cleanReply).slice(0, data.detailAnswer === true ? 600 : 50).join("");
 
     const starContainer = document.getElementById(`star_${msgId}`);
@@ -1755,7 +1760,7 @@ async function loadAiHistories(filter = 'all') {
         const starColor = conv.is_favorite ? '#ffc107' : '#ccc';
         const starIcon = conv.is_favorite ? '⭐' : '☆';
         
-        let aiPreviewText = (conv.ai_reply || "無回應").replace(/<<<(?:SEARCH|POOL|PICKS|AVOID):[^>]*>>>/g, "").trim();
+        let aiPreviewText = stripAiControlMarkers(conv.ai_reply || "無回應");
         if (aiPreviewText.length > 35) aiPreviewText = aiPreviewText.substring(0, 35) + "...";
 
         let convHtml = `
@@ -1967,7 +1972,7 @@ async function loadSingleConversation(id, isFavorite = false) {
             `;
           } else {
             // 清理標籤文字
-            let cleanText = (msg.content || msg.ai_reply || "").replace(/<<<(?:SEARCH|POOL|PICKS|AVOID):[^>]*>>>/g, "").trim();
+            let cleanText = stripAiControlMarkers(msg.content || msg.ai_reply || "");
 
             // 🎯 2. 多重相容解析：支援所有可能的餐廳資料欄位名稱 (restaurants / recommendations / items)
             let restaurants = msg.restaurants || msg.recommendations || msg.items || [];
