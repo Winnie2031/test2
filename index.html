@@ -537,7 +537,7 @@ h1 {
   margin-top: 8px;
   font-size: 0.9rem;
   z-index: 999;
-  overflow-y:auto;
+  overflow-y:scroll;
 }
 
 .modal-overlay {
@@ -2293,12 +2293,11 @@ body.no-scroll {
       }
 
       #aiOutput {
-        flex: 1;           
-        overflow-y: auto;        
+        flex: 1;               
         padding: 14px;
         text-align: left;
         font-size: 0.9rem;
-        overflow-y: auto;
+        overflow-y: scroll;
       }
 
       .ai-input-area {
@@ -2655,7 +2654,7 @@ body.no-scroll {
       #aiOutput {
         max-height: 380px;
         min-height: 180px;
-        overflow-y: auto;
+        overflow-y: scroll;
         padding: 14px;
         background-color: #fafafa;
         display: flex;
@@ -3077,7 +3076,7 @@ body > h1.site-title::after {
   .ai-header { flex-shrink: 0; padding: 10px; gap: 5px; }
   .ai-title { font-size: 14px; min-width: 0; }
   .ai-tools { gap: 4px; flex-shrink: 0; }
-  #aiOutput { flex: 1; min-height: 0; max-height: none; margin: 0; overflow-y: auto; overflow-wrap: anywhere; box-sizing: border-box; }
+  #aiOutput { flex: 1; min-height: 0; max-height: none; margin: 0; overflow-y: scroll; overflow-wrap: anywhere; box-sizing: border-box; }
   .ai-input-area { flex-shrink: 0; padding: 8px; box-sizing: border-box; }
   #aiChat #aiInput { min-width: 0; width: 0; flex: 1; margin: 0; height: 46px; font-size: 16px; box-sizing: border-box; }
   #aiSend { min-height: 44px; padding: 0 14px; flex-shrink: 0; }
